@@ -1,4 +1,24 @@
-Deploy the built Clodsite site to Cloudflare Pages.
+Deploy the built Clodsite site to Cloudflare Pages, or preview it locally.
+
+---
+
+**If the user typed `/deploy local`:**
+
+**[SCRIPT]** Build and serve locally:
+
+```bash
+bash scripts/build-site.sh
+```
+
+Then start the dev server:
+
+```bash
+cd scaffold && npm run serve
+```
+
+This starts Eleventy at `http://localhost:8080`. No Cloudflare token needed. Press Ctrl-C to stop.
+
+Stop here — do not run the Cloudflare deploy steps below.
 
 ---
 
