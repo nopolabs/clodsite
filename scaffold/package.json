@@ -1,0 +1,12 @@
+{
+  "name": "clodsite-scaffold",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "eleventy",
+    "serve": "eleventy --serve"
+  },
+  "dependencies": {
+    "@11ty/eleventy": "^2.0.1"
+  }
+}

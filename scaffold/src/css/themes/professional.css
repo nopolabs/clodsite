@@ -1,0 +1,31 @@
+:root {
+  --color-bg: #fafafa;
+  --color-text: #212121;
+  --color-accent: #1a3a5c;
+  --color-surface: #e8edf2;
+  --font-heading: 'Merriweather', serif;
+  --font-body: 'Source Sans 3', sans-serif;
+  --font-size-base: 1.0625rem;
+  --spacing-section: 5rem;
+  --border-radius: 4px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); font-size: var(--font-size-base); line-height: 1.7; }
+h1, h2, h3 { font-family: var(--font-heading); line-height: 1.3; margin-bottom: 1.25rem; }
+h1 { font-size: 2rem; font-weight: 700; }
+h2 { font-size: 1.4rem; font-weight: 700; }
+p { margin-bottom: 1.25rem; }
+a { color: var(--color-accent); }
+
+.site-header { background: var(--color-accent); padding: 1rem 2rem; }
+.site-nav { display: flex; align-items: center; gap: 2rem; max-width: 64rem; margin: 0 auto; }
+.site-name { font-weight: 700; font-size: 1.1rem; text-decoration: none; color: #ffffff; font-family: var(--font-heading); }
+.nav-links { display: flex; list-style: none; gap: 1.5rem; }
+.nav-links a { text-decoration: none; color: rgba(255,255,255,0.85); font-size: 0.95rem; }
+.nav-links a:hover { color: #ffffff; }
+
+.site-main { max-width: 64rem; margin: 0 auto; padding: var(--spacing-section) 2rem; }
+.site-footer { text-align: center; padding: 2rem; background: var(--color-surface); color: #555; font-size: 0.875rem; }
+
+section { margin-bottom: var(--spacing-section); }

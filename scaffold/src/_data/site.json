@@ -1,0 +1,9 @@
+{
+  "name": "Clodsite",
+  "purpose": "Stub — run /interview and /build to populate",
+  "audience": "",
+  "tone": "professional",
+  "style": "minimal",
+  "nav": { "order": ["home"], "show_contact_link": false, "pages": [{ "id": "home", "title": "Home", "href": "/" }] },
+  "contact": { "enabled": false, "type": "email", "email": "" }
+}

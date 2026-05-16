@@ -1,0 +1,16 @@
+# Environment
+.env
+
+# Cloudflare deploy artifacts
+scripts/.deploy-output
+scripts/.deploy-error
+scripts/.deploy-exit
+scripts/.spec-draft.json
+scripts/.plan-draft.md
+
+# Eleventy build output
+dist/
+scaffold/node_modules/
+
+# macOS
+.DS_Store

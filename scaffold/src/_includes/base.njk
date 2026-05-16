@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if pageTitle %}{{ pageTitle }} | {% endif %}{{ site.name }}</title>
+  <link rel="stylesheet" href="/css/themes/{{ site.style }}.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  {% if site.style == "minimal" %}
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  {% elif site.style == "professional" %}
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  {% elif site.style == "bold" %}
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  {% endif %}
+</head>
+<body class="theme-{{ site.style }}">
+  <header class="site-header">
+    <nav class="site-nav">
+      <a href="/" class="site-name">{{ site.name }}</a>
+      <ul class="nav-links">
+        {% for navPage in site.nav.pages %}
+          <li><a href="{{ navPage.href }}">{{ navPage.title }}</a></li>
+        {% endfor %}
+        {% if site.nav.show_contact_link and site.contact.enabled %}
+          <li><a href="/contact">Contact</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </header>
+  <main class="site-main">
+    {{ content | safe }}
+  </main>
+  <footer class="site-footer">
+    <p>&copy; {{ site.name }}</p>
+  </footer>
+</body>
+</html>
