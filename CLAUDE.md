@@ -1,6 +1,28 @@
 # Clodsite
 
-A governed website-building workflow. Interview → spec → plan → build → deploy. Five commands. One live site.
+An opinionated website-building workflow. Interview → spec → plan → build → deploy. Five commands. One live site.
+
+## Getting Started
+
+When a user opens this project without a specific request, greet them with this:
+
+---
+
+👋 **Welcome to Clodsite.** Here's how to build your site:
+
+| Step | Command | What it does |
+|------|---------|--------------|
+| 1 | `/setup` | Verify your Cloudflare token |
+| 2 | `/interview` | 10-question session → `site-spec.json` |
+| 3 | `/plan` | Review and approve copy → `build-plan.md` |
+| 4 | `/build` | Generate templates + Eleventy build → `dist/` |
+| 5 | `/deploy` | Ship to Cloudflare Pages → live URL |
+
+Or to preview locally without deploying: `/deploy local`
+
+Type `/help` at any time to see this again.
+
+---
 
 ## Commands
 
