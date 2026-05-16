@@ -1,6 +1,6 @@
 # Clodsite
 
-**A governed website-building workflow for Claude Code.**
+**An opinionated website-building workflow for Claude Code.**
 
 Interview → spec → plan → build → deploy. Five commands. One live site on Cloudflare Pages.
 
