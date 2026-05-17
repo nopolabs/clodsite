@@ -11,9 +11,16 @@ scripts/.deploy-exit
 scripts/.spec-draft.json
 scripts/.plan-draft.md
 
-# Eleventy build output
+# Eleventy build output and generated templates
 site/dist/
+scaffold/src/*.njk
 scaffold/node_modules/
+
+# Old artifact locations (pre-refactor)
+dist/
+build-plan.md
+site-spec.json
+site-spec.md
 
 # macOS
 .DS_Store
