@@ -18,22 +18,22 @@ fi
 
 # Derive site name for substitution
 SITE_NAME=$(node -e "
-const spec = JSON.parse(require('fs').readFileSync('site-spec.json', 'utf8'));
+const spec = JSON.parse(require('fs').readFileSync('site/site-spec.json', 'utf8'));
 const slug = spec.site.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 console.log(slug);
 ")
 
-# Update site-spec.json with deployed URL
+# Update site/site-spec.json with deployed URL
 node -e "
-const spec = JSON.parse(require('fs').readFileSync('site-spec.json', 'utf8'));
+const spec = JSON.parse(require('fs').readFileSync('site/site-spec.json', 'utf8'));
 if (!spec.meta) spec.meta = {};
 spec.meta.deployed_url = '$DEPLOY_URL';
-require('fs').writeFileSync('site-spec.json', JSON.stringify(spec, null, 2));
+require('fs').writeFileSync('site/site-spec.json', JSON.stringify(spec, null, 2));
 "
 
-# Write NEXT-STEPS.md from template
+# Write site/NEXT-STEPS.md from template
 sed "s|{{DEPLOY_URL}}|$DEPLOY_URL|g; s|{{SITE_NAME}}|$SITE_NAME|g" \
-  scripts/templates/NEXT-STEPS.template.md > NEXT-STEPS.md
+  scripts/templates/NEXT-STEPS.template.md > site/NEXT-STEPS.md
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
@@ -42,4 +42,4 @@ echo "║                                              ║"
 printf  "║  %-44s ║\n" "$DEPLOY_URL"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
-echo "See NEXT-STEPS.md for next steps (custom domain, GitHub Actions, analytics)."
+echo "See site/NEXT-STEPS.md for next steps (custom domain, GitHub Actions, analytics)."

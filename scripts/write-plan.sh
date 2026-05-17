@@ -9,10 +9,11 @@ if [ ! -f "$DRAFT" ]; then
   exit 1
 fi
 
-cp "$DRAFT" build-plan.md
+mkdir -p site
+cp "$DRAFT" site/build-plan.md
 rm "$DRAFT"
 
-echo "✓ Build plan written to build-plan.md"
+echo "✓ Build plan written to site/build-plan.md"
 echo ""
-echo "Review build-plan.md — check the page copy and structure."
+echo "Review site/build-plan.md — check the page copy and structure."
 echo "When ready: run /build"

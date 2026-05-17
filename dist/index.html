@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home | Clodsite</title>
+  <link rel="stylesheet" href="/css/themes/minimal.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  
+</head>
+<body class="theme-minimal">
+  <header class="site-header">
+    <nav class="site-nav">
+      <a href="/" class="site-name">Clodsite</a>
+      <ul class="nav-links">
+        
+          <li><a href="/">Home</a></li>
+        
+          <li><a href="/about">About</a></li>
+        
+          <li><a href="/getting-started">Getting Started</a></li>
+        
+          <li><a href="/contact">Contact</a></li>
+        
+        
+      </ul>
+    </nav>
+  </header>
+  <main class="site-main">
+    <section class="hero">
+  <h1>Five commands. One live site.</h1>
+  <p class="subheadline">Clodsite is a structured, interview-first workflow for building and deploying websites with Claude Code. No autocomplete, no magic. Just a clean process that works.</p>
+  <p>Clone the repo, open Claude Code, and follow the prompts. In about twenty minutes you'll have a spec you approved, a site you reviewed, and a live URL. That's the whole thing.</p>
+</section>
+
+<section class="workflow">
+  <pre><code>$ git clone https://github.com/nopolabs/clodsite my-site
+$ cd my-site
+$ claude
+&gt; /setup       # verify your Cloudflare token
+&gt; /interview   # 10 questions → site-spec.json
+&gt; /plan        # review copy before anything is built
+&gt; /build       # generate templates, run Eleventy
+&gt; /deploy      # ship to Cloudflare Pages → live URL</code></pre>
+</section>
+
+<section class="architecture-note">
+  <p>Clodsite labels every step <code>[SCRIPT]</code>, <code>[LLM]</code>, or <code>[HYBRID]</code>. Scripts handle the deterministic work — free, fast, and reliable. Claude inference runs only where reasoning is actually needed. You can see exactly where the AI is and isn't involved.</p>
+</section>
+
+<section class="cta">
+  <a href="/getting-started" class="cta-link">Get Started →</a>
+</section>
+  </main>
+  <footer class="site-footer">
+    <p>&copy; Clodsite</p>
+  </footer>
+</body>
+</html>

@@ -10,7 +10,7 @@ Deploy the built Clodsite site to Cloudflare Pages, or preview it locally.
 bash scripts/build-site.sh
 ```
 
-Then start the dev server:
+Then start the dev server (Eleventy serves from `site/dist/`):
 
 ```bash
 cd scaffold && npm run serve

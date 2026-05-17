@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ ! -f "site-spec.json" ]; then
-  echo "Error: site-spec.json not found. Run /interview first."
+if [ ! -f "site/site-spec.json" ]; then
+  echo "Error: site/site-spec.json not found. Run /interview first."
   exit 1
 fi
 
 node -e "
-const spec = JSON.parse(require('fs').readFileSync('site-spec.json', 'utf8'));
+const spec = JSON.parse(require('fs').readFileSync('site/site-spec.json', 'utf8'));
 
 // Build nav pages array with correct hrefs
 // First page in nav.order gets href '/', all others get /[id]

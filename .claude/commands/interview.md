@@ -68,6 +68,8 @@ Rules:
 
 Write the JSON to the file `scripts/.spec-draft.json`. Use the Write tool to create this file. The file should contain only the JSON — no markdown fences, no explanation.
 
+(The next script will move it to `site/site-spec.json`.)
+
 ---
 
 **[SCRIPT]** Run:

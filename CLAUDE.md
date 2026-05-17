@@ -92,13 +92,13 @@ The LLM runs in four places: the interview, copy generation, template generation
 | File | Written by | Purpose |
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
-| `site-spec.json` | `/interview` | Machine-readable spec |
-| `site-spec.md` | `/interview` | Human-readable spec |
-| `build-plan.md` | `/plan` | Approved build plan (review before /build) |
+| `site/site-spec.json` | `/interview` | Machine-readable spec |
+| `site/site-spec.md` | `/interview` | Human-readable spec |
+| `site/build-plan.md` | `/plan` | Approved build plan (review before /build) |
 | `scaffold/src/_data/site.json` | `/build` | Structural site data for Eleventy |
 | `scaffold/src/*.njk` | `/build` | Page templates with content |
-| `dist/` | `/build` | Built static site |
-| `NEXT-STEPS.md` | `/deploy` | Post-deploy ops guide |
+| `site/dist/` | `/build` | Built static site |
+| `site/NEXT-STEPS.md` | `/deploy` | Post-deploy ops guide |
 
 ---
 

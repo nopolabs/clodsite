@@ -15,12 +15,15 @@ if ! node -e "JSON.parse(require('fs').readFileSync('$DRAFT', 'utf8'))" 2>/dev/n
   exit 1
 fi
 
-# Save as site-spec.json
-cp "$DRAFT" site-spec.json
+# Ensure site/ directory exists
+mkdir -p site
 
-# Generate human-readable site-spec.md
+# Save as site/site-spec.json
+cp "$DRAFT" site/site-spec.json
+
+# Generate human-readable site/site-spec.md
 node -e "
-const spec = JSON.parse(require('fs').readFileSync('site-spec.json', 'utf8'));
+const spec = JSON.parse(require('fs').readFileSync('site/site-spec.json', 'utf8'));
 const lines = [
   '# Site Spec',
   '',
@@ -32,12 +35,12 @@ const lines = [
   '\`\`\`',
   ''
 ];
-require('fs').writeFileSync('site-spec.md', lines.join('\n'));
+require('fs').writeFileSync('site/site-spec.md', lines.join('\n'));
 "
 
 # Clean up draft
 rm "$DRAFT"
 
-echo "✓ Spec written to site-spec.json and site-spec.md"
+echo "✓ Spec written to site/site-spec.json and site/site-spec.md"
 echo ""
 echo "Next step: run /plan"

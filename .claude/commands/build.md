@@ -16,7 +16,7 @@ bash scripts/apply-theme.sh
 
 ---
 
-**[LLM]** Read `site-spec.json` and `build-plan.md`.
+**[LLM]** Read `site/site-spec.json` and `site/build-plan.md`.
 
 Generate an Eleventy Nunjucks template for each page listed in `site-spec.json pages[]`.
 

@@ -11,12 +11,12 @@ echo ""
 echo ""
 
 # Verify output
-if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
-  echo "Error: Build produced an empty dist/. Check Eleventy output above."
+if [ ! -d "site/dist" ] || [ -z "$(ls -A site/dist 2>/dev/null)" ]; then
+  echo "Error: Build produced an empty site/dist/. Check Eleventy output above."
   exit 1
 fi
 
-PAGE_COUNT=$(find dist -name "*.html" | wc -l | tr -d ' ')
-echo "✓ Build complete. $PAGE_COUNT HTML file(s) in dist/"
+PAGE_COUNT=$(find site/dist -name "*.html" | wc -l | tr -d ' ')
+echo "✓ Build complete. $PAGE_COUNT HTML file(s) in site/dist/"
 echo ""
 echo "Next step: run /deploy"

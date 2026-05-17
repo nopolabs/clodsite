@@ -26,45 +26,57 @@ assert_file_exists() {
   fi
 }
 
+# ── Save real site/ if it exists, work in a test copy ────────────────────────
+SITE_BACKUP=""
+if [ -d "site" ]; then
+  SITE_BACKUP=$(mktemp -d)
+  cp -r site/. "$SITE_BACKUP/"
+fi
+
+# Clean slate for tests
+rm -rf site
+mkdir -p site
+
+restore_site() {
+  rm -rf site
+  if [ -n "$SITE_BACKUP" ]; then
+    mkdir -p site
+    cp -r "$SITE_BACKUP/." site/
+    rm -rf "$SITE_BACKUP"
+  fi
+}
+
+# Restore on exit (including errors)
+trap restore_site EXIT
+
+# ── validate-spec.sh ──────────────────────────────────────────────────────────
 echo "=== validate-spec.sh ==="
 
-cp scripts/test/fixtures/valid-spec.json site-spec.json
+cp scripts/test/fixtures/valid-spec.json site/site-spec.json
 bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "valid spec passes" 0 $?
 
-cp scripts/test/fixtures/invalid-missing-field.json site-spec.json
+cp scripts/test/fixtures/invalid-missing-field.json site/site-spec.json
 bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "missing field exits 1" 1 $?
 
-cp scripts/test/fixtures/invalid-bad-enum.json site-spec.json
+cp scripts/test/fixtures/invalid-bad-enum.json site/site-spec.json
 bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "bad enum exits 1" 1 $?
 
+# ── write-site-json.sh ────────────────────────────────────────────────────────
 echo ""
 echo "=== write-site-json.sh ==="
 
-cp scripts/test/fixtures/valid-spec.json site-spec.json
+cp scripts/test/fixtures/valid-spec.json site/site-spec.json
 bash scripts/write-site-json.sh > /dev/null 2>&1; assert_exit "write-site-json exits 0" 0 $?
-assert_file_exists "site.json created" "scaffold/src/_data/site.json"
+assert_file_exists "scaffold/src/_data/site.json created" "scaffold/src/_data/site.json"
 
+# ── apply-theme.sh ────────────────────────────────────────────────────────────
 echo ""
 echo "=== apply-theme.sh ==="
 
-cp scripts/test/fixtures/valid-spec.json site-spec.json
+cp scripts/test/fixtures/valid-spec.json site/site-spec.json
 bash scripts/apply-theme.sh > /dev/null 2>&1; assert_exit "apply-theme exits 0 for valid style" 0 $?
 
-# Clean up test artifacts
-rm -f site-spec.json
-# Restore stub site.json
-cat > scaffold/src/_data/site.json << 'ENDJSON'
-{
-  "name": "Clodsite",
-  "purpose": "Stub — run /interview and /build to populate",
-  "audience": "",
-  "tone": "professional",
-  "style": "minimal",
-  "nav": { "order": ["home"], "show_contact_link": false, "pages": [{ "id": "home", "title": "Home", "href": "/" }] },
-  "contact": { "enabled": false, "type": "email", "email": "" }
-}
-ENDJSON
-
+# ── Results (restore happens via trap) ───────────────────────────────────────
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1

@@ -1,0 +1,29 @@
+---
+layout: base.njk
+pageTitle: Home
+permalink: /
+---
+<section class="hero">
+  <h1>Five commands. One live site.</h1>
+  <p class="subheadline">Clodsite is a structured, interview-first workflow for building and deploying websites with Claude Code. No autocomplete, no magic. Just a clean process that works.</p>
+  <p>Clone the repo, open Claude Code, and follow the prompts. In about twenty minutes you'll have a spec you approved, a site you reviewed, and a live URL. That's the whole thing.</p>
+</section>
+
+<section class="workflow">
+  <pre><code>$ git clone https://github.com/nopolabs/clodsite my-site
+$ cd my-site
+$ claude
+&gt; /setup       # verify your Cloudflare token
+&gt; /interview   # 10 questions → site-spec.json
+&gt; /plan        # review copy before anything is built
+&gt; /build       # generate templates, run Eleventy
+&gt; /deploy      # ship to Cloudflare Pages → live URL</code></pre>
+</section>
+
+<section class="architecture-note">
+  <p>Clodsite labels every step <code>[SCRIPT]</code>, <code>[LLM]</code>, or <code>[HYBRID]</code>. Scripts handle the deterministic work — free, fast, and reliable. Claude inference runs only where reasoning is actually needed. You can see exactly where the AI is and isn't involved.</p>
+</section>
+
+<section class="cta">
+  <a href="/getting-started" class="cta-link">Get Started →</a>
+</section>

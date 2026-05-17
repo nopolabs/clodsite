@@ -12,7 +12,7 @@ scripts/.spec-draft.json
 scripts/.plan-draft.md
 
 # Eleventy build output
-dist/
+site/dist/
 scaffold/node_modules/
 
 # macOS

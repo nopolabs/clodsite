@@ -8,11 +8,11 @@ Generate the Clodsite build plan from the approved spec.
 bash scripts/validate-spec.sh
 ```
 
-If this exits with errors, print them clearly to the user and stop. Do not proceed until the spec is valid. The user can edit `site-spec.json` directly or re-run `/interview`.
+If this exits with errors, print them clearly to the user and stop. Do not proceed until the spec is valid. The user can edit `site/site-spec.json` directly or re-run `/interview`.
 
 ---
 
-**[LLM]** Read `site-spec.json`. Generate the build plan as markdown with these sections:
+**[LLM]** Read `site/site-spec.json`. Generate the build plan as markdown with these sections:
 
 ## Site Overview
 Name, purpose, audience, tone, and style. One short paragraph.
@@ -37,6 +37,8 @@ Anything unusual about this site that `/build` should know (e.g., specific layou
 ---
 
 Write the complete plan markdown to the file `scripts/.plan-draft.md`. Use the Write tool. The file should contain the markdown above — no extra commentary.
+
+(The next script will move it to `site/build-plan.md`.)
 
 ---
 
