@@ -6,13 +6,19 @@ echo ""
 
 # Check wrangler is installed
 if ! command -v wrangler &> /dev/null; then
-  echo "Error: wrangler is not installed."
+  echo "wrangler is not installed."
+  echo -n "Install it now with 'npm install -g wrangler'? [y/N] "
+  read -r INSTALL_WRANGLER
   echo ""
-  echo "Install it with:"
-  echo "  npm install -g wrangler"
-  echo ""
-  echo "Then run /setup again."
-  exit 1
+  if [[ "$INSTALL_WRANGLER" =~ ^[Yy]$ ]]; then
+    echo "Installing wrangler..."
+    npm install -g wrangler
+    echo ""
+  else
+    echo "Install wrangler manually with: npm install -g wrangler"
+    echo "Then run /setup again."
+    exit 1
+  fi
 fi
 
 echo "✓ wrangler found: $(wrangler --version)"
