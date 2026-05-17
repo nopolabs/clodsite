@@ -21,6 +21,9 @@ const navPages = spec.nav.order.map(id => {
   };
 });
 
+// Suppress the extra contact link if a 'contact' page is already in the nav
+const hasContactPage = spec.pages.some(p => p.id === 'contact');
+
 const siteData = {
   name: spec.site.name,
   purpose: spec.site.purpose,
@@ -29,7 +32,7 @@ const siteData = {
   style: spec.site.style,
   nav: {
     order: spec.nav.order,
-    show_contact_link: spec.nav.show_contact_link,
+    show_contact_link: spec.nav.show_contact_link && !hasContactPage,
     pages: navPages
   },
   contact: spec.contact || { enabled: false, type: 'email', email: '' }
