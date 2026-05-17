@@ -4,9 +4,20 @@ set -euo pipefail
 # Modes:
 #   --check   verify wrangler is installed (no token needed)
 #   --verify  verify token already written to .env
+#   --clean   remove previous build artifacts (site/, scaffold/src/*.njk)
 #   (none)    full interactive mode for direct terminal use
 
 MODE="${1:-}"
+
+# ── --clean: remove previous build artifacts ────────────────────────────────
+if [ "$MODE" = "--clean" ]; then
+  echo "Cleaning previous build artifacts..."
+  rm -rf site/
+  rm -f scaffold/src/*.njk
+  echo "✓ Cleaned: site/ and scaffold/src/*.njk"
+  echo ""
+  exit 0
+fi
 
 # ── --check: just verify wrangler is present ────────────────────────────────
 if [ "$MODE" = "--check" ]; then

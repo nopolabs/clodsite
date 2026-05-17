@@ -2,6 +2,38 @@ Set up Clodsite with your Cloudflare credentials.
 
 ---
 
+**If the user typed `/setup clean`:**
+
+**[SCRIPT]** Clean previous build artifacts and start fresh:
+
+```bash
+bash scripts/setup.sh --clean
+```
+
+Then continue with the normal setup steps below.
+
+---
+
+**[SCRIPT]** Check for artifacts from a previous build:
+
+```bash
+if [ -d "site" ] && [ -n "$(ls -A site 2>/dev/null)" ]; then
+  echo "ARTIFACTS_FOUND"
+  ls site/
+fi
+```
+
+If `ARTIFACTS_FOUND` is printed, tell the user what was found and ask:
+
+> "Found artifacts from a previous build in `site/`. Would you like to **clean** them and start fresh, or **keep** them and continue with the existing spec?"
+>
+> (You can also run `/setup clean` next time to skip this prompt.)
+
+- If they say **clean**: run `bash scripts/setup.sh --clean`, then continue below.
+- If they say **keep**: skip to the wrangler check below.
+
+---
+
 **[SCRIPT]** Check wrangler is installed (offers to install if missing):
 
 ```bash
