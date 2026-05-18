@@ -11,8 +11,8 @@ scripts/.deploy-exit
 scripts/.spec-draft.json
 scripts/.plan-draft.md
 
-# Eleventy build output and generated templates
-site/dist/
+# Generated site output (the repo is the tool; site/ is the output)
+site/
 scaffold/src/*.njk
 scaffold/node_modules/
 
