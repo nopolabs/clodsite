@@ -16,11 +16,5 @@ site/dist/
 scaffold/src/*.njk
 scaffold/node_modules/
 
-# Old artifact locations (pre-refactor)
-dist/
-build-plan.md
-site-spec.json
-site-spec.md
-
 # macOS
 .DS_Store
