@@ -3,6 +3,18 @@
 
 set -uo pipefail
 
+MODE="${1:-}"
+
+# ── --local: serve locally, no Cloudflare token needed ───────────────────────
+# eleventy --serve does its own build on startup and watches for changes.
+if [ "$MODE" = "--local" ]; then
+  echo "Starting local dev server at http://localhost:8080 (Ctrl-C to stop)..."
+  echo ""
+  cd scaffold && exec npm run serve
+fi
+
+# ── Cloudflare Pages deploy ──────────────────────────────────────────────────
+
 # Check .env
 if [ ! -f ".env" ]; then
   echo "Error: .env not found. Run /setup first."

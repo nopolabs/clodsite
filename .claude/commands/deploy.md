@@ -7,16 +7,10 @@ Deploy the built Clodsite site to Cloudflare Pages, or preview it locally.
 **[SCRIPT]** Build and serve locally:
 
 ```bash
-bash scripts/build-site.sh
+bash scripts/deploy.sh --local
 ```
 
-Then start the dev server (Eleventy serves from `site/dist/`):
-
-```bash
-cd scaffold && npm run serve
-```
-
-This starts Eleventy at `http://localhost:8080`. No Cloudflare token needed. Press Ctrl-C to stop.
+This builds the site and starts the Eleventy dev server at `http://localhost:8080`. No Cloudflare token needed. Press Ctrl-C to stop.
 
 Stop here — do not run the Cloudflare deploy steps below.
 
