@@ -1837,7 +1837,7 @@ Use this scenario: *a personal portfolio site for a freelance UX designer named 
 /interview
 ```
 
-Work through the 10 questions. Verify the generated `site-spec.json` looks correct.
+Work through the 10 questions. Verify the generated `site/site-spec.json` looks correct.
 
 - [ ] **Step 4: Run /plan**
 
@@ -1845,7 +1845,7 @@ Work through the 10 questions. Verify the generated `site-spec.json` looks corre
 /plan
 ```
 
-Expected: `build-plan.md` written. Open and read it. Check:
+Expected: `site/build-plan.md` written. Open and read it. Check:
 - Copy sounds right for a UX designer
 - 3 pages listed with content
 - Nav order correct
@@ -1877,21 +1877,21 @@ git commit -m "fix: session 1 smoke test fixes"
 /build
 ```
 
-Expected: page `.njk` files written to `scaffold/src/`, Eleventy build completes, `dist/` is non-empty.
+Expected: page `.njk` files written to `scaffold/src/`, Eleventy build completes, `site/dist/` is non-empty.
 
 ```bash
-find dist -name "*.html" | sort
+find site/dist -name "*.html" | sort
 ```
 
 Expected: `index.html` and one file per non-home page.
 
 - [ ] **Step 2: Preview locally**
 
-```bash
-cd scaffold && npm run serve
+```
+/deploy local
 ```
 
-Open `http://localhost:8080` in a browser. Check: layout renders, nav works, copy looks right, theme applies correctly.
+This starts the Eleventy dev server. Open `http://localhost:8080` in a browser. Check: layout renders, nav works, copy looks right, theme applies correctly. Press Ctrl-C to stop.
 
 - [ ] **Step 3: Run /deploy**
 
@@ -1899,10 +1899,10 @@ Open `http://localhost:8080` in a browser. Check: layout renders, nav works, cop
 /deploy
 ```
 
-Expected: wrangler outputs a `*.pages.dev` URL. `NEXT-STEPS.md` is written.
+Expected: wrangler outputs a `*.pages.dev` URL. `site/NEXT-STEPS.md` is written.
 
 ```bash
-cat NEXT-STEPS.md | head -5
+head -5 site/NEXT-STEPS.md
 ```
 
 Expected: first line confirms site is live with real URL.
@@ -1967,7 +1967,7 @@ Run a full cycle on camera (or screen recording):
 1. `git clone ... && cd ... && claude`
 2. `/setup`
 3. `/interview` (use a new, clean site concept — not one of the test sites)
-4. `/plan` — show the reviewer opening `build-plan.md`
+4. `/plan` — show the reviewer opening `site/build-plan.md`
 5. `/build`
 6. `/deploy` — end on the live URL in the terminal
 
