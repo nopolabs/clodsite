@@ -12,7 +12,7 @@ Then inside Claude Code:
 
 ```
 /setup       collect and verify your Cloudflare API token
-/interview   10-question session → site-spec.json
+/interview   10-question session → site/site-spec.json
 /plan        review and approve the build plan
 /build       generate and build the site
 /deploy      ship to Cloudflare Pages → live URL

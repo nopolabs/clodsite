@@ -34,8 +34,8 @@ This reads `.env`, runs `wrangler pages deploy dist`, and captures the output.
 
 Common cases:
 - **Authentication error:** Token has expired or lacks permissions. Run `/setup` to re-enter the token.
-- **Project name conflict:** A Pages project with this slug already exists under a different account. Edit `site.name` in `site-spec.json` (changing the name changes the slug) and re-run `/deploy`.
-- **dist/ missing:** Run `/build` first.
+- **Project name conflict:** A Pages project with this slug already exists under a different account. Edit `site.name` in `site/site-spec.json` (changing the name changes the slug) and re-run `/deploy`.
+- **site/dist/ missing:** Run `/build` first.
 - **Wrangler not found:** Run `npm install -g wrangler`.
 
 Do not attempt to re-run deploy automatically. Print the fix suggestion and stop.
@@ -50,4 +50,4 @@ Do not attempt to re-run deploy automatically. Print the fix suggestion and stop
 bash scripts/deploy-finalize.sh
 ```
 
-This parses the live URL, writes it to `site-spec.json`, generates `NEXT-STEPS.md`, and prints the URL.
+This parses the live URL, writes it to `site/site-spec.json`, generates `site/NEXT-STEPS.md`, and prints the URL.

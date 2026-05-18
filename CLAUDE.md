@@ -13,9 +13,9 @@ When a user opens this project without a specific request, greet them with this:
 | Step | Command | What it does |
 |------|---------|--------------|
 | 1 | `/setup` | Verify your Cloudflare token |
-| 2 | `/interview` | 10-question session → `site-spec.json` |
-| 3 | `/plan` | Review and approve copy → `build-plan.md` |
-| 4 | `/build` | Generate templates + Eleventy build → `dist/` |
+| 2 | `/interview` | 10-question session → `site/site-spec.json` |
+| 3 | `/plan` | Review and approve copy → `site/build-plan.md` |
+| 4 | `/build` | Generate templates + Eleventy build → `site/dist/` |
 | 5 | `/deploy` | Ship to Cloudflare Pages → live URL |
 
 Or to preview locally without deploying: `/deploy local`
@@ -34,7 +34,7 @@ Collect and verify a Cloudflare API token. Write `.env`.
 ```
 
 ### `/interview` — `[LLM]`
-10-question session. Produces `site-spec.json`.
+10-question session. Produces `site/site-spec.json`.
 
 ```
 [LLM]    Conduct interview, synthesize answers into JSON
@@ -42,18 +42,18 @@ Collect and verify a Cloudflare API token. Write `.env`.
 ```
 
 ### `/plan` — `[HYBRID]`
-Validate spec. Generate build plan with approved copy. Produces `build-plan.md`.
+Validate spec. Generate build plan with approved copy. Produces `site/build-plan.md`.
 
 ```
 [SCRIPT] bash scripts/validate-spec.sh
-[LLM]    Generate build-plan.md (including copy if content_status=draft)
+[LLM]    Generate site/build-plan.md (including copy if content_status=draft)
 [SCRIPT] bash scripts/write-plan.sh
 ```
 
-User reviews `build-plan.md` before running `/build`.
+User reviews `site/build-plan.md` before running `/build`.
 
 ### `/build` — `[HYBRID]`
-Write site data. Generate page templates. Run Eleventy. Produces `dist/`.
+Write site data. Generate page templates. Run Eleventy. Produces `site/dist/`.
 
 ```
 [SCRIPT] bash scripts/write-site-json.sh
@@ -63,7 +63,7 @@ Write site data. Generate page templates. Run Eleventy. Produces `dist/`.
 ```
 
 ### `/deploy` — `[SCRIPT]`
-Deploy to Cloudflare Pages. Produces a live URL and `NEXT-STEPS.md`.
+Deploy to Cloudflare Pages. Produces a live URL and `site/NEXT-STEPS.md`.
 
 ```
 [SCRIPT] bash scripts/deploy.sh
