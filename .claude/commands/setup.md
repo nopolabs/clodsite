@@ -44,6 +44,17 @@ If this exits with an error, resolve it before continuing.
 
 ---
 
+**[SCRIPT]** Check whether a working token already exists:
+
+```bash
+bash scripts/setup.sh --verify
+```
+
+- If this **exits 0**, a valid token is already in `.env`. Tell the user setup is already complete and they can run `/interview`. **Stop here — do not ask for a token.**
+- If this **exits non-zero** (no `.env`, or the token is invalid/expired), continue to the next step.
+
+---
+
 **[LLM]** Ask the user:
 
 > "Please paste your Cloudflare API token. You can create one at https://dash.cloudflare.com/profile/api-tokens — it needs **Cloudflare Pages: Edit** permission."
