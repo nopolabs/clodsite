@@ -103,8 +103,8 @@ The LLM runs in four places: the interview, copy generation, template generation
 
 ## Scope (Hackathon v1.0)
 
-In scope: static content sites, 2–5 pages, three visual styles, Cloudflare Pages deploy.
+In scope: static content sites, 2–5 pages, three visual styles, `mailto:` contact, Cloudflare Pages deploy.
 
 Out of scope: `/modify`, GitHub Actions, contact form backend, custom domain automation, ecommerce.
 
-See `docs/superpowers/specs/2026-05-13-clodsite-prd.md` for full spec.
+See `docs/superpowers/specs/2026-05-13-clodsite-prd.md` for the full spec and `ROADMAP.md` for planned v2 features.

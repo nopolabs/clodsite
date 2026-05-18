@@ -58,6 +58,12 @@ Claude Code's `CLAUDE.md` loads when you open Claude Code in a directory. That m
 
 ---
 
+## Roadmap
+
+v1 is intentionally scoped to a working, shippable workflow. See [`ROADMAP.md`](ROADMAP.md) for what v2 would add: multi-site workspaces, installable skill packaging, the `/modify` command, a real contact form backend, and ecommerce.
+
+---
+
 ## Built for
 
 [State of Oregon Claude Code Hackathon](https://luma.com/bf9gpp2z) — 2026 — by [@nopolabs](https://github.com/nopolabs)

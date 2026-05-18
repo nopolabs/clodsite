@@ -43,7 +43,7 @@ Use the Write tool to create each file at its exact path.
 
 ---
 
-**If `contact.enabled = true` and `contact.type = "email"`**, also write `scaffold/src/contact.njk`:
+**If `contact.enabled = true`**, also write `scaffold/src/contact.njk` (contact is always a mailto link in v1):
 
 ```nunjucks
 ---
