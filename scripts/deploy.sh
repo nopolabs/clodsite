@@ -51,6 +51,30 @@ const slug = spec.site.name
 console.log(slug);
 ")
 
+# Ensure the Cloudflare Pages project exists.
+# wrangler v4 requires the project to exist before `pages deploy` — it will
+# not auto-create it. Check for it, and create it if missing.
+echo "Checking Cloudflare Pages project '$SITE_NAME'..."
+if CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
+     wrangler pages project list 2>/dev/null | grep -qw "$SITE_NAME"; then
+  echo "✓ Project exists."
+else
+  echo "Project not found — creating it..."
+  CREATE_OUT=$(CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
+    wrangler pages project create "$SITE_NAME" --production-branch main 2>&1)
+  CREATE_EXIT=$?
+  if [ "$CREATE_EXIT" -eq 0 ]; then
+    echo "✓ Project created."
+  elif echo "$CREATE_OUT" | grep -qi "already exists\|already taken"; then
+    echo "✓ Project already exists."
+  else
+    echo "Error: could not create Pages project '$SITE_NAME'."
+    echo "$CREATE_OUT"
+    exit 1
+  fi
+fi
+echo ""
+
 echo "Deploying '$SITE_NAME' to Cloudflare Pages..."
 echo ""
 
