@@ -59,6 +59,30 @@ either a form service (Formspree, Web3Forms) or a Cloudflare Pages Function
 that handles the submission and sends email via an API (Resend, MailChannels).
 The spec's `contact.type` field is reserved for this.
 
+## Blog page type
+
+v1 pages are static, hand-authored content. v2 adds a blog page type — a
+collection of dated posts with an index/listing page and individual post pages.
+Eleventy collections handle the listing natively; the interview would ask for
+post titles, dates, and content, and `/build` would generate one template per
+post plus the index. Tags and an RSS feed are natural follow-ons.
+
+## Calendar / events page type
+
+v2 adds a calendar page type for events — a list or month view of upcoming
+dated entries (title, date/time, location, description). Useful for the kind of
+content site that currently has to hand-maintain an events list. Could render
+purely static from the spec, or pull from an external calendar feed (iCal).
+
+## Gallery page type
+
+v2 adds a first-class gallery page type — a responsive image grid with optional
+captions and lightbox. In v1 a gallery can be hand-built (images in
+`site/images/`, grid CSS in a page `<style>` block), but it isn't a recognized
+type: the interview doesn't ask for it and `/build` doesn't generate the grid.
+A gallery type would let the interview collect images and captions, and `/build`
+would emit the grid markup and scoped styles automatically.
+
 ## Ecommerce page and shopping cart
 
 v1 produces generic content sites. v2 adds commerce: a product/catalog page
