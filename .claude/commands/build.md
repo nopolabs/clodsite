@@ -28,7 +28,7 @@ Generate an Eleventy Nunjucks template for each page listed in `site/site-spec.j
 - Use semantic HTML: `<h1>` for the main page heading, `<p>` for paragraphs, `<section>` to group content blocks
 - Use the copy from `site/build-plan.md` exactly as written. Do not shorten, rewrite, or summarize.
 - **Images:** place image files in `site/images/` and reference them as `/images/<filename>` in `<img>` tags. Eleventy copies that directory to the deployed site. An image referenced from anywhere else will not be deployed.
-- **Page-specific CSS:** if a page needs custom styling (e.g. a gallery grid), put it in a `<style>` block at the top of that page's `.njk` content. **Never modify the theme files** in `scaffold/src/css/themes/` — those are shared by every site and must stay generic.
+- **Page-specific CSS:** if a page needs custom styling (e.g. a gallery grid), put it in a `<style>` block **inside the page content body**, immediately after the closing `---` of the front matter — never before the front matter. The front matter (`---` through `---`) must be the very first thing in the file or Eleventy will not apply the layout and the page will render broken. **Never modify the theme files** in `scaffold/src/css/themes/` — those are shared by every site and must stay generic.
 
 **Template format:**
 
