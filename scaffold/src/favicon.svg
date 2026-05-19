@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Default Clodsite favicon: a dirt clod with a spider web.
+       This is a placeholder — replace this file to use your own. -->
+
+  <!-- dirt clod -->
+  <path d="M16 3 C23 3 28 7 29 14 C30 21 27 28 19 29 C12 30 5 27 3 20 C1 13 4 6 10 4 C12 3.3 14 3 16 3 Z"
+        fill="#6f5238"/>
+
+  <!-- clod texture speckles -->
+  <circle cx="20" cy="20" r="2"   fill="#54402b"/>
+  <circle cx="24" cy="14" r="1.6" fill="#54402b"/>
+  <circle cx="15" cy="24" r="1.4" fill="#54402b"/>
+
+  <!-- spider web, anchored in the upper-left, sitting on the clod -->
+  <g fill="none" stroke="#efe9df" stroke-width="1" stroke-linecap="round">
+    <!-- spokes -->
+    <path d="M7 7 L20 8"/>
+    <path d="M7 7 L16 16"/>
+    <path d="M7 7 L8 20"/>
+    <!-- connecting threads -->
+    <path d="M11.55 7.35 Q8.5 8.5 7.35 11.55"/>
+    <path d="M15.45 7.65 Q10 10 7.65 15.45"/>
+  </g>
+</svg>
