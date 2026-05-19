@@ -17,13 +17,12 @@ Then continue with the normal setup steps below.
 **[SCRIPT]** Check for artifacts from a previous build:
 
 ```bash
-if [ -d "site" ] && [ -n "$(ls -A site 2>/dev/null)" ]; then
-  echo "ARTIFACTS_FOUND"
-  ls site/
-fi
+bash scripts/check-artifacts.sh
 ```
 
-If `ARTIFACTS_FOUND` is printed, tell the user what was found and ask:
+If it prints `NO_ARTIFACTS`, skip ahead to the wrangler check below.
+
+If it prints `ARTIFACTS_FOUND` (followed by a file listing), tell the user what was found and ask:
 
 > "Found artifacts from a previous build in `site/`. Would you like to **clean** them and start fresh, or **keep** them and continue with the existing spec?"
 >
