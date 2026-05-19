@@ -22,7 +22,7 @@ Generate an Eleventy Nunjucks template for each page listed in `site/site-spec.j
 
 **Template rules:**
 - The first page in `nav.order` gets `permalink: /` in its front matter and is saved as `scaffold/src/index.njk`
-- All other pages get `permalink: /[page-id]` and are saved as `scaffold/src/[page-id].njk`
+- All other pages get `permalink: /[page-id]/` (with a **trailing slash** — Eleventy v3 requires it for directory-style permalinks) and are saved as `scaffold/src/[page-id].njk`
 - Every template uses `layout: base.njk` and sets `pageTitle` to the page's display title
 - Write page content directly as HTML — do not use `{{ site.* }}` references for copy. Use site data references only for structural elements you need from the layout (those are already in `base.njk`)
 - Use semantic HTML: `<h1>` for the main page heading, `<p>` for paragraphs, `<section>` to group content blocks
@@ -34,7 +34,7 @@ Generate an Eleventy Nunjucks template for each page listed in `site/site-spec.j
 ---
 layout: base.njk
 pageTitle: [page title from spec]
-permalink: [/ for first page, /[id] for others]
+permalink: [/ for first page, /[id]/ for others — trailing slash required]
 ---
 [full HTML content from site/build-plan.md]
 ```
@@ -49,7 +49,7 @@ Use the Write tool to create each file at its exact path.
 ---
 layout: base.njk
 pageTitle: Contact
-permalink: /contact
+permalink: /contact/
 ---
 <section class="contact-section">
   <h1>Get in Touch</h1>

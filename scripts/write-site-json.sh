@@ -17,7 +17,7 @@ const navPages = spec.nav.order.map(id => {
   return {
     id: page.id,
     title: page.title,
-    href: (page.id === 'home' || id === firstId) ? '/' : '/' + page.id
+    href: (page.id === 'home' || id === firstId) ? '/' : '/' + page.id + '/'
   };
 });
 

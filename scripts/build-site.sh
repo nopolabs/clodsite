@@ -4,8 +4,21 @@ set -euo pipefail
 echo "Building site with Eleventy..."
 echo ""
 
-# Run from scaffold/ so .eleventy.js config resolves correctly
-# Output goes to ../dist (repo root dist/)
+# Ensure the pinned Eleventy version is installed.
+# Without this, npx would download an arbitrary version on the fly —
+# slow, and non-deterministic across machines.
+if [ ! -d "scaffold/node_modules" ]; then
+  echo "Installing scaffold dependencies (first build)..."
+  (cd scaffold && npm install)
+  echo ""
+fi
+
+# Clear stale output — Eleventy does not remove files from a previous build,
+# so a renamed or deleted page would otherwise linger in site/dist/.
+rm -rf site/dist
+
+# Run from scaffold/ so .eleventy.js config resolves correctly.
+# Output goes to ../site/dist (repo-root site/dist/).
 (cd scaffold && npx @11ty/eleventy 2>&1)
 
 echo ""
