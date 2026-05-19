@@ -30,7 +30,7 @@ Type `/help` at any time to see this again.
 Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previous build artifacts.
 
 ```
-[SCRIPT] bash scripts/setup.sh --clean       (only if user typed `/setup clean`)
+[SCRIPT] bash scripts/clean.sh               (only if user typed `/setup clean`)
 [SCRIPT] bash scripts/check-artifacts.sh     (detect previous build in site/)
 [LLM]    Offer clean-or-keep if artifacts were found
 [SCRIPT] bash scripts/setup.sh --check       (wrangler installed?)
