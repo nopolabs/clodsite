@@ -18,6 +18,8 @@ Then inside Claude Code:
 /deploy      ship to Cloudflare Pages → live URL
 ```
 
+`/deploy local` previews at `http://localhost:8080` without deploying.
+
 ---
 
 ## The Idea
@@ -43,6 +45,7 @@ This isn't a rejection of vibe coding — it's a lane assignment for it. `[LLM]`
 - [Wrangler](https://developers.cloudflare.com/workers/wrangler/install-and-update/) (`npm install -g wrangler`)
 - A [Cloudflare account](https://dash.cloudflare.com/) (free tier works)
 - A Cloudflare API token with **Cloudflare Pages: Edit** permission
+- Your Cloudflare Account ID (shown in the dashboard URL: `dash.cloudflare.com/<account-id>`)
 
 ---
 
@@ -60,7 +63,7 @@ Claude Code's `CLAUDE.md` loads when you open Claude Code in a directory. That m
 
 ## Roadmap
 
-v1 is intentionally scoped to a working, shippable workflow. See [`ROADMAP.md`](ROADMAP.md) for what v2 would add: multi-site workspaces, installable skill packaging, the `/modify` command, a real contact form backend, and ecommerce.
+v1 is intentionally scoped to a working, shippable workflow. See [`ROADMAP.md`](ROADMAP.md) for what v2 would add — multi-site workspaces, installable skill packaging, the `/modify` and `/teardown` commands, custom domain automation, a free-form interview opener, contact-form backend, ecommerce, and new page types (blog, calendar, gallery).
 
 ---
 

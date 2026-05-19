@@ -26,11 +26,18 @@ Type `/help` at any time to see this again.
 
 ## Commands
 
-### `/setup` — `[SCRIPT]`
-Collect and verify a Cloudflare API token. Write `.env`.
+### `/setup` — `[HYBRID]`
+Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previous build artifacts.
 
 ```
-[SCRIPT] bash scripts/setup.sh
+[SCRIPT] bash scripts/setup.sh --clean       (only if user typed `/setup clean`)
+[SCRIPT] bash scripts/check-artifacts.sh     (detect previous build in site/)
+[LLM]    Offer clean-or-keep if artifacts were found
+[SCRIPT] bash scripts/setup.sh --check       (wrangler installed?)
+[SCRIPT] bash scripts/setup.sh --verify      (skip the rest if .env already works)
+[LLM]    Ask for Cloudflare API token + Account ID
+[LLM]    Write .env via the Write tool
+[SCRIPT] bash scripts/setup.sh --verify      (confirm)
 ```
 
 ### `/interview` — `[LLM]`
@@ -63,12 +70,13 @@ Write site data. Generate page templates. Run Eleventy. Produces `site/dist/`.
 ```
 
 ### `/deploy` — `[SCRIPT]`
-Deploy to Cloudflare Pages. Produces a live URL and `site/NEXT-STEPS.md`.
+Deploy to Cloudflare Pages. Produces a live URL and `site/NEXT-STEPS.md`. Use `/deploy local` to preview at localhost:8080 instead of deploying.
 
 ```
-[SCRIPT] bash scripts/deploy.sh
-[LLM]    Interpret error if deploy fails (only on failure)
-[SCRIPT] bash scripts/deploy-finalize.sh (only on success)
+[SCRIPT] bash scripts/deploy.sh --local      (if `/deploy local` — serve, no deploy)
+[SCRIPT] bash scripts/deploy.sh              (ensure Pages project exists; deploy)
+[LLM]    Interpret error if deploy fails
+[SCRIPT] bash scripts/deploy-finalize.sh     (on success — production URL, NEXT-STEPS.md)
 ```
 
 ---
@@ -83,7 +91,7 @@ Every step is labeled with its execution type:
 | `[LLM]` | Claude inference — reasoning, generation, interpretation | Where creativity earns its cost |
 | `[HYBRID]` | Script validates structure; LLM handles semantics | Best of both |
 
-The LLM runs in four places: the interview, copy generation, template generation, and error interpretation. Everything else is a script.
+The LLM handles: collecting user input through the chat (interview answers, credentials, clean/keep choices), synthesizing structured data from natural language (the spec JSON), generating content (page copy, Nunjucks templates), and interpreting errors. Everything else is a script.
 
 ---
 
@@ -105,6 +113,5 @@ The LLM runs in four places: the interview, copy generation, template generation
 
 In scope: static content sites, 2–5 pages, three visual styles, `mailto:` contact, Cloudflare Pages deploy.
 
-Out of scope: `/modify`, GitHub Actions, contact form backend, custom domain automation, ecommerce.
-
-See `docs/superpowers/specs/2026-05-13-clodsite-prd.md` for the full spec and `ROADMAP.md` for planned v2 features.
+See `ROADMAP.md` for everything deferred to v2 and why.
+Full v1 spec: `docs/superpowers/specs/2026-05-13-clodsite-prd.md`.
