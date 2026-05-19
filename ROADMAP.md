@@ -23,6 +23,18 @@ the clone-and-`cd` bootstrap step. The command files are already structured
 This is coupled to multi-site workspaces: a shared, read-only skill bundle
 needs a per-invocation place to put its output.
 
+## Free-form interview opener
+
+v1's `/interview` walks the user through a fixed 10-question script in a fixed
+order. This works, but it's mechanical for users who already know what they
+want. v2 starts with one open question — "Tell me about the site you want to
+build" — and lets the LLM extract whatever it can from that response. Follow-up
+questions are then targeted only at gaps and ambiguities, not a rote run-through.
+A "let me confirm what I heard" summary before generating the spec keeps the
+LLM inference honest, and the output is the same schema-validated JSON — the
+contract with downstream scripts doesn't change. The fixed-question script
+remains as the fallback for users who want to be walked through.
+
 ## The `/modify` command
 
 v1 covers the build path: interview → spec → plan → build → deploy. v2 adds a
