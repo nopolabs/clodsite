@@ -30,6 +30,16 @@ governed *change* path — a delta interview that updates the existing spec and
 selectively rebuilds only what changed. The spec carries a `spec_version`
 field and stable page `id`s specifically to support this.
 
+## Custom domain automation
+
+v1 collects a custom domain in `/interview` and documents setup in `NEXT-STEPS.md`,
+but the user manually adds the domain in the Cloudflare Pages dashboard. v2 automates
+this using the Cloudflare Pages API (`POST /accounts/{id}/pages/projects/{project}/domains`).
+When the domain is managed by Cloudflare DNS, the CNAME can be created via the Zones API
+in the same step — fully hands-off. When DNS is external, the API creates the domain
+association and prints the exact CNAME record for the user to add at their registrar.
+Requires `Zone > DNS: Edit` permission added to the setup token prompt.
+
 ## Contact form + form backend
 
 v1 contact is a `mailto:` link only. v2 adds a real submittable contact form.

@@ -7,7 +7,7 @@ if [ ! -f "scripts/.deploy-output" ]; then
 fi
 
 # Parse deployment URL from wrangler stdout
-DEPLOY_URL=$(grep -oE 'https://[a-zA-Z0-9-]+\.pages\.dev' scripts/.deploy-output | tail -1)
+DEPLOY_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' scripts/.deploy-output | tail -1)
 
 if [ -z "$DEPLOY_URL" ]; then
   echo "Error: Could not parse deployment URL from wrangler output."

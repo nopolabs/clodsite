@@ -4,6 +4,9 @@ clodsite-context.md
 # Environment
 .env
 
+# Wrangler local state
+.wrangler/
+
 # Cloudflare deploy artifacts
 scripts/.deploy-output
 scripts/.deploy-error

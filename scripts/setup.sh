@@ -40,7 +40,7 @@ if [ "$MODE" = "--check" ]; then
   exit 0
 fi
 
-# ── --verify: confirm token in .env actually works ───────────────────────────
+# ── --verify: confirm token and account ID in .env actually work ──────────────
 if [ "$MODE" = "--verify" ]; then
   if [ ! -f ".env" ]; then
     echo "Error: .env not found."
@@ -52,6 +52,10 @@ if [ "$MODE" = "--verify" ]; then
     echo "Error: CLOUDFLARE_API_TOKEN not set in .env."
     exit 1
   fi
+  if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+    echo "Error: CLOUDFLARE_ACCOUNT_ID not set in .env."
+    exit 1
+  fi
   echo "Verifying token..."
   if ! wrangler whoami > /dev/null 2>&1; then
     echo ""
@@ -60,6 +64,7 @@ if [ "$MODE" = "--verify" ]; then
     exit 1
   fi
   echo "✓ Token verified."
+  echo "✓ Account ID present."
   echo "✓ .env is ready."
   echo ""
   echo "Next step: run /interview"
@@ -107,7 +112,19 @@ if ! CLOUDFLARE_API_TOKEN="$CF_TOKEN" wrangler whoami > /dev/null 2>&1; then
   exit 1
 fi
 
-echo "CLOUDFLARE_API_TOKEN=$CF_TOKEN" > .env
+echo ""
+echo "Enter your Cloudflare Account ID."
+echo "(Find it in the Cloudflare dashboard URL: dash.cloudflare.com/<account-id>)"
+echo -n "Account ID: "
+read -r CF_ACCOUNT_ID
+echo ""
+
+if [ -z "$CF_ACCOUNT_ID" ]; then
+  echo "Error: No account ID entered."
+  exit 1
+fi
+
+printf "CLOUDFLARE_API_TOKEN=%s\nCLOUDFLARE_ACCOUNT_ID=%s\n" "$CF_TOKEN" "$CF_ACCOUNT_ID" > .env
 echo ""
 echo "✓ Token verified."
 echo "✓ .env written."

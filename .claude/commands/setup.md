@@ -63,13 +63,22 @@ Wait for their reply.
 
 ---
 
-**[LLM]** Write the token to `.env` using the Write tool. The file should contain exactly:
+**[LLM]** Ask the user:
+
+> "Please paste your Cloudflare Account ID. You can find it in the Cloudflare dashboard — it's the 32-character hex string in the URL after you log in: `dash.cloudflare.com/<account-id>`."
+
+Wait for their reply.
+
+---
+
+**[LLM]** Write both values to `.env` using the Write tool. The file should contain exactly:
 
 ```
 CLOUDFLARE_API_TOKEN=<token>
+CLOUDFLARE_ACCOUNT_ID=<account-id>
 ```
 
-Replace `<token>` with what the user provided. No extra lines, no quotes around the value.
+Replace `<token>` and `<account-id>` with what the user provided. No extra lines, no quotes around values.
 
 ---
 
