@@ -17,6 +17,10 @@ fi
 # so a renamed or deleted page would otherwise linger in site/dist/.
 rm -rf site/dist
 
+# Ensure the site images directory exists so Eleventy's passthrough-copy
+# of ../site/images has a source even when the site has no images.
+mkdir -p site/images
+
 # Run from scaffold/ so .eleventy.js config resolves correctly.
 # Output goes to ../site/dist (repo-root site/dist/).
 (cd scaffold && npx @11ty/eleventy 2>&1)
