@@ -10,7 +10,7 @@
 
 ## 1. What We Are Building
 
-Clodsite is a governed website-building workflow delivered as a Claude Code project template. A user clones the repo, runs five commands in order, and has a live static site on Cloudflare Pages. Every command step is annotated `[SCRIPT]`, `[LLM]`, or `[HYBRID]` to make the execution model explicit and auditable.
+Clodsite is a opinionated website-building workflow delivered as a Claude Code project template. A user clones the repo, runs five commands in order, and has a live static site on Cloudflare Pages. Every command step is annotated `[SCRIPT]`, `[LLM]`, or `[HYBRID]` to make the execution model explicit and auditable.
 
 The central idea is not that vibing is bad — it's that vibing belongs in specific lanes. Generating copy, synthesizing interview answers, interpreting a deployment error: these are `[LLM]` steps, and creative, generative behavior is exactly right there. Parsing YAML, running wrangler, checking an exit code: these are `[SCRIPT]` steps, and deterministic behavior is exactly right there. The annotation scheme draws the lane markers. Each approach does what it's actually good at.
 

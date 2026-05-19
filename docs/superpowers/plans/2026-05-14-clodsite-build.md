@@ -1631,7 +1631,7 @@ git commit -m "feat: /deploy command definition with error interpretation and fi
 ````markdown
 # Clodsite
 
-A governed website-building workflow. Interview → spec → plan → build → deploy. Five commands. One live site.
+A opinionated website-building workflow. Interview → spec → plan → build → deploy. Five commands. One live site.
 
 ## Commands
 
@@ -1739,7 +1739,7 @@ git commit -m "feat: CLAUDE.md with annotated command reference and architecture
 ````markdown
 # Clodsite
 
-**A governed website-building workflow for Claude Code.**
+**A opinionated website-building workflow for Claude Code.**
 
 Interview → spec → plan → build → deploy. Five commands. One live site on Cloudflare Pages.
 
