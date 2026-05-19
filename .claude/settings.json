@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash scripts/validate-spec.sh*)",
+      "Bash(bash scripts/apply-theme.sh*)",
+      "Bash(bash scripts/build-site.sh*)",
+      "Bash(bash scripts/write-spec.sh*)",
+      "Bash(bash scripts/write-plan.sh*)",
+      "Bash(bash scripts/write-site-json.sh*)"
+    ]
+  }
+}

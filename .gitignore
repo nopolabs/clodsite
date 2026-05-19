@@ -4,6 +4,9 @@ clodsite-context.md
 # Environment
 .env
 
+# Personal Claude Code settings (not shared)
+.claude/settings.local.json
+
 # Wrangler local state
 .wrangler/
 
