@@ -43,3 +43,14 @@ Right now you deploy by running `/deploy` in Claude Code. To get automatic deplo
 - **Edit page content:** Open Claude Code in this directory and modify the `.njk` files in `scaffold/src/`
 - **Change structure or branding:** Re-run `/interview` to update the spec, then `/plan` and `/build`
 - **Re-deploy after changes:** Run `/deploy` (or push to GitHub if connected)
+
+---
+
+## Remove this site
+
+To take this site down, delete its Cloudflare Pages project:
+
+1. In **Cloudflare Dashboard → Pages → {{SITE_NAME}}**
+2. **Settings → Delete project**
+
+This removes the deployment and frees the `{{SITE_NAME}}.pages.dev` name. It cannot be undone — the live site and its deployment history are gone. Your local files in this repo are unaffected.

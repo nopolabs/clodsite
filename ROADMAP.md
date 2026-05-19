@@ -30,6 +30,17 @@ governed *change* path — a delta interview that updates the existing spec and
 selectively rebuilds only what changed. The spec carries a `spec_version`
 field and stable page `id`s specifically to support this.
 
+## The `/teardown` command
+
+v1 deploys sites but never removes them — taking a site down means deleting the
+Cloudflare Pages project by hand in the dashboard (documented in `NEXT-STEPS.md`).
+v2 adds an explicit `/teardown` command: it reads the project name from the spec,
+shows the user exactly which live site and deployment history it will destroy,
+requires confirmation, then deletes the project via the Cloudflare Pages API.
+Project deletion is deliberately *not* folded into `/setup clean` — clearing the
+local workspace and destroying a deployed site are different intents, and the
+destructive remote action deserves its own confirmed command.
+
 ## Custom domain automation
 
 v1 collects a custom domain in `/interview` and documents setup in `NEXT-STEPS.md`,
