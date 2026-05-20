@@ -67,6 +67,12 @@ v1 is intentionally scoped to a working, shippable workflow. See [`ROADMAP.md`](
 
 ---
 
+## Origin
+
+Built after a few weeks of using Claude Code on small real sites — [mastertimewaster.com](https://github.com/nopolabs/mtw4), [bigbeautifulpeaceprize.com](https://github.com/nopolabs/bbpp), [hmc-cycling.org](https://github.com/nopolabs/hmc) — where the same lesson kept recurring: most of the work was deterministic and belonged in scripts; only a few steps actually needed inference. Clodsite is that lesson, distilled into a template.
+
+---
+
 ## Built for
 
 [State of Oregon Claude Code Hackathon](https://luma.com/bf9gpp2z) — 2026 — by [@nopolabs](https://github.com/nopolabs)
