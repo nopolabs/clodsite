@@ -31,7 +31,7 @@
 
 ---
 
-## Shot 2 (0:15–0:30) — Clone and open
+## Shot 2 (0:15–0:30) — Clone, open, `/help`
 
 **Show:** Run the one-liner.
 
@@ -39,10 +39,10 @@
 git clone https://github.com/nopolabs/clodsite clodsite-demo && cd clodsite-demo && claude
 ```
 
-CLAUDE.md loads and Claude shows the welcome table.
+Claude Code opens with an empty prompt. Type `/help`. The five-command table appears.
 
 **Voice:**
-> "Clone, cd, open Claude Code. CLAUDE.md loads, and Claude greets me with the five-command sequence."
+> "Clone, cd, open Claude Code. `/help` shows the five-command sequence — that's the workflow."
 
 ---
 
