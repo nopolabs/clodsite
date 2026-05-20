@@ -35,6 +35,19 @@ LLM inference honest, and the output is the same schema-validated JSON — the
 contract with downstream scripts doesn't change. The fixed-question script
 remains as the fallback for users who want to be walked through.
 
+## Structured build plan (`build-plan.json`) and script-generated templates
+
+v1's `/plan` command produces `site/build-plan.md` — a human-readable markdown
+document that the LLM then re-reads during `/build` to generate Nunjucks
+templates. This means the LLM is doing mechanical wrapping work (front matter +
+HTML boilerplate) that a script could do more reliably. v2 changes `/plan` to
+produce `site/build-plan.json` — a structured document with per-page content
+fields — and replaces the LLM template-generation step in `/build` with a script
+that reads the JSON and emits `.njk` files directly. The LLM's job in `/plan`
+becomes content generation only; `/build` becomes fully scripted. This also
+eliminates the `Write` tool calls and permission prompts that currently require
+`acceptEdits` mode.
+
 ## The `/modify` command
 
 v1 covers the build path: interview → spec → plan → build → deploy. v2 adds a
