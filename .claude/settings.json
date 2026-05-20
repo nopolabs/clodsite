@@ -11,6 +11,7 @@
       "Bash(bash scripts/write-site-json.sh*)",
       "Read(scripts/.deploy-error)",
       "Read(scripts/.deploy-output)",
+      "Write(scripts/.spec-draft.json)",
       "Write(scripts/.plan-draft.md)",
       "Write(scaffold/src/*.njk)",
       "Write(scaffold/src/_data/site.json)",
