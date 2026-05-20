@@ -105,8 +105,8 @@ Claude Code opens with an empty prompt. Type `/help`. The five-command table app
 ## After recording
 
 1. Upload the `.mov` to YouTube as **unlisted**.
-2. Copy the embed URL (`https://www.youtube.com/embed/<VIDEO_ID>`).
-3. In `~/dev/clodsite-demo/scaffold/src/demo.njk`, replace the placeholder block with:
+2. Copy your video ID from the YouTube URL (the part after `watch?v=`).
+3. In `~/dev/clodsite-demo/site/build-plan.md`, find the Demo page section and replace the video placeholder description with:
 
    ```html
    <div class="video-wrap">
@@ -119,5 +119,7 @@ Claude Code opens with an empty prompt. Type `/help`. The five-command table app
    </div>
    ```
 
-4. Re-run `/build`, then `/deploy`.
+   **Do not edit `scaffold/src/demo.njk` directly** — `/build` regenerates it from `build-plan.md` and will overwrite any manual edits.
+
+4. `cd ~/dev/clodsite-demo && claude`, then `/build`, then `/deploy`.
 5. (Optional, post-hackathon) wire up the `clodsite.com` custom domain via the dashboard steps in `site/NEXT-STEPS.md`.
