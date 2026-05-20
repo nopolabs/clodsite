@@ -36,9 +36,7 @@ Anything unusual about this site that `/build` should know (e.g., specific layou
 
 ---
 
-Write the complete plan markdown to the file `scripts/.plan-draft.md`. Use the Write tool. The file should contain the markdown above — no extra commentary.
-
-(The next script will move it to `site/build-plan.md`.)
+Write the complete plan markdown to the file `site/build-plan.md`. Use the Write tool. The file should contain the markdown above — no extra commentary.
 
 ---
 

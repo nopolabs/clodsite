@@ -67,9 +67,7 @@ Rules:
 - If `domain.custom = false`, set `hostname: ""`
 - `content_status` = `"provided"` if user supplied copy; `"draft"` if Claude should write it
 
-Write the JSON to the file `scripts/.spec-draft.json`. Use the Write tool to create this file. The file should contain only the JSON — no markdown fences, no explanation.
-
-(The next script will move it to `site/site-spec.json`.)
+Write the JSON to the file `site/site-spec.json`. Use the Write tool to create this file. First run `mkdir -p site` if the directory doesn't exist. The file should contain only the JSON — no markdown fences, no explanation.
 
 ---
 
