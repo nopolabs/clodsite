@@ -39,7 +39,7 @@
 git clone https://github.com/nopolabs/clodsite clodsite-demo && cd clodsite-demo && claude
 ```
 
-Claude Code opens with an empty prompt. Type `/help`. The five-command table appears.
+Claude Code opens with an empty prompt. **Press Shift+Tab once** — this enters auto-edit mode so file writes don't pause for approval. Then type `/help`. The five-command table appears.
 
 **Voice:**
 > "Clone, cd, open Claude Code. `/help` shows the five-command sequence — that's the workflow."
