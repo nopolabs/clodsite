@@ -10,7 +10,12 @@
       "Bash(bash scripts/write-plan.sh*)",
       "Bash(bash scripts/write-site-json.sh*)",
       "Read(scripts/.deploy-error)",
-      "Read(scripts/.deploy-output)"
+      "Read(scripts/.deploy-output)",
+      "Write(scaffold/src/*.njk)",
+      "Write(scaffold/src/_data/site.json)",
+      "Write(site/site-spec.json)",
+      "Write(site/build-plan.md)",
+      "Write(site/NEXT-STEPS.md)"
     ]
   }
 }
