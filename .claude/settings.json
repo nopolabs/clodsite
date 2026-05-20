@@ -7,7 +7,6 @@
       "Bash(bash scripts/setup.sh*)",
       "Bash(bash scripts/build-site.sh*)",
       "Bash(bash scripts/write-spec.sh*)",
-      "Bash(bash scripts/write-plan.sh*)",
       "Bash(bash scripts/write-site-json.sh*)",
       "Read(/scripts/.deploy-error)",
       "Read(/scripts/.deploy-exit)",

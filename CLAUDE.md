@@ -54,7 +54,6 @@ Validate spec. Generate build plan with approved copy. Produces `site/build-plan
 ```
 [SCRIPT] bash scripts/validate-spec.sh
 [LLM]    Generate site/build-plan.md (including copy if content_status=draft)
-[SCRIPT] bash scripts/write-plan.sh
 ```
 
 User reviews `site/build-plan.md` before running `/build`.

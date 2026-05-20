@@ -40,10 +40,4 @@ Write the complete plan markdown to the file `site/build-plan.md`. Use the Write
 
 ---
 
-**[SCRIPT]** Run:
-
-```bash
-bash scripts/write-plan.sh
-```
-
-This saves the plan and tells the user to review it before running `/build`.
+Tell the user: "Review `site/build-plan.md` — check the page copy and structure. When ready, run `/build`."
