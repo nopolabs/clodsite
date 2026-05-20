@@ -44,7 +44,7 @@ draft
 
 ## Q9. Brief for each page (Claude writes the real copy in `/plan`)
 
-- **Home:** Hero with a one-line tagline. One paragraph explaining the lane assignment between LLM and scripts. The five-command sequence as a code block. Pointers to Design and Demo.
+- **Home:** Hero with a one-line tagline. One paragraph explaining the lane assignment between LLM and scripts. The five-command sequence as a code block. Pointers to Design and Demo. Link to https://github.com/nopolabs/clodsite. Quick start: git clone https://github.com/nopolabs/clodsite my-site && cd my-site && claude
 - **Design:** The architecture story. English is expressive but expensive to execute as inference. Scripts handle deterministic work; LLMs handle reasoning, generation, interpretation. Walk through where each runs in Clodsite. Note Model A (Claude orchestrates) is v1; Model B (a script driver calling `claude -p`) is the natural evolution.
 - **Demo:** A styled placeholder block titled "Demo video — coming soon" with a brief note that this page will embed the recording of Clodsite building this site. Below, a brief written walkthrough of the five commands so the page reads usefully without the video.
 - **Roadmap:** One paragraph on scope discipline. A bulleted summary of v2 items — multi-site workspaces, installable skill packaging, `/modify`, `/teardown`, custom domain automation, free-form interview, contact form, ecommerce, blog/calendar/gallery page types — with a link to `ROADMAP.md`.
