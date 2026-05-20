@@ -21,11 +21,21 @@ if [ ! -f ".env" ]; then
   exit 1
 fi
 
+# Export every variable from .env so wrangler subprocesses inherit them.
+# `source .env` alone makes them shell variables but not env vars; without
+# the export, CLOUDFLARE_ACCOUNT_ID never reaches wrangler and any pages
+# command runs without account scope.
+set -a
 # shellcheck source=/dev/null
 source .env
+set +a
 
 if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
   echo "Error: CLOUDFLARE_API_TOKEN not set in .env. Run /setup first."
+  exit 1
+fi
+if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+  echo "Error: CLOUDFLARE_ACCOUNT_ID not set in .env. Run /setup first."
   exit 1
 fi
 
@@ -51,27 +61,25 @@ const slug = spec.site.name
 console.log(slug);
 ")
 
-# Ensure the Cloudflare Pages project exists.
-# wrangler v4 requires the project to exist before `pages deploy` — it will
-# not auto-create it. Check for it, and create it if missing.
-echo "Checking Cloudflare Pages project '$SITE_NAME'..."
-if CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
-     wrangler pages project list 2>/dev/null | grep -qw "$SITE_NAME"; then
-  echo "✓ Project exists."
+# Ensure the Cloudflare Pages project exists in *this* account.
+#
+# wrangler v4 requires the project to exist before `pages deploy` — it will not
+# auto-create it. We deliberately do NOT pre-check with `wrangler pages project
+# list`: that list can span every account the token can see, so a project with
+# the same slug in a different account causes a false-positive "exists" — and
+# then the deploy (scoped to CLOUDFLARE_ACCOUNT_ID) fails with "Project not
+# found." Instead we always attempt create and tolerate "already exists."
+echo "Ensuring Pages project '$SITE_NAME' exists in account $CLOUDFLARE_ACCOUNT_ID..."
+CREATE_OUT=$(wrangler pages project create "$SITE_NAME" --production-branch main 2>&1)
+CREATE_EXIT=$?
+if [ "$CREATE_EXIT" -eq 0 ]; then
+  echo "✓ Project created."
+elif echo "$CREATE_OUT" | grep -qi "already exists\|already taken"; then
+  echo "✓ Project already exists in this account."
 else
-  echo "Project not found — creating it..."
-  CREATE_OUT=$(CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
-    wrangler pages project create "$SITE_NAME" --production-branch main 2>&1)
-  CREATE_EXIT=$?
-  if [ "$CREATE_EXIT" -eq 0 ]; then
-    echo "✓ Project created."
-  elif echo "$CREATE_OUT" | grep -qi "already exists\|already taken"; then
-    echo "✓ Project already exists."
-  else
-    echo "Error: could not create Pages project '$SITE_NAME'."
-    echo "$CREATE_OUT"
-    exit 1
-  fi
+  echo "Error: could not create Pages project '$SITE_NAME'."
+  echo "$CREATE_OUT"
+  exit 1
 fi
 echo ""
 
@@ -80,8 +88,7 @@ echo ""
 
 mkdir -p scripts
 
-CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
-  wrangler pages deploy site/dist --project-name "$SITE_NAME" \
+wrangler pages deploy site/dist --project-name "$SITE_NAME" \
   > scripts/.deploy-output 2> scripts/.deploy-error
 WRANGLER_EXIT=$?
 
