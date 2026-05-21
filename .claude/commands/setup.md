@@ -70,9 +70,15 @@ Wait for their reply.
 
 ---
 
-**Shortcut:** If the user points you to a credentials file, read the token and account ID from it directly — skip the two prompts above.
+**Shortcut:** If the user points you to a credentials file, import it directly via script — **do not use the Write tool**:
 
-**[LLM]** Write both values to `.env` using the Write tool. The file should contain exactly:
+```bash
+bash scripts/setup.sh --import <path-to-file>
+```
+
+Replace `<path-to-file>` with the path the user gave (e.g. `~/clodsite-demo.env`). The script validates and copies the file to `.env` without exposing credentials in the chat or tool preview.
+
+If the user typed credentials directly into chat instead, write them to `.env` using the Write tool. The file should contain exactly:
 
 ```
 CLOUDFLARE_API_TOKEN=<token>
@@ -81,7 +87,7 @@ CLOUDFLARE_ACCOUNT_ID=<account-id>
 
 Replace `<token>` and `<account-id>` with what the user provided. No extra lines, no quotes around values.
 
-**Never display the full token or account ID in the chat.** When confirming what was written, show only the first 6 characters followed by `…` — e.g. `cfut_p1…` and `a35fd4…`.
+**Never display the full token or account ID in the chat.** When confirming, show the first 6 characters, then `…`, then the last 3 characters — e.g. `cfut_p1…b66` and `a35fd4…593`.
 
 ---
 

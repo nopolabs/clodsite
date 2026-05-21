@@ -2,14 +2,42 @@
 set -euo pipefail
 
 # Modes:
-#   --check   verify wrangler is installed (no token needed)
-#   --verify  verify token already written to .env
-#   (none)    full interactive mode for direct terminal use
+#   --check          verify wrangler is installed (no token needed)
+#   --verify         verify token already written to .env
+#   --import <file>  copy credentials from an existing env file into .env
+#   (none)           full interactive mode for direct terminal use
 #
 # Destructive cleanup lives in scripts/clean.sh — kept separate so the whole
 # of this script is non-destructive and safe to auto-allow.
 
 MODE="${1:-}"
+
+# ── --import: copy credentials from an existing env file ────────────────────
+if [ "$MODE" = "--import" ]; then
+  SOURCE="${2:-}"
+  if [ -z "$SOURCE" ]; then
+    echo "Error: --import requires a file path argument."
+    exit 1
+  fi
+  # Expand ~ manually since it doesn't expand inside quoted strings
+  SOURCE="${SOURCE/#\~/$HOME}"
+  if [ ! -f "$SOURCE" ]; then
+    echo "Error: file not found: $SOURCE"
+    exit 1
+  fi
+  # Validate the file contains the required keys before copying
+  if ! grep -q "CLOUDFLARE_API_TOKEN=" "$SOURCE"; then
+    echo "Error: CLOUDFLARE_API_TOKEN not found in $SOURCE"
+    exit 1
+  fi
+  if ! grep -q "CLOUDFLARE_ACCOUNT_ID=" "$SOURCE"; then
+    echo "Error: CLOUDFLARE_ACCOUNT_ID not found in $SOURCE"
+    exit 1
+  fi
+  cp "$SOURCE" .env
+  echo "✓ Credentials imported from $SOURCE"
+  exit 0
+fi
 
 # ── --check: just verify wrangler is present ────────────────────────────────
 if [ "$MODE" = "--check" ]; then
