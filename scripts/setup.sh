@@ -49,13 +49,13 @@ if [ "$MODE" = "--verify" ]; then
     exit 1
   fi
   echo "Verifying token..."
-  if ! wrangler whoami > /dev/null 2>&1; then
+  if ! wrangler pages project list > /dev/null 2>&1; then
     echo ""
     echo "Error: Token verification failed."
     echo "Check that your token has 'Cloudflare Pages: Edit' permission and try again."
     exit 1
   fi
-  echo "✓ Token verified."
+  echo "✓ Token verified (Cloudflare Pages: Edit confirmed)."
   echo "✓ Account ID present."
   echo "✓ .env is ready."
   echo ""
@@ -108,7 +108,7 @@ if [ -z "$CF_ACCOUNT_ID" ]; then
 fi
 
 echo "Verifying token..."
-if ! CLOUDFLARE_API_TOKEN="$CF_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" wrangler whoami > /dev/null 2>&1; then
+if ! CLOUDFLARE_API_TOKEN="$CF_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" wrangler pages project list > /dev/null 2>&1; then
   echo ""
   echo "Error: Token verification failed."
   echo "Check that your token has 'Cloudflare Pages: Edit' permission and try again."
