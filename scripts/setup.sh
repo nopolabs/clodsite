@@ -96,15 +96,6 @@ if [ -z "$CF_TOKEN" ]; then
   exit 1
 fi
 
-echo "Verifying token..."
-if ! CLOUDFLARE_API_TOKEN="$CF_TOKEN" wrangler whoami > /dev/null 2>&1; then
-  echo ""
-  echo "Error: Token verification failed."
-  echo "Check that your token has 'Cloudflare Pages: Edit' permission and try again."
-  exit 1
-fi
-
-echo ""
 echo "Enter your Cloudflare Account ID."
 echo "(Find it in the Cloudflare dashboard URL: dash.cloudflare.com/<account-id>)"
 echo -n "Account ID: "
@@ -113,6 +104,14 @@ echo ""
 
 if [ -z "$CF_ACCOUNT_ID" ]; then
   echo "Error: No account ID entered."
+  exit 1
+fi
+
+echo "Verifying token..."
+if ! CLOUDFLARE_API_TOKEN="$CF_TOKEN" CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" wrangler whoami > /dev/null 2>&1; then
+  echo ""
+  echo "Error: Token verification failed."
+  echo "Check that your token has 'Cloudflare Pages: Edit' permission and try again."
   exit 1
 fi
 
