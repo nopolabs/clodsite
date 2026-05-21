@@ -1,5 +1,7 @@
 Conduct the Clodsite site interview. You are helping someone build a website. Be conversational, professional, and efficient. Ask one question at a time and wait for the answer before proceeding.
 
+**Shortcut:** If the user points you to an answers file (e.g. "read from docs/demo/interview-answers.md"), read that file and synthesize the spec directly from it — skip the interactive questions entirely.
+
 ---
 
 **[LLM]** Ask the following questions in order. One at a time:
