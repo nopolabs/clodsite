@@ -5,6 +5,7 @@
       "Bash(bash scripts/apply-theme.sh*)",
       "Bash(bash scripts/check-artifacts.sh*)",
       "Bash(bash scripts/setup.sh*)",
+      "Bash(echo \"EXIT:$?\")",
       "Bash(bash scripts/build-site.sh*)",
       "Bash(bash scripts/write-spec.sh*)",
       "Bash(bash scripts/write-site-json.sh*)",
