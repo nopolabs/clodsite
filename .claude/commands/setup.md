@@ -70,6 +70,8 @@ Wait for their reply.
 
 ---
 
+**Shortcut:** If the user points you to a credentials file, read the token and account ID from it directly — skip the two prompts above.
+
 **[LLM]** Write both values to `.env` using the Write tool. The file should contain exactly:
 
 ```
@@ -78,6 +80,8 @@ CLOUDFLARE_ACCOUNT_ID=<account-id>
 ```
 
 Replace `<token>` and `<account-id>` with what the user provided. No extra lines, no quotes around values.
+
+**Never display the full token or account ID in the chat.** When confirming what was written, show only the first 6 characters followed by `…` — e.g. `cfut_p1…` and `a35fd4…`.
 
 ---
 
