@@ -13,7 +13,7 @@ const spec = JSON.parse(require('fs').readFileSync('site/site-spec.json', 'utf8'
 const slug = spec.site.name
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+\$/, '');
+  .replace(/^-+|-+\$/g, '');
 console.log(slug);
 ")
 

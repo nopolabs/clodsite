@@ -49,10 +49,18 @@ const spec = JSON.parse(require('fs').readFileSync('${SITE_DIR}/site-spec.json',
 const slug = spec.site.name
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+\$/, '');
+  .replace(/^-+|-+\$/g, '');
 console.log(slug);
 ")
 
+# Ensure the Cloudflare Pages project exists in *this* account.
+#
+# wrangler v4 requires the project to exist before `pages deploy` — it will not
+# auto-create it. We deliberately do NOT pre-check with `wrangler pages project
+# list`: that list can span every account the token can see, so a project with
+# the same slug in a different account causes a false-positive "exists" — and
+# then the deploy (scoped to CLOUDFLARE_ACCOUNT_ID) fails with "Project not
+# found." Instead we always attempt create and tolerate "already exists."
 echo "Ensuring Pages project '$SITE_NAME' exists in account $CLOUDFLARE_ACCOUNT_ID..."
 CREATE_OUT=$(wrangler pages project create "$SITE_NAME" --production-branch main 2>&1)
 CREATE_EXIT=$?

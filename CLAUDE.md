@@ -101,8 +101,8 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 | `.env` | `/setup` | Cloudflare credentials |
 | `sites/<site-name>/site-spec.json` | `/interview <site-name>` | The site spec (pretty-printed JSON) |
 | `sites/<site-name>/build-plan.md` | `/plan <site-name>` | Approved build plan (review before /build) |
-| `scaffold/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy |
-| `scaffold/src/*.njk` | `/build <site-name>` | Page templates with content |
+| `scaffold/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (shared — last build wins) |
+| `scaffold/src/*.njk` | `/build <site-name>` | Page templates with content (shared — last build wins) |
 | `sites/<site-name>/dist/` | `/build <site-name>` | Built static site |
 | `sites/<site-name>/NEXT-STEPS.md` | `/deploy <site-name>` | Post-deploy ops guide |
 

@@ -24,4 +24,4 @@ require('fs').writeFileSync('$SPEC', JSON.stringify(spec, null, 2) + '\n');
 
 echo "✓ Spec written to ${SITE_DIR}/site-spec.json"
 echo ""
-echo "Next step: run /plan"
+echo "Next step: run /plan $(basename "${SITE_DIR}")"
