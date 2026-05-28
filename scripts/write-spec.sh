@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SPEC="site/site-spec.json"
+SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
+SPEC="${SITE_DIR}/site-spec.json"
 
 if [ ! -f "$SPEC" ]; then
   echo "Error: $SPEC not found."
@@ -21,6 +22,6 @@ const spec = JSON.parse(require('fs').readFileSync('$SPEC', 'utf8'));
 require('fs').writeFileSync('$SPEC', JSON.stringify(spec, null, 2) + '\n');
 "
 
-echo "✓ Spec written to site/site-spec.json"
+echo "✓ Spec written to ${SITE_DIR}/site-spec.json"
 echo ""
 echo "Next step: run /plan"

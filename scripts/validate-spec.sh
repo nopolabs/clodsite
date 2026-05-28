@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SPEC="${1:-site/site-spec.json}"
+SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
+SPEC="${1:-${SITE_DIR}/site-spec.json}"
 
 if [ ! -f "$SPEC" ]; then
   echo "Error: $SPEC not found. Run /interview first."
