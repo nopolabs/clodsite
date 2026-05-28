@@ -1,12 +1,56 @@
 Conduct the Clodsite site interview. You are helping someone build a website. Be conversational, professional, and efficient. Ask one question at a time and wait for the answer before proceeding.
 
+---
+
+**Get site name.** Look at what the user typed after `/interview`. That word or slug is the site name. If they typed `/interview` with nothing after it, respond:
+
+> "Please provide a site name: `/interview <site-name>` — e.g., `/interview acme-corp`"
+
+And stop.
+
+The site name must be a valid slug: lowercase letters, numbers, and hyphens only (e.g., `my-site`, `acme-corp`, `ndig`). If the user typed a name with spaces or capitals, suggest the lowercase-hyphenated version and ask them to confirm before continuing.
+
+---
+
+**[SCRIPT]** Check for a v1 `site/` directory and auto-migrate if found:
+
+```bash
+bash scripts/migrate-site.sh
+```
+
+If it prints a migration message, tell the user what happened.
+
+---
+
+**[SCRIPT]** Confirm the site doesn't already exist:
+
+```bash
+[ ! -d "sites/<site-name>" ] || echo "EXISTS"
+```
+
+If it prints `EXISTS`, tell the user:
+
+> "`sites/<site-name>/` already exists. Use `/plan <site-name>` or `/build <site-name>` to continue it. Use `/setup clean <site-name>` to start over."
+
+And stop.
+
+---
+
+**[SCRIPT]** Create the site directory:
+
+```bash
+mkdir -p sites/<site-name>/images
+```
+
+---
+
 **Shortcut:** If the user points you to an answers file (e.g. "read from docs/demo/interview-answers.md"), read that file and synthesize the spec directly from it — skip the interactive questions entirely.
 
 ---
 
-**[LLM]** Ask the following questions in order. One at a time:
+**[LLM]** Ask the following questions in order. One at a time. The site name is already known (`<site-name>`) — do NOT ask question 1 again; start from question 2:
 
-1. What is the name of your site or brand?
+1. ~~What is the name of your site or brand?~~ *(already provided as `<site-name>`)*
 2. In one sentence, what does this site do or offer?
 3. Who is this site for?
 4. What tone should the writing have? *(professional / casual / technical / friendly)*
@@ -21,7 +65,7 @@ Conduct the Clodsite site interview. You are helping someone build a website. Be
 
 ---
 
-**[LLM]** Once all answers are collected, synthesize them into a single JSON object. Follow this schema exactly — no extra fields, no comments, no trailing commas:
+**[LLM]** Once all answers are collected, synthesize them into a single JSON object. The `site.name` field should be the human-readable version of the site name (may differ from the slug). Follow this schema exactly — no extra fields, no comments, no trailing commas:
 
 ```json
 {
@@ -69,14 +113,14 @@ Rules:
 - If `domain.custom = false`, set `hostname: ""`
 - `content_status` = `"provided"` if user supplied copy; `"draft"` if Claude should write it
 
-Write the JSON to the file `site/site-spec.json`. Use the Write tool to create this file. First run `mkdir -p site` if the directory doesn't exist. The file should contain only the JSON — no markdown fences, no explanation.
+Write the JSON to `sites/<site-name>/site-spec.json`. Use the Write tool. First run `mkdir -p sites/<site-name>` if the directory doesn't already exist. The file should contain only the JSON — no markdown fences, no explanation.
 
 ---
 
 **[SCRIPT]** Run:
 
 ```bash
-bash scripts/write-spec.sh
+SITE_DIR=sites/<site-name> bash scripts/write-spec.sh
 ```
 
-This saves the spec and confirms the next step.
+This validates the JSON is parseable and pretty-prints it in place.
