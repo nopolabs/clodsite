@@ -48,9 +48,8 @@ it prints the exact record to add at your registrar.
 
 ## Remove this site
 
-To take this site down, delete its Cloudflare Pages project:
+Run `/teardown {{SITE_NAME}}` to delete the Cloudflare Pages project and take
+the site offline. This is permanent — the live site and all deployment history
+are gone. Your local files in `sites/{{SITE_NAME}}/` are unaffected.
 
-1. In **Cloudflare Dashboard → Pages → {{SITE_NAME}}**
-2. **Settings → Delete project**
-
-This removes the deployment and frees the `{{SITE_NAME}}.pages.dev` name. It cannot be undone — the live site and its deployment history are gone. Your local files in this repo are unaffected.
+To also delete local files: `/teardown {{SITE_NAME}} clean`
