@@ -23,6 +23,11 @@ console.log(spec.meta && spec.meta.deployed_url ? spec.meta.deployed_url : '');
 PROJECT_SLUG=$(echo "$SPEC_PARSE" | sed -n '1p')
 DEPLOYED_URL=$(echo "$SPEC_PARSE" | sed -n '2p')
 
+if [ -z "$PROJECT_SLUG" ]; then
+  echo "Error: could not compute a valid slug from site.name in spec. Check sites/$(basename "${SITE_DIR}")/site-spec.json." >&2
+  exit 1
+fi
+
 if [ -z "$DEPLOYED_URL" ]; then
   echo "Warning: No recorded deployment URL — proceeding anyway."
 fi
