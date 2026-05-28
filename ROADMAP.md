@@ -30,16 +30,16 @@ remains as the fallback for users who want to be walked through.
 
 ## Structured build plan (`build-plan.json`) and script-generated templates
 
-v1's `/plan` command produces `site/build-plan.md` — a human-readable markdown
-document that the LLM then re-reads during `/build` to generate Nunjucks
+v1's `/plan` command produces `sites/<name>/build-plan.md` — a human-readable
+markdown document that the LLM then re-reads during `/build` to generate Nunjucks
 templates. This means the LLM is doing mechanical wrapping work (front matter +
 HTML boilerplate) that a script could do more reliably. v2 changes `/plan` to
-produce `site/build-plan.json` — a structured document with per-page content
-fields — and replaces the LLM template-generation step in `/build` with a script
-that reads the JSON and emits `.njk` files directly. The LLM's job in `/plan`
-becomes content generation only; `/build` becomes fully scripted. This also
-eliminates the `Write` tool calls and permission prompts that currently require
-`acceptEdits` mode.
+produce `sites/<name>/build-plan.json` — a structured document with per-page
+content fields — and replaces the LLM template-generation step in `/build` with a
+script that reads the JSON and emits `.njk` files directly. The LLM's job in
+`/plan` becomes content generation only; `/build` becomes fully scripted. This
+also eliminates the `Write` tool calls and permission prompts that currently
+require `acceptEdits` mode.
 
 ## The `/modify` command
 
@@ -58,6 +58,19 @@ requires confirmation, then deletes the project via the Cloudflare Pages API.
 Project deletion is deliberately *not* folded into `/setup clean` — clearing the
 local workspace and destroying a deployed site are different intents, and the
 destructive remote action deserves its own confirmed command.
+
+Confirmed in practice (May 2026): `wrangler pages project delete <name> --yes`
+works cleanly. The `/teardown` implementation is a thin wrapper around this.
+
+## Per-site deploy output files
+
+`scripts/.deploy-output` (and `.deploy-error`, `.deploy-exit`) are shared files
+overwritten by every `/deploy` run. In the normal flow — deploy then finalize
+immediately — this is fine. But if you deploy two sites back-to-back and then
+re-finalize the first one, `deploy-finalize.sh` reads the second site's snapshot
+URL and assigns the wrong production URL. v2 moves these files to
+`sites/<name>/.deploy-output` so each site's deploy state is independent and
+re-running finalize always reads the right output.
 
 ## Custom domain automation
 
