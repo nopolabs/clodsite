@@ -20,7 +20,7 @@ module.exports = function(eleventyConfig) {
     dir: {
       input:    siteSrc,
       output:   siteDist,
-      includes: path.join(sharedSrc, '_includes'),
+      includes: path.relative(siteSrc, path.join(sharedSrc, '_includes')),
       data:     '_data'
     },
     templateFormats: ['njk', 'html'],
