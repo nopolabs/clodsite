@@ -63,11 +63,4 @@ bash scripts/clean.sh <site-name>
 - `CLOUDFLARE_API_TOKEN … not set` → run `/setup`
 - Wrangler error about project not found → the project may have already been deleted; check with `wrangler pages project list`
 
----
 
-Then commit:
-
-```bash
-git add .claude/commands/teardown.md
-git commit -m "feat: add /teardown command file"
-```
