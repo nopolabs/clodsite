@@ -7,12 +7,17 @@ features v2 would add.
 
 ---
 
-## Multi-site workspaces
+## Per-site scaffold isolation
 
-Today the repo *is* the workspace — one clone builds one site in `site/`. v2
-generalizes this to `sites/<name>/`, so a single Clodsite checkout can build
-and manage multiple sites. The `site/` → `sites/<name>/` path is a deliberate
-design choice in v1 so this migration is a small conceptual jump.
+`/build` currently writes `scaffold/src/_data/site.json` and `scaffold/src/*.njk`
+to a single shared scaffold directory — the last `/build <site-name>` run wins.
+This means you can't keep two sites' build artifacts alive simultaneously without
+one overwriting the other's templates. v2 moves the scaffold output into
+`sites/<name>/scaffold/src/` (or a temp dir) so each site's generated files are
+fully isolated. The Eleventy config, theme files, and `_includes/` would remain
+shared (they're generic); only the generated `_data/site.json` and `*.njk`
+templates move per-site. This also makes `/build` idempotent for multi-site
+workflows and enables parallel builds.
 
 ## Installable skill packaging
 

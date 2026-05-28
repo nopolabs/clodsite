@@ -4,17 +4,42 @@ Set up Clodsite with your Cloudflare credentials.
 
 **If the user typed `/setup clean`:**
 
-**[SCRIPT]** Clean previous build artifacts and start fresh:
+**[SCRIPT]** Check what sites exist:
 
 ```bash
-bash scripts/clean.sh
+bash scripts/check-artifacts.sh
+```
+
+If it prints `NO_ARTIFACTS`, tell the user there's nothing to clean and stop.
+
+If it prints `ARTIFACTS_FOUND` (followed by a list of site slugs), ask:
+
+> "Which site would you like to clean? (This deletes all build artifacts for that site.)"
+> `<list of site slugs>`
+
+Wait for the user's answer. Then:
+
+```bash
+bash scripts/clean.sh <chosen-site-slug>
 ```
 
 Then continue with the normal setup steps below.
 
 ---
 
-**[SCRIPT]** Check for artifacts from a previous build:
+**If the user typed `/setup clean <site-name>`:**
+
+**[SCRIPT]** Clean directly:
+
+```bash
+bash scripts/clean.sh <site-name>
+```
+
+Then continue with the normal setup steps below.
+
+---
+
+**[SCRIPT]** Check for artifacts from previous builds:
 
 ```bash
 bash scripts/check-artifacts.sh
@@ -22,14 +47,14 @@ bash scripts/check-artifacts.sh
 
 If it prints `NO_ARTIFACTS`, skip ahead to the wrangler check below.
 
-If it prints `ARTIFACTS_FOUND` (followed by a file listing), tell the user what was found and ask:
+If it prints `ARTIFACTS_FOUND` (followed by a listing of site slugs), tell the user what was found and ask:
 
-> "Found artifacts from a previous build in `site/`. Would you like to **clean** them and start fresh, or **keep** them and continue with the existing spec?"
+> "Found sites from previous builds in `sites/`: `<slugs>`. Would you like to **keep** them and continue, or **clean** a specific site?"
 >
-> (You can also run `/setup clean` next time to skip this prompt.)
+> (You can also run `/setup clean <site-name>` to skip this prompt.)
 
-- If they say **clean**: run `bash scripts/clean.sh`, then continue below.
-- If they say **keep**: skip to the wrangler check below.
+- If they say **clean**: ask which site, run `bash scripts/clean.sh <site-name>`, then continue below.
+- If they say **keep**: continue below.
 
 ---
 
@@ -49,7 +74,7 @@ If this exits with an error, resolve it before continuing.
 bash scripts/setup.sh --verify
 ```
 
-- If this **exits 0**, a valid token is already in `.env`. Tell the user setup is already complete and they can run `/interview`. **Stop here — do not ask for a token.**
+- If this **exits 0**, a valid token is already in `.env`. Tell the user setup is already complete and they can run `/interview <site-name>`. **Stop here — do not ask for a token.**
 - If this **exits non-zero** (no `.env`, or the token is invalid/expired), continue to the next step.
 
 ---
@@ -99,4 +124,4 @@ bash scripts/setup.sh --verify
 
 If this exits with an error, tell the user their token failed verification and ask them to check it has **Cloudflare Pages: Edit** permission.
 
-When it succeeds, tell the user setup is complete and they can run `/interview`.
+When it succeeds, tell the user setup is complete and they can run `/interview <site-name>`.

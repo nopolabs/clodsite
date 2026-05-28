@@ -1,13 +1,17 @@
 module.exports = function(eleventyConfig) {
+  const siteDir = process.env.SITE_DIR;
+  if (!siteDir) {
+    throw new Error('SITE_DIR is not set. Export it before running Eleventy.');
+  }
+
   eleventyConfig.addPassthroughCopy("src/css");
   eleventyConfig.addPassthroughCopy("src/favicon.svg");
-  // Site images live in site/images/ (site content, not tool scaffold).
-  // Copied to site/dist/images/.
-  eleventyConfig.addPassthroughCopy({ "../site/images": "images" });
+  eleventyConfig.addPassthroughCopy({ [`${siteDir}/images`]: "images" });
+
   return {
     dir: {
       input: "src",
-      output: "../site/dist",
+      output: `${siteDir}/dist`,
       includes: "_includes",
       data: "_data"
     },

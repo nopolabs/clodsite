@@ -1,39 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
+
 echo "Building site with Eleventy..."
 echo ""
 
-# Ensure the pinned Eleventy version is installed.
-# Without this, npx would download an arbitrary version on the fly —
-# slow, and non-deterministic across machines.
 if [ ! -d "scaffold/node_modules" ]; then
   echo "Installing scaffold dependencies (first build)..."
   (cd scaffold && npm install)
   echo ""
 fi
 
-# Clear stale output — Eleventy does not remove files from a previous build,
-# so a renamed or deleted page would otherwise linger in site/dist/.
-rm -rf site/dist
+rm -rf "${SITE_DIR}/dist"
+mkdir -p "${SITE_DIR}/images"
 
-# Ensure the site images directory exists so Eleventy's passthrough-copy
-# of ../site/images has a source even when the site has no images.
-mkdir -p site/images
-
-# Run from scaffold/ so .eleventy.js config resolves correctly.
-# Output goes to ../site/dist (repo-root site/dist/).
 (cd scaffold && npx @11ty/eleventy 2>&1)
 
 echo ""
 
-# Verify output
-if [ ! -d "site/dist" ] || [ -z "$(ls -A site/dist 2>/dev/null)" ]; then
-  echo "Error: Build produced an empty site/dist/. Check Eleventy output above."
+if [ ! -d "${SITE_DIR}/dist" ] || [ -z "$(ls -A "${SITE_DIR}/dist" 2>/dev/null)" ]; then
+  echo "Error: Build produced an empty ${SITE_DIR}/dist/. Check Eleventy output above."
   exit 1
 fi
 
-PAGE_COUNT=$(find site/dist -name "*.html" | wc -l | tr -d ' ')
-echo "✓ Build complete. $PAGE_COUNT HTML file(s) in site/dist/"
+PAGE_COUNT=$(find "${SITE_DIR}/dist" -name "*.html" | wc -l | tr -d ' ')
+echo "✓ Build complete. $PAGE_COUNT HTML file(s) in ${SITE_DIR}/dist/"
 echo ""
-echo "Next step: run /deploy"
+SITE_NAME=$(basename "${SITE_DIR}")
+echo "Next step: run /deploy ${SITE_NAME}"

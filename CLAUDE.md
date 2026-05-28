@@ -13,12 +13,12 @@ When a user opens this project without a specific request, greet them with this:
 | Step | Command | What it does |
 |------|---------|--------------|
 | 1 | `/setup` | Verify your Cloudflare token |
-| 2 | `/interview` | 10-question session → `site/site-spec.json` |
-| 3 | `/plan` | Review and approve copy → `site/build-plan.md` |
-| 4 | `/build` | Generate templates + Eleventy build → `site/dist/` |
-| 5 | `/deploy` | Ship to Cloudflare Pages → live URL |
+| 2 | `/interview <site-name>` | 10-question session → `sites/<site-name>/site-spec.json` |
+| 3 | `/plan <site-name>` | Review and approve copy → `sites/<site-name>/build-plan.md` |
+| 4 | `/build <site-name>` | Generate templates + Eleventy build → `sites/<site-name>/dist/` |
+| 5 | `/deploy <site-name>` | Ship to Cloudflare Pages → live URL |
 
-Or to preview locally without deploying: `/deploy local`
+Or to preview locally without deploying: `/deploy <site-name> local`
 
 Type `/help` at any time to see this again.
 
@@ -31,7 +31,7 @@ Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previo
 
 ```
 [SCRIPT] bash scripts/clean.sh               (only if user typed `/setup clean`)
-[SCRIPT] bash scripts/check-artifacts.sh     (detect previous build in site/)
+[SCRIPT] bash scripts/check-artifacts.sh     (detect previous build in sites/)
 [LLM]    Offer clean-or-keep if artifacts were found
 [SCRIPT] bash scripts/setup.sh --check       (wrangler installed?)
 [SCRIPT] bash scripts/setup.sh --verify      (skip the rest if .env already works)
@@ -41,7 +41,7 @@ Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previo
 ```
 
 ### `/interview` — `[LLM]`
-10-question session. Produces `site/site-spec.json`.
+10-question session. Produces `sites/<site-name>/site-spec.json`.
 
 ```
 [LLM]    Conduct interview, synthesize answers into JSON
@@ -49,17 +49,17 @@ Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previo
 ```
 
 ### `/plan` — `[HYBRID]`
-Validate spec. Generate build plan with approved copy. Produces `site/build-plan.md`.
+Validate spec. Generate build plan with approved copy. Produces `sites/<site-name>/build-plan.md`.
 
 ```
 [SCRIPT] bash scripts/validate-spec.sh
-[LLM]    Generate site/build-plan.md (including copy if content_status=draft)
+[LLM]    Generate sites/<site-name>/build-plan.md (including copy if content_status=draft)
 ```
 
-User reviews `site/build-plan.md` before running `/build`.
+User reviews `sites/<site-name>/build-plan.md` before running `/build`.
 
 ### `/build` — `[HYBRID]`
-Write site data. Generate page templates. Run Eleventy. Produces `site/dist/`.
+Write site data. Generate page templates. Run Eleventy. Produces `sites/<site-name>/dist/`.
 
 ```
 [SCRIPT] bash scripts/write-site-json.sh
@@ -69,10 +69,10 @@ Write site data. Generate page templates. Run Eleventy. Produces `site/dist/`.
 ```
 
 ### `/deploy` — `[SCRIPT]`
-Deploy to Cloudflare Pages. Produces a live URL and `site/NEXT-STEPS.md`. Use `/deploy local` to preview at localhost:8080 instead of deploying.
+Deploy to Cloudflare Pages. Produces a live URL and `sites/<site-name>/NEXT-STEPS.md`. Use `/deploy <site-name> local` to preview at localhost:8080 instead of deploying.
 
 ```
-[SCRIPT] bash scripts/deploy.sh --local      (if `/deploy local` — serve, no deploy)
+[SCRIPT] bash scripts/deploy.sh --local      (if `/deploy <site-name> local` — serve, no deploy)
 [SCRIPT] bash scripts/deploy.sh              (ensure Pages project exists; deploy)
 [LLM]    Interpret error if deploy fails
 [SCRIPT] bash scripts/deploy-finalize.sh     (on success — production URL, NEXT-STEPS.md)
@@ -99,12 +99,12 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 | File | Written by | Purpose |
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
-| `site/site-spec.json` | `/interview` | The site spec (pretty-printed JSON) |
-| `site/build-plan.md` | `/plan` | Approved build plan (review before /build) |
-| `scaffold/src/_data/site.json` | `/build` | Structural site data for Eleventy |
-| `scaffold/src/*.njk` | `/build` | Page templates with content |
-| `site/dist/` | `/build` | Built static site |
-| `site/NEXT-STEPS.md` | `/deploy` | Post-deploy ops guide |
+| `sites/<site-name>/site-spec.json` | `/interview <site-name>` | The site spec (pretty-printed JSON) |
+| `sites/<site-name>/build-plan.md` | `/plan <site-name>` | Approved build plan (review before /build) |
+| `scaffold/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (shared — last build wins) |
+| `scaffold/src/*.njk` | `/build <site-name>` | Page templates with content (shared — last build wins) |
+| `sites/<site-name>/dist/` | `/build <site-name>` | Built static site |
+| `sites/<site-name>/NEXT-STEPS.md` | `/deploy <site-name>` | Post-deploy ops guide |
 
 ---
 
