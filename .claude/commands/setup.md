@@ -81,7 +81,9 @@ bash scripts/setup.sh --verify
 
 **[LLM]** Ask the user:
 
-> "Please paste your Cloudflare API token. You can create one at https://dash.cloudflare.com/profile/api-tokens — it needs **Cloudflare Pages: Edit** permission."
+> "Please paste your Cloudflare API token. You can create one at https://dash.cloudflare.com/profile/api-tokens — it needs these permissions:
+> - **Cloudflare Pages: Edit** — required for deploy
+> - **Zone > DNS: Edit** — required for `/domain` to create CNAME records automatically (optional: without it, `/domain` prints the record for you to add manually)"
 
 Wait for their reply.
 
@@ -122,6 +124,6 @@ Replace `<token>` and `<account-id>` with what the user provided. No extra lines
 bash scripts/setup.sh --verify
 ```
 
-If this exits with an error, tell the user their token failed verification and ask them to check it has **Cloudflare Pages: Edit** permission.
+If this exits with an error, tell the user their token failed verification and ask them to check it has **Cloudflare Pages: Edit** permission (and optionally **Zone > DNS: Edit** for `/domain` automation).
 
 When it succeeds, tell the user setup is complete and they can run `/interview <site-name>`.
