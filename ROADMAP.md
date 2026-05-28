@@ -72,22 +72,21 @@ URL and assigns the wrong production URL. v2 moves these files to
 `sites/<name>/.deploy-output` so each site's deploy state is independent and
 re-running finalize always reads the right output.
 
-## Custom domain automation
+## Full CNAME automation for Cloudflare-managed DNS
 
-v1 collects a custom domain in `/interview` and documents setup in `NEXT-STEPS.md`,
-but the user manually adds the domain in the Cloudflare Pages dashboard. v2 automates
-this using the Cloudflare Pages API (`POST /accounts/{id}/pages/projects/{project}/domains`).
-When the domain is managed by Cloudflare DNS, the CNAME can be created via the Zones API
-in the same step — fully hands-off. When DNS is external, the API creates the domain
-association and prints the exact CNAME record for the user to add at their registrar.
-Requires `Zone > DNS: Edit` permission added to the setup token prompt.
+`/domain` is shipped (May 2026). It adds the Pages domain association via API and
+creates the CNAME automatically when the domain's apex zone is in the same Cloudflare
+account. When DNS is external (or the token lacks `Zone > DNS: Edit`), it prints the
+exact CNAME record for manual entry.
 
-Confirmed in practice (ndig.nopolabs.com, May 2026): Cloudflare Pages does **not**
-auto-create the CNAME even when the domain is already managed in the same Cloudflare
-account. The domain association is created in Pages (`status: pending`), but no DNS
-record is written. The result is a 522 error until the CNAME is added manually. This
-makes the automation case stronger — `deploy-finalize.sh` should create the CNAME via
-the Zones API and add `Zone > DNS: Edit` to the required token scopes in `/setup`.
+Confirmed in practice (ndig.nopolabs.com, May 2026): `nopolabs.com` is not managed
+in the same Cloudflare account as the Pages project, so the manual fallback path ran
+correctly and the site resolved once the CNAME was already in place. Full auto-CNAME
+only applies when the apex zone is in the same account — which covers the common
+"deploy everything to one Cloudflare account" setup.
+
+Also confirmed: Cloudflare returns HTTP 400 (not 409) when a Pages domain association
+already exists. Fixed in `domain.sh`.
 
 ## Contact form + form backend
 
