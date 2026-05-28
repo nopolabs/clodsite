@@ -57,11 +57,3 @@ SITE_DIR=sites/<site-name> bash scripts/domain.sh
 - `site has not been deployed yet` → run `/deploy <site-name>` first
 - `Error adding Pages domain association (HTTP 4xx)` → check that the Pages project name matches the slug in `site.name`; re-run `/deploy <site-name>` if the project was deleted
 
----
-
-Then commit:
-
-```bash
-git add .claude/commands/domain.md
-git commit -m "feat: add /domain command file"
-```
