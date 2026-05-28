@@ -30,7 +30,9 @@ HOSTNAME=$(echo "$SPEC_PARSE" | sed -n '1p')
 PAGES_DEV_HOST=$(echo "$SPEC_PARSE" | sed -n '2p')
 PROJECT_SLUG=$(echo "$SPEC_PARSE" | sed -n '3p')
 
-# Extract apex domain (last two labels)
+# Extracts the apex domain (last two labels). Note: two-label TLDs like co.uk
+# are not handled — for those the zone lookup returns empty and the manual
+# DNS fallback is used, which is safe.
 extract_apex() { echo "$1" | rev | cut -d. -f1,2 | rev; }
 APEX=$(extract_apex "$HOSTNAME")
 
@@ -66,10 +68,10 @@ CLOUDFLARE_DNS=false
 ZONE_ID=""
 
 if [ "$ZONE_HTTP" = "200" ]; then
-  ZONE_ID=$(node -e "
-const d=JSON.parse(require('fs').readFileSync('$CF_TMP','utf8'));
+  ZONE_ID=$(CF_TMP_PATH="$CF_TMP" node -e "
+const d=JSON.parse(require('fs').readFileSync(process.env.CF_TMP_PATH,'utf8'));
 console.log(d.result && d.result.length > 0 ? d.result[0].id : '');
-  " 2>/dev/null || echo "")
+  " 2>&1) || { echo "Warning: could not parse zone response — skipping DNS automation." >&2; ZONE_ID=""; }
   [ -n "$ZONE_ID" ] && CLOUDFLARE_DNS=true
 elif [ "$ZONE_HTTP" = "403" ]; then
   echo "Warning: token lacks Zone:Read — cannot check DNS ownership."
@@ -88,8 +90,8 @@ if [ "$PAGES_HTTP" = "200" ] || [ "$PAGES_HTTP" = "201" ]; then
 elif [ "$PAGES_HTTP" = "409" ]; then
   echo "✓ Pages domain association already configured"
 else
-  echo "Error adding Pages domain association (HTTP ${PAGES_HTTP}):"
-  cat "$CF_TMP"
+  ERR_MSG=$(CF_TMP_PATH="$CF_TMP" node -e "try{const d=JSON.parse(require('fs').readFileSync(process.env.CF_TMP_PATH,'utf8'));console.log(d.errors&&d.errors[0]?d.errors[0].message:'unknown');}catch(e){console.log('(could not parse response)');}" 2>/dev/null)
+  echo "Error adding Pages domain association (HTTP ${PAGES_HTTP}): ${ERR_MSG}"
   exit 1
 fi
 
@@ -107,8 +109,8 @@ if [ "$CLOUDFLARE_DNS" = true ]; then
     echo "✓ CNAME created: ${HOSTNAME} → ${PAGES_DEV_HOST} (proxied)"
     echo "SSL certificate will provision within ~1 minute."
     exit 0
-  elif node -e "
-const d=JSON.parse(require('fs').readFileSync('$CF_TMP','utf8'));
+  elif CF_TMP_PATH="$CF_TMP" node -e "
+const d=JSON.parse(require('fs').readFileSync(process.env.CF_TMP_PATH,'utf8'));
 process.exit(d.errors && d.errors.some(e=>e.code===81053) ? 0 : 1);
   " 2>/dev/null; then
     echo "✓ CNAME already exists: ${HOSTNAME} → ${PAGES_DEV_HOST}"
@@ -119,8 +121,8 @@ process.exit(d.errors && d.errors.some(e=>e.code===81053) ? 0 : 1);
     echo "Warning: token lacks Zone:DNS:Edit — cannot create CNAME automatically."
     DNS_MANUAL=true
   else
-    echo "Error creating DNS record (HTTP ${DNS_HTTP}):"
-    cat "$CF_TMP"
+    ERR_MSG=$(CF_TMP_PATH="$CF_TMP" node -e "try{const d=JSON.parse(require('fs').readFileSync(process.env.CF_TMP_PATH,'utf8'));console.log(d.errors&&d.errors[0]?d.errors[0].message:'unknown');}catch(e){console.log('(could not parse response)');}" 2>/dev/null)
+    echo "Error creating DNS record (HTTP ${DNS_HTTP}): ${ERR_MSG}"
     exit 1
   fi
 else
