@@ -81,6 +81,13 @@ in the same step — fully hands-off. When DNS is external, the API creates the 
 association and prints the exact CNAME record for the user to add at their registrar.
 Requires `Zone > DNS: Edit` permission added to the setup token prompt.
 
+Confirmed in practice (ndig.nopolabs.com, May 2026): Cloudflare Pages does **not**
+auto-create the CNAME even when the domain is already managed in the same Cloudflare
+account. The domain association is created in Pages (`status: pending`), but no DNS
+record is written. The result is a 522 error until the CNAME is added manually. This
+makes the automation case stronger — `deploy-finalize.sh` should create the CNAME via
+the Zones API and add `Zone > DNS: Edit` to the required token scopes in `/setup`.
+
 ## Contact form + form backend
 
 v1 contact is a `mailto:` link only. v2 adds a real submittable contact form.

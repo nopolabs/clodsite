@@ -24,10 +24,14 @@ Right now you deploy by running `/deploy` in Claude Code. To get automatic deplo
 
 ## Set up a custom domain
 
-1. Buy or transfer your domain to Cloudflare (or just point DNS to Cloudflare)
-2. In **Cloudflare Dashboard → Pages → {{SITE_NAME}} → Custom domains**
-3. Add your domain and follow the DNS instructions
-4. Cloudflare handles SSL automatically — no cert management needed
+1. In **Cloudflare Dashboard → Pages → {{SITE_NAME}} → Custom domains**
+2. Click **Set up a custom domain** and enter your domain or subdomain
+3. **Important — Cloudflare does not auto-create the DNS record**, even if your domain is already managed in Cloudflare. After adding the custom domain in Pages, go to **DNS → Records** for your zone and add:
+   - **Type:** `CNAME`
+   - **Name:** your subdomain (e.g. `ndig`) or `@` for the root
+   - **Target:** `{{SITE_NAME}}.pages.dev`
+   - **Proxy status:** Proxied (orange cloud)
+4. Without the CNAME, visitors will see a **522 error**. Once the record is in place, the SSL certificate provisions automatically within a minute or two.
 
 ---
 
