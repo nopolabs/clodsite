@@ -2,17 +2,33 @@ Generate the Clodsite build plan from the approved spec.
 
 ---
 
-**[SCRIPT]** Validate the spec first:
+**Get site name.** Look at what the user typed after `/plan`. If no site name was provided:
 
-```bash
-bash scripts/validate-spec.sh
-```
+> "Please provide a site name: `/plan <site-name>` — e.g., `/plan acme-corp`"
 
-If this exits with errors, print them clearly to the user and stop. Do not proceed until the spec is valid. The user can edit `site/site-spec.json` directly or re-run `/interview`.
+And stop.
 
 ---
 
-**[LLM]** Read `site/site-spec.json`. Generate the build plan as markdown with these sections:
+**[SCRIPT]** Check for a v1 `site/` directory and auto-migrate if found:
+
+```bash
+bash scripts/migrate-site.sh
+```
+
+---
+
+**[SCRIPT]** Validate the spec:
+
+```bash
+SITE_DIR=sites/<site-name> bash scripts/validate-spec.sh
+```
+
+If this exits with errors, print them clearly to the user and stop. Do not proceed until the spec is valid. The user can edit `sites/<site-name>/site-spec.json` directly or re-run `/interview <site-name>`.
+
+---
+
+**[LLM]** Read `sites/<site-name>/site-spec.json`. Generate the build plan as markdown with these sections:
 
 ## Site Overview
 Name, purpose, audience, tone, and style. One short paragraph.
@@ -36,8 +52,8 @@ Anything unusual about this site that `/build` should know (e.g., specific layou
 
 ---
 
-Write the complete plan markdown to the file `site/build-plan.md`. Use the Write tool. The file should contain the markdown above — no extra commentary.
+Write the complete plan markdown to `sites/<site-name>/build-plan.md`. Use the Write tool. The file should contain the markdown above — no extra commentary.
 
 ---
 
-Tell the user: "Review `site/build-plan.md` — check the page copy and structure. When ready, run `/build`."
+Tell the user: "Review `sites/<site-name>/build-plan.md` — check the page copy and structure. When ready, run `/build <site-name>`."
