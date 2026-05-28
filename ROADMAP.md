@@ -7,6 +7,16 @@ features v2 would add.
 
 ---
 
+## The `/status` command
+
+A read-only command that cross-references local `sites/` with live Cloudflare Pages
+state. For each site it shows the Pages project name, production URL, custom domain
+(if any), and last deployed timestamp — pulled from `wrangler pages project list`
+and matched against `sites/*/site-spec.json`. Also surfaces mismatches: a local site
+with no Pages project, or a deployed URL that differs from what's in the spec.
+Useful once multiple sites are in flight. Lower priority than `/teardown` and the
+deploy output file fix.
+
 ## Installable skill packaging
 
 v1 ships as a template repo: clone it, `cd` in, open Claude Code. v2 packages
