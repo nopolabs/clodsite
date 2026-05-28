@@ -85,9 +85,10 @@ PAGES_HTTP=$(curl -s -o "$CF_TMP" -w "%{http_code}" -X POST \
   -d "{\"name\":\"${HOSTNAME}\"}" \
   "${CF_API}/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_SLUG}/domains")
 
+PAGES_BODY=$(cat "$CF_TMP")
 if [ "$PAGES_HTTP" = "200" ] || [ "$PAGES_HTTP" = "201" ]; then
   echo "✓ Pages domain association added"
-elif [ "$PAGES_HTTP" = "409" ]; then
+elif [ "$PAGES_HTTP" = "409" ] || ([ "$PAGES_HTTP" = "400" ] && echo "$PAGES_BODY" | grep -qi "already added"); then
   echo "✓ Pages domain association already configured"
 else
   ERR_MSG=$(CF_TMP_PATH="$CF_TMP" node -e "try{const d=JSON.parse(require('fs').readFileSync(process.env.CF_TMP_PATH,'utf8'));console.log(d.errors&&d.errors[0]?d.errors[0].message:'unknown');}catch(e){console.log('(could not parse response)');}" 2>/dev/null)
