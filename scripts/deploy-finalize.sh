@@ -14,9 +14,17 @@ const slug = spec.site.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-
 console.log(slug);
 ")
 
-PROD_URL="https://${SITE_NAME}.pages.dev"
-
 BUILD_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' scripts/.deploy-output | tail -1)
+
+# Derive production URL from the snapshot URL by stripping the 8-char deployment
+# hash prefix. Cloudflare may assign a suffixed subdomain (e.g. test-1-ah5.pages.dev)
+# when the bare project name is globally taken — constructing the URL from the spec
+# slug would point at the wrong (or someone else's) project.
+if [ -n "$BUILD_URL" ]; then
+  PROD_URL=$(echo "$BUILD_URL" | sed 's|https://[a-f0-9]\{8\}\.|https://|')
+else
+  PROD_URL="https://${SITE_NAME}.pages.dev"
+fi
 
 node -e "
 const spec = JSON.parse(require('fs').readFileSync('${SITE_DIR}/site-spec.json', 'utf8'));
