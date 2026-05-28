@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ ! -f "site/site-spec.json" ]; then
-  echo "Error: site/site-spec.json not found. Run /interview first."
+SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
+
+if [ ! -f "${SITE_DIR}/site-spec.json" ]; then
+  echo "Error: ${SITE_DIR}/site-spec.json not found. Run /interview first."
   exit 1
 fi
 
 node -e "
-const spec = JSON.parse(require('fs').readFileSync('site/site-spec.json', 'utf8'));
+const spec = JSON.parse(require('fs').readFileSync('${SITE_DIR}/site-spec.json', 'utf8'));
 
-// Build nav pages array with correct hrefs
-// First page in nav.order gets href '/', all others get /[id]
 const firstId = spec.nav.order[0];
 const navPages = spec.nav.order.map(id => {
   const page = spec.pages.find(p => p.id === id);
@@ -21,7 +21,6 @@ const navPages = spec.nav.order.map(id => {
   };
 });
 
-// Suppress the extra contact link if a 'contact' page is already in the nav
 const hasContactPage = spec.pages.some(p => p.id === 'contact');
 
 const siteData = {
