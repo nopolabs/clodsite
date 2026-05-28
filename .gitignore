@@ -19,8 +19,8 @@ scripts/.plan-draft.md
 
 # Generated site output (the repo is the tool; site/ is the output)
 site/
-scaffold/src/*.njk
-scaffold/src/_data/site.json
+sites/*/src/
+sites/*/dist/
 scaffold/node_modules/
 
 # macOS

@@ -37,11 +37,11 @@ const siteData = {
   contact: spec.contact || { enabled: false, type: 'email', email: '' }
 };
 
-require('fs').mkdirSync('scaffold/src/_data', { recursive: true });
+require('fs').mkdirSync('${SITE_DIR}/src/_data', { recursive: true });
 require('fs').writeFileSync(
-  'scaffold/src/_data/site.json',
+  '${SITE_DIR}/src/_data/site.json',
   JSON.stringify(siteData, null, 2)
 );
-console.log('✓ scaffold/src/_data/site.json written');
+console.log('✓ ${SITE_DIR}/src/_data/site.json written');
 console.log('  Site: ' + siteData.name + ' | Style: ' + siteData.style + ' | Pages: ' + siteData.nav.pages.length);
 "

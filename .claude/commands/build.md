@@ -37,8 +37,8 @@ SITE_DIR=sites/<site-name> bash scripts/apply-theme.sh
 Generate an Eleventy Nunjucks template for each page listed in `sites/<site-name>/site-spec.json pages[]`.
 
 **Template rules:**
-- The first page in `nav.order` gets `permalink: /` in its front matter and is saved as `scaffold/src/index.njk`
-- All other pages get `permalink: /[page-id]/` (with a **trailing slash** — Eleventy v3 requires it for directory-style permalinks) and are saved as `scaffold/src/[page-id].njk`
+- The first page in `nav.order` gets `permalink: /` in its front matter and is saved as `sites/<site-name>/src/index.njk`
+- All other pages get `permalink: /[page-id]/` (with a **trailing slash** — Eleventy v3 requires it for directory-style permalinks) and are saved as `sites/<site-name>/src/[page-id].njk`
 - Every template uses `layout: base.njk` and sets `pageTitle` to the page's display title
 - Write page content directly as HTML — do not use `{{ site.* }}` references for copy. Use site data references only for structural elements you need from the layout (those are already in `base.njk`)
 - Use semantic HTML: `<h1>` for the main page heading, `<p>` for paragraphs, `<section>` to group content blocks
@@ -61,7 +61,7 @@ Use the Write tool to create each file at its exact path.
 
 ---
 
-**If `contact.enabled = true`**, also write `scaffold/src/contact.njk` (contact is always a mailto link in v1):
+**If `contact.enabled = true`**, also write `sites/<site-name>/src/contact.njk` (contact is always a mailto link in v1):
 
 ```nunjucks
 ---

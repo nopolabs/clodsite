@@ -84,7 +84,7 @@ echo "=== write-site-json.sh ==="
 
 cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
 bash scripts/write-site-json.sh > /dev/null 2>&1; assert_exit "write-site-json exits 0" 0 $?
-assert_file_exists "scaffold/src/_data/site.json created" "scaffold/src/_data/site.json"
+assert_file_exists "${SITE_DIR}/src/_data/site.json created" "${SITE_DIR}/src/_data/site.json"
 
 # ── apply-theme.sh ────────────────────────────────────────────────────────────
 echo ""

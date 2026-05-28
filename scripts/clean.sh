@@ -18,6 +18,4 @@ fi
 
 echo "Cleaning $SITE_DIR..."
 rm -rf "$SITE_DIR"
-rm -f scaffold/src/*.njk
-rm -f scaffold/src/_data/site.json
-echo "✓ Cleaned: $SITE_DIR and scaffold/src/ artifacts"
+echo "✓ Cleaned: $SITE_DIR"
