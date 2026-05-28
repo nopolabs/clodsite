@@ -143,6 +143,21 @@ actual=$(extract_apex_test "nopolabs.com")
 actual=$(extract_apex_test "deep.ndig.nopolabs.com")
 [ "$actual" = "nopolabs.com" ] && { echo "  ✓ apex extraction: deep subdomain"; PASS=$((PASS+1)); } || { echo "  ✗ apex extraction: deep subdomain (got: $actual)"; FAIL=$((FAIL+1)); }
 
+# ── teardown.sh ───────────────────────────────────────────────────────────────
+echo ""
+echo "=== teardown.sh ==="
+
+# Missing SITE_DIR → exits 1
+SITE_DIR="" bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing SITE_DIR exits 1" 1 $?
+
+# Missing spec file → exits 1
+rm -f "${SITE_DIR}/site-spec.json"
+bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing spec exits 1" 1 $?
+
+# Spec with empty site.name → exits 1
+cp scripts/test/fixtures/teardown-spec-no-name.json "${SITE_DIR}/site-spec.json"
+bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing site.name exits 1" 1 $?
+
 # ── Results ───────────────────────────────────────────────────────────────────
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
