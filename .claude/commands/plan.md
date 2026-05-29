@@ -28,32 +28,45 @@ If this exits with errors, print them clearly to the user and stop. Do not proce
 
 ---
 
-**[LLM]** Read `sites/<site-name>/site-spec.json`. Generate the build plan as markdown with these sections:
+**[LLM]** Read `sites/<site-name>/site-spec.json`. Generate `sites/<site-name>/build-plan.json` using the Write tool.
 
-## Site Overview
-Name, purpose, audience, tone, and style. One short paragraph.
+The JSON must match this schema exactly:
 
-## Pages
-One section per page. For each:
-- **[page title]** — `[page id]`
-- Purpose: (from spec)
-- Content:
-  - If `content_status = "provided"`: use `content_outline` as-is
-  - If `content_status = "draft"`: generate complete, publish-ready copy using `content_outline` as your brief. Write real sentences. Match the site tone. This is the copy that will appear on the live site.
+```json
+{
+  "site_name": "<value of site.name from spec>",
+  "overview": "<one paragraph — purpose, audience, tone>",
+  "style": "<value of site.style from spec>",
+  "tone": "<value of site.tone from spec>",
+  "pages": [
+    {
+      "id": "<page id from spec>",
+      "title": "<page title from spec>",
+      "content": "<full page content in markdown — see rules below>"
+    }
+  ],
+  "nav": {
+    "order": ["<page ids in nav order from spec>"],
+    "show_contact_link": "<true or false from spec>"
+  },
+  "contact": {
+    "enabled": "<true or false from spec>",
+    "type": "email",
+    "email": "<email from spec, or omit key if contact.enabled is false>"
+  },
+  "build_notes": "<any special rendering notes for /build, or empty string>"
+}
+```
 
-## Navigation
-Confirm the nav order. Note whether the contact link appears in the nav.
+**Content rules for `pages[n].content`:**
 
-## Contact
-How contact is handled: email address shown, contact form, or disabled.
+- If `content_status = "provided"`: use `content_outline` as-is, wrapped in appropriate markdown headings.
+- If `content_status = "draft"`: write complete, publish-ready copy using `content_outline` as your brief. Write real sentences. Match the site tone. This is the copy that will appear on the live site.
+- Format as markdown: `#` for main heading, `##` for subheadings, plain paragraphs, fenced code blocks with triple backticks, bullet lists.
+- Do not include the page title as a top-level heading — the template handles that. Start with the first content element.
 
-## Build Notes
-Anything unusual about this site that `/build` should know (e.g., specific layout needs, contact form handling).
+Write the complete JSON to `sites/<site-name>/build-plan.json`. No extra commentary in the file.
 
 ---
 
-Write the complete plan markdown to `sites/<site-name>/build-plan.md`. Use the Write tool. The file should contain the markdown above — no extra commentary.
-
----
-
-Tell the user: "Review `sites/<site-name>/build-plan.md` — check the page copy and structure. When ready, run `/build <site-name>`."
+Tell the user: "Review `sites/<site-name>/build-plan.json` — check the page content and structure. When ready, run `/build <site-name>`."
