@@ -51,7 +51,7 @@ This isn't a rejection of vibe coding — it's a lane assignment for it. `[LLM]`
 
 ## Output
 
-A static site built with [Eleventy](https://www.11ty.dev/) and deployed to Cloudflare Pages. Three visual personalities: minimal, professional, bold. 2–5 pages. Your copy, or Claude drafts it.
+A static site built with [Eleventy](https://www.11ty.dev/) and deployed to Cloudflare Pages. Three visual personalities: minimal, professional, bold. 1–5 pages. Your copy, or Claude drafts it.
 
 ---
 

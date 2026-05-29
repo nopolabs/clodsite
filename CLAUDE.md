@@ -110,7 +110,7 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 
 ## Scope (Hackathon v1.0)
 
-In scope: static content sites, 2–5 pages, three visual styles, `mailto:` contact, Cloudflare Pages deploy.
+In scope: static content sites, 1–5 pages, three visual styles, `mailto:` contact, Cloudflare Pages deploy.
 
 See `ROADMAP.md` for everything deferred to v2 and why.
 Full v1 spec: `docs/superpowers/specs/2026-05-13-clodsite-prd.md`.

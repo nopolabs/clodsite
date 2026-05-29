@@ -26,8 +26,8 @@ const validStyles = ['minimal', 'professional', 'bold'];
 if (!validStyles.includes(site.style))
   errors.push('site.style must be one of: ' + validStyles.join(', ') + ' (got: ' + site.style + ')');
 
-if (!Array.isArray(spec.pages) || spec.pages.length < 2 || spec.pages.length > 5) {
-  errors.push('pages must be an array of 2-5 items (got: ' + (Array.isArray(spec.pages) ? spec.pages.length : 'non-array') + ')');
+if (!Array.isArray(spec.pages) || spec.pages.length < 1 || spec.pages.length > 5) {
+  errors.push('pages must be an array of 1-5 items (got: ' + (Array.isArray(spec.pages) ? spec.pages.length : 'non-array') + ')');
 } else {
   const ids = spec.pages.map(p => p.id);
   const seen = new Set();

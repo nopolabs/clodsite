@@ -55,7 +55,7 @@ mkdir -p sites/<site-name>/images
 3. Who is this site for?
 4. What tone should the writing have? *(professional / casual / technical / friendly)*
 5. What visual personality fits best? *(minimal / professional / bold)* — briefly describe each if they ask.
-6. What pages do you need? List 2–5 page names. *(e.g., Home, About, Services, Contact)*
+6. What pages do you need? List 1–5 page names. *(e.g., Home — or Home, About, Services, Contact)*
 7. For each page you listed: what is the purpose of this page in one sentence?
 8. Do you have copy ready for the pages, or should I draft it? *(provided / draft)*
 9. *(If provided)* Please share the content for each page — paste it or describe it.

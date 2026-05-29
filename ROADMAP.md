@@ -1,6 +1,6 @@
 # Clodsite Roadmap
 
-Clodsite v1 is intentionally scoped: a static content site, 2–5 pages, three
+Clodsite v1 is intentionally scoped: a static content site, 1–5 pages, three
 visual styles, deployed to Cloudflare Pages. Items below were deliberately
 deferred to keep the workflow shippable and honest.
 
