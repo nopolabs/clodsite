@@ -24,9 +24,6 @@
         {% for navPage in site.nav.pages %}
           <li><a href="{{ navPage.href }}">{{ navPage.title }}</a></li>
         {% endfor %}
-        {% if site.nav.show_contact_link and site.contact.enabled %}
-          <li><a href="/contact/">Contact</a></li>
-        {% endif %}
       </ul>
     </nav>
   </header>
@@ -34,7 +31,12 @@
     {{ content | safe }}
   </main>
   <footer class="site-footer">
-    <p>&copy; {{ site.name }}</p>
+    <p>
+      &copy; {{ site.name }}
+      {% if site.contact.enabled %}
+        &nbsp;·&nbsp; <a href="mailto:{{ site.contact.email }}">{{ site.contact.email }}</a>
+      {% endif %}
+    </p>
   </footer>
 </body>
 </html>
