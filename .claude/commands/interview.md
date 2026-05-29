@@ -60,7 +60,7 @@ mkdir -p sites/<site-name>/images
 8. Do you have copy ready for the pages, or should I draft it? *(provided / draft)*
 9. *(If provided)* Please share the content for each page — paste it or describe it.
    *(If draft)* For each page, describe in a few sentences what it should say.
-10. Do you want a contact method on the site? If yes, what email address should visitors use? *(Visitors get a mailto link. A submittable contact form is a v2 feature — not yet available.)*
+10. Do you want a contact email shown in the site footer? If yes, what address should visitors use? *(A mailto link will appear in every page's footer. A contact page or submittable form can be added as a page — just include "Contact" in your page list.)*
 11. *(Optional)* Do you have a custom domain, or is a `*.pages.dev` URL fine for now?
 
 ---
@@ -85,12 +85,10 @@ mkdir -p sites/<site-name>/images
     }
   ],
   "nav": {
-    "order": ["page-id-1", "page-id-2"],
-    "show_contact_link": true
+    "order": ["page-id-1", "page-id-2"]
   },
   "contact": {
     "enabled": true,
-    "type": "email",
     "email": "address@example.com"
   },
   "domain": {
@@ -108,8 +106,7 @@ mkdir -p sites/<site-name>/images
 Rules:
 - `pages[].id` must be lowercase, no spaces, hyphens only (e.g., `home`, `about`, `our-work`)
 - `nav.order` must list every page id
-- `contact.type` is always `"email"` in v1 (a submittable form is a v2 feature)
-- If `contact.enabled = false`, set `type: "email"` and `email: ""`
+- If `contact.enabled = false`, omit `email` or set it to `""`
 - If `domain.custom = false`, set `hostname: ""`
 - `content_status` = `"provided"` if user supplied copy; `"draft"` if Claude should write it
 
