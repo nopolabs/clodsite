@@ -52,6 +52,19 @@ decisions happen at build time. `validate-plan.sh` guards the boundary before
 decides, everything after renders. Existing `build-plan.md` files are not read
 by the new pipeline — re-run `/plan <site-name>` to regenerate.
 
+### Unified build contract (merge spec config into build-plan)
+Shipped May 2026. `build-plan.json` is now the single input to `/build`.
+The `site_name` field was renamed to `slug`; a `name` field (display name,
+injected by `finalize-plan.sh` from `spec.site.name`) was added. `write-site-json.sh`
+and `apply-theme.sh` now read from `build-plan.json` only; `site-spec.json` is
+interview scratch-state that `/build` never touches. `validate-plan.sh` also
+gained a cross-reference check: all IDs in `nav.order` must exist in `pages`.
+
+Known limitation: the nav href logic maps both the page with `id: "home"` AND the
+first page in `nav.order` to `/`, so placing a non-home page first in nav causes a
+routing conflict. All current sites have "home" first so this is inert — fix when
+a site needs a different first-nav-page.
+
 ---
 
 ## Pending
@@ -100,20 +113,6 @@ remaining step is replacing the LLM template-generation step in `/build` with a
 script that reads `build-plan.json` and emits `.njk` files directly — making
 `/build` fully scripted. This eliminates the last `Write` tool calls in `/build`
 and removes the need for `acceptEdits` mode during builds.
-
-### Unified build contract (merge spec config into build-plan)
-
-Shipped May 2026. `build-plan.json` is now the single input to `/build`.
-The `site_name` field was renamed to `slug`; a `name` field (display name,
-injected by `finalize-plan.sh` from `spec.site.name`) was added. `write-site-json.sh`
-and `apply-theme.sh` now read from `build-plan.json` only; `site-spec.json` is
-interview scratch-state that `/build` never touches. `validate-plan.sh` also
-gained a cross-reference check: all IDs in `nav.order` must exist in `pages`.
-
-Known limitation: the nav href logic maps both the page with `id: "home"` AND the
-first page in `nav.order` to `/`, so placing a non-home page first in nav causes a
-routing conflict. All current sites have "home" first so this is inert — fix when
-a site needs a different first-nav-page.
 
 ### The `/modify` command
 
