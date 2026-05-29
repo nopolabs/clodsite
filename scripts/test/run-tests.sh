@@ -172,6 +172,80 @@ echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with output exits 0" 0 $?
 assert_file_exists "NEXT-STEPS.md created" "${SITE_DIR}/NEXT-STEPS.md"
 
+# No sites/.git → git block is skipped, exits 0
+rm -rf sites/.git
+cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
+bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize without sites/.git exits 0" 0 $?
+
+# With sites/.git → commit is created
+TEST_SITE_NAME="test-finalize-site"
+SAVED_SITE_DIR="$SITE_DIR"
+export SITE_DIR="sites/${TEST_SITE_NAME}"
+mkdir -p "${SITE_DIR}"
+git init -q sites
+git -C sites config user.email "test@example.com"
+git -C sites config user.name "Test"
+cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
+bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with sites/.git exits 0" 0 $?
+COMMIT_COUNT=$(git -C sites log --oneline 2>/dev/null | wc -l | tr -d ' ')
+if [ "$COMMIT_COUNT" -ge 1 ]; then
+  echo "  ✓ git commit created in sites/"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ no git commit found in sites/"
+  FAIL=$((FAIL + 1))
+fi
+COMMIT_MSG=$(git -C sites log --oneline -1 2>/dev/null | sed 's/^[a-f0-9]* //')
+if echo "$COMMIT_MSG" | grep -q "^deploy:"; then
+  echo "  ✓ commit message starts with 'deploy:'"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ unexpected commit message: $COMMIT_MSG"
+  FAIL=$((FAIL + 1))
+fi
+rm -rf sites
+# Restore SITE_DIR for any tests that follow
+export SITE_DIR="$SAVED_SITE_DIR"
+
+# ── setup.sh --init-sites ─────────────────────────────────────────────────────
+echo ""
+echo "=== setup.sh --init-sites ==="
+
+# Clean up any sites/ left from migration tests
+rm -rf sites
+
+# First run: creates sites/.git and sites/.gitignore
+bash scripts/setup.sh --init-sites > /dev/null 2>&1; assert_exit "--init-sites exits 0" 0 $?
+assert_dir_exists "sites/.git created" "sites/.git"
+assert_file_exists "sites/.gitignore created" "sites/.gitignore"
+
+# .gitignore content is correct
+if grep -q "\*/src/" sites/.gitignore && grep -q "\*/dist/" sites/.gitignore && grep -q "\*/\.deploy-\*" sites/.gitignore; then
+  echo "  ✓ sites/.gitignore has correct entries"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ sites/.gitignore missing expected entries"
+  FAIL=$((FAIL + 1))
+fi
+
+# Idempotent: second run doesn't fail
+bash scripts/setup.sh --init-sites > /dev/null 2>&1; assert_exit "--init-sites is idempotent" 0 $?
+
+# Idempotent: existing .gitignore is not overwritten
+echo "custom content" > sites/.gitignore
+bash scripts/setup.sh --init-sites > /dev/null 2>&1
+if grep -q "custom content" sites/.gitignore; then
+  echo "  ✓ existing sites/.gitignore not overwritten"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ existing sites/.gitignore was overwritten"
+  FAIL=$((FAIL + 1))
+fi
+
+rm -rf sites
+
 # ── Results ───────────────────────────────────────────────────────────────────
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
