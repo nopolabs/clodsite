@@ -246,6 +246,19 @@ fi
 
 rm -rf sites
 
+# ── validate-plan.sh ──────────────────────────────────────────────────────────
+echo ""
+echo "=== validate-plan.sh ==="
+
+cp scripts/test/fixtures/valid-build-plan.json "${SITE_DIR}/build-plan.json"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid plan passes" 0 $?
+
+cp scripts/test/fixtures/invalid-build-plan-missing-content.json "${SITE_DIR}/build-plan.json"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing content exits 1" 1 $?
+
+rm -f "${SITE_DIR}/build-plan.json"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing file exits 1" 1 $?
+
 # ── Results ───────────────────────────────────────────────────────────────────
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

@@ -1,0 +1,23 @@
+{
+  "site_name": "nopo-labs",
+  "overview": "nopo-labs is a portfolio site for a software engineer.",
+  "style": "minimal",
+  "tone": "professional",
+  "pages": [
+    {
+      "id": "home",
+      "title": "Home",
+      "content": "# Welcome\n\nThis is the home page."
+    }
+  ],
+  "nav": {
+    "order": ["home"],
+    "show_contact_link": true
+  },
+  "contact": {
+    "enabled": true,
+    "type": "email",
+    "email": "hello@nopolabs.com"
+  },
+  "build_notes": ""
+}
