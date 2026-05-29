@@ -71,8 +71,10 @@ All scripts that parse the build plan switch from `JSON.parse` to `require('js-y
 | `scripts/finalize-plan.sh` | Parse and write `build-plan.yaml` with js-yaml |
 | `scripts/write-site-json.sh` | Parse `build-plan.yaml` with js-yaml |
 | `scripts/apply-theme.sh` | Parse `build-plan.yaml` with js-yaml |
-| `scripts/test/fixtures/valid-build-plan.yaml` | New YAML fixture (replaces `.json`) |
-| `scripts/test/fixtures/invalid-build-plan-missing-content.yaml` | New YAML fixture (replaces `.json`) |
+| `scripts/test/fixtures/valid-build-plan.yaml` | New YAML fixture |
+| `scripts/test/fixtures/valid-build-plan.json` | Deleted |
+| `scripts/test/fixtures/invalid-build-plan-missing-content.yaml` | New YAML fixture |
+| `scripts/test/fixtures/invalid-build-plan-missing-content.json` | Deleted |
 | `scripts/test/run-tests.sh` | Copy `.yaml` fixtures; delete old `.json` fixture references |
 | `.claude/commands/plan.md` | Schema becomes YAML; content rules specify GFM + block scalar |
 | `.claude/commands/build.md` | Reference `build-plan.yaml`; update pageTitle comment |
