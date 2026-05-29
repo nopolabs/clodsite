@@ -86,6 +86,24 @@ cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
 bash scripts/write-site-json.sh > /dev/null 2>&1; assert_exit "write-site-json exits 0" 0 $?
 assert_file_exists "${SITE_DIR}/src/_data/site.json created" "${SITE_DIR}/src/_data/site.json"
 
+# Test with a spec that has the deprecated fields
+cp scripts/test/fixtures/domain-spec-deployed.json "${SITE_DIR}/site-spec.json"
+bash scripts/write-site-json.sh > /dev/null 2>&1; assert_exit "write-site-json exits 0 with deprecated fields in spec" 0 $?
+if ! grep -q "show_contact_link" "${SITE_DIR}/src/_data/site.json"; then
+  echo "  ✓ show_contact_link absent from site.json"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ show_contact_link present in site.json (should be removed)"
+  FAIL=$((FAIL + 1))
+fi
+if ! grep -q '"type"' "${SITE_DIR}/src/_data/site.json"; then
+  echo "  ✓ contact.type absent from site.json"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ contact.type present in site.json (should be removed)"
+  FAIL=$((FAIL + 1))
+fi
+
 # ── apply-theme.sh ────────────────────────────────────────────────────────────
 echo ""
 echo "=== apply-theme.sh ==="
