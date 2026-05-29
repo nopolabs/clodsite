@@ -1,4 +1,4 @@
-Build the Clodsite static site from the approved spec and build plan.
+Build the Clodsite static site from the approved build plan.
 
 ---
 
@@ -18,6 +18,16 @@ bash scripts/migrate-site.sh
 
 ---
 
+**[SCRIPT]** Validate the build plan:
+
+```bash
+SITE_DIR=sites/<site-name> bash scripts/validate-plan.sh
+```
+
+If this exits with errors, print them clearly to the user and stop. The user should re-run `/plan <site-name>` to regenerate the build plan.
+
+---
+
 **[SCRIPT]** Write structural site data:
 
 ```bash
@@ -32,36 +42,34 @@ SITE_DIR=sites/<site-name> bash scripts/apply-theme.sh
 
 ---
 
-**[LLM]** Read `sites/<site-name>/site-spec.json` and `sites/<site-name>/build-plan.md`.
+**[LLM]** Read `sites/<site-name>/build-plan.json`.
 
-Generate an Eleventy Nunjucks template for each page listed in `sites/<site-name>/site-spec.json pages[]`.
+Generate an Eleventy Nunjucks template for each page in `pages[]`. All content comes from the build plan — do not invent, shorten, or rewrite any copy.
 
 **Template rules:**
 - The first page in `nav.order` gets `permalink: /` in its front matter and is saved as `sites/<site-name>/src/index.njk`
-- All other pages get `permalink: /[page-id]/` (with a **trailing slash** — Eleventy v3 requires it for directory-style permalinks) and are saved as `sites/<site-name>/src/[page-id].njk`
-- Every template uses `layout: base.njk` and sets `pageTitle` to the page's display title
-- Write page content directly as HTML — do not use `{{ site.* }}` references for copy. Use site data references only for structural elements you need from the layout (those are already in `base.njk`)
-- Use semantic HTML: `<h1>` for the main page heading, `<p>` for paragraphs, `<section>` to group content blocks
-- Use the copy from `sites/<site-name>/build-plan.md` exactly as written. Do not shorten, rewrite, or summarize.
+- All other pages get `permalink: /[page-id]/` (trailing slash required — Eleventy v3) and are saved as `sites/<site-name>/src/[page-id].njk`
+- Every template uses `layout: base.njk` and sets `pageTitle` to the page's `title` from the plan
+- Convert `pages[n].content` (markdown) to HTML. Use semantic markup: `<h1>` for `#`, `<h2>` for `##`, `<p>` for paragraphs, `<pre><code>` for fenced code blocks, `<ul><li>` for bullet lists, `<table>` for tables
 - **Images:** place image files in `sites/<site-name>/images/` and reference them as `/images/<filename>` in `<img>` tags. Eleventy copies that directory to the deployed site.
-- **Page-specific CSS:** if a page needs custom styling (e.g. a gallery grid), put it in a `<style>` block **inside the page content body**, immediately after the closing `---` of the front matter. The front matter must be the very first thing in the file. **Never modify the theme files** in `scaffold/src/css/themes/`.
+- **Page-specific CSS:** if `build_notes` calls for custom styling, put it in a `<style>` block inside the page body, immediately after the closing `---` of the front matter. **Never modify theme files** in `scaffold/src/css/themes/`.
 
 **Template format:**
 
 ```
 ---
 layout: base.njk
-pageTitle: [page title from spec]
+pageTitle: [page title from build-plan.json pages[n].title]
 permalink: [/ for first page, /[id]/ for others — trailing slash required]
 ---
-[full HTML content from sites/<site-name>/build-plan.md]
+[page content as HTML, converted from build-plan.json pages[n].content]
 ```
 
 Use the Write tool to create each file at its exact path.
 
 ---
 
-**If `contact.enabled = true`**, also write `sites/<site-name>/src/contact.njk` (contact is always a mailto link in v1):
+**If `contact.enabled = true`**, also write `sites/<site-name>/src/contact.njk`:
 
 ```nunjucks
 ---
