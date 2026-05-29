@@ -1,5 +1,6 @@
 {
-  "site_name": "nopo-labs",
+  "slug": "nopo-labs",
+  "name": "Nopo Labs",
   "overview": "A portfolio site.",
   "style": "minimal",
   "tone": "professional",
@@ -10,12 +11,10 @@
     }
   ],
   "nav": {
-    "order": ["home"],
-    "show_contact_link": true
+    "order": ["home"]
   },
   "contact": {
     "enabled": true,
-    "type": "email",
     "email": "hello@nopolabs.com"
   },
   "build_notes": ""

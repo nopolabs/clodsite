@@ -1,5 +1,6 @@
 {
-  "site_name": "nopo-labs",
+  "slug": "nopo-labs",
+  "name": "Nopo Labs",
   "overview": "nopo-labs is a portfolio site for a software engineer.",
   "style": "minimal",
   "tone": "professional",

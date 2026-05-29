@@ -13,8 +13,9 @@ node -e "
 const plan = JSON.parse(require('fs').readFileSync('$PLAN', 'utf8'));
 const errors = [];
 
-if (!plan.site_name)  errors.push('site_name is required');
-if (!plan.overview)   errors.push('overview is required');
+if (!plan.slug)     errors.push('slug is required');
+if (!plan.name)     errors.push('name is required');
+if (!plan.overview) errors.push('overview is required');
 
 const validStyles = ['minimal', 'professional', 'bold'];
 if (!validStyles.includes(plan.style))
