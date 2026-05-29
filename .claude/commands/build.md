@@ -69,22 +69,6 @@ Use the Write tool to create each file at its exact path.
 
 ---
 
-**If `contact.enabled = true`**, also write `sites/<site-name>/src/contact.njk`:
-
-```nunjucks
----
-layout: base.njk
-pageTitle: Contact
-permalink: /contact/
----
-<section class="contact-section">
-  <h1>Get in Touch</h1>
-  <p>Reach us at: <a href="mailto:{{ site.contact.email }}">{{ site.contact.email }}</a></p>
-</section>
-```
-
----
-
 **[SCRIPT]** Run the Eleventy build:
 
 ```bash
