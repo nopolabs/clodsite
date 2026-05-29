@@ -42,6 +42,16 @@ returns when a domain association already exists.
 
 ## Pending
 
+### Configurable `sites/` location
+
+`sites/` version control ships in May 2026 with the repo initialized in-place.
+The natural follow-on is making the path configurable — so `sites/` can live
+outside the clodsite repo entirely (e.g., `~/my-sites/` or a dedicated GitHub
+repo cloned elsewhere). This would be stored in `.env` as `SITES_DIR` and all
+scripts that currently hardcode `sites/` or construct `SITE_DIR=sites/<name>`
+would resolve paths against it. Depends on sites-as-git-repo being in place
+first, which it will be.
+
 ### The `/status` command
 
 A read-only command that cross-references local `sites/` with live Cloudflare
