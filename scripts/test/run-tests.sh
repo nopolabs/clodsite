@@ -266,6 +266,19 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing content exi
 rm -f "${SITE_DIR}/build-plan.json"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing file exits 1" 1 $?
 
+printf '%s\n' '{
+  "slug": "test",
+  "name": "Test",
+  "overview": "Test site.",
+  "style": "minimal",
+  "tone": "professional",
+  "pages": [{ "id": "home", "title": "Home", "content": "Hello." }],
+  "nav": { "order": ["home", "nonexistent"] },
+  "contact": { "enabled": false },
+  "build_notes": ""
+}' > "${SITE_DIR}/build-plan.json"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "nav.order with unknown page id exits 1" 1 $?
+
 # ── finalize-plan.sh ──────────────────────────────────────────────────────────
 echo ""
 echo "=== finalize-plan.sh ==="

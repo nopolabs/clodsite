@@ -38,6 +38,14 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
 if (!plan.nav || !Array.isArray(plan.nav.order) || plan.nav.order.length < 1)
   errors.push('nav.order must be a non-empty array');
 
+if (plan.nav && Array.isArray(plan.nav.order)) {
+  const pageIds = (plan.pages || []).map(function(p) { return p.id; });
+  plan.nav.order.forEach(function(id) {
+    if (!pageIds.includes(id))
+      errors.push('nav.order references unknown page id: ' + id);
+  });
+}
+
 if (errors.length > 0) {
   console.error('Plan validation failed (' + errors.length + ' error(s)):');
   errors.forEach(function(e) { console.error('  ✗ ' + e); });
