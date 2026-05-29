@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
-PLAN="${SITE_DIR}/build-plan.json"
+PLAN="${SITE_DIR}/build-plan.yaml"
 
 if [ ! -f "$PLAN" ]; then
   echo "Error: $PLAN not found. Run /plan first."
@@ -10,7 +10,8 @@ if [ ! -f "$PLAN" ]; then
 fi
 
 node -e "
-const plan = JSON.parse(require('fs').readFileSync('$PLAN', 'utf8'));
+const yaml = require('js-yaml');
+const plan = yaml.load(require('fs').readFileSync('$PLAN', 'utf8'));
 const errors = [];
 
 if (!plan.slug)     errors.push('slug is required');
