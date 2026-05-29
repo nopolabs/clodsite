@@ -74,6 +74,8 @@ works cleanly. The `/teardown` implementation is a thin wrapper around this.
 
 ## Per-site deploy output files
 
+Shipped May 2026. Deploy output files now live at `sites/<name>/.deploy-*`.
+
 `scripts/.deploy-output` (and `.deploy-error`, `.deploy-exit`) are shared files
 overwritten by every `/deploy` run. In the normal flow — deploy then finalize
 immediately — this is fine. But if you deploy two sites back-to-back and then
