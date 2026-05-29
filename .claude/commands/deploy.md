@@ -44,7 +44,7 @@ This reads `.env`, runs `wrangler pages deploy`, and captures the output.
 
 **If `deploy.sh` exits with a non-zero code:**
 
-**[LLM]** Read `scripts/.deploy-error`. Interpret the error and explain clearly:
+**[LLM]** Read `sites/<site-name>/.deploy-error`. Interpret the error and explain clearly:
 - What went wrong
 - Exactly how to fix it
 

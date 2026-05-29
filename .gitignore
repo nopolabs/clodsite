@@ -11,9 +11,7 @@ clodsite-context.md
 .wrangler/
 
 # Cloudflare deploy artifacts
-scripts/.deploy-output
-scripts/.deploy-error
-scripts/.deploy-exit
+sites/*/.deploy-*
 scripts/.spec-draft.json
 scripts/.plan-draft.md
 
