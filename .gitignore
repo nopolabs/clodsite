@@ -11,14 +11,12 @@ clodsite-context.md
 .wrangler/
 
 # Cloudflare deploy artifacts
-sites/*/.deploy-*
 scripts/.spec-draft.json
 scripts/.plan-draft.md
 
-# Generated site output (the repo is the tool; site/ is the output)
+# Generated site output (the repo is the tool; sites/ is the output)
 site/
-sites/*/src/
-sites/*/dist/
+sites/
 scaffold/node_modules/
 
 # macOS
