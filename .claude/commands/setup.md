@@ -126,4 +126,10 @@ bash scripts/setup.sh --verify
 
 If this exits with an error, tell the user their token failed verification and ask them to check it has **Cloudflare Pages: Edit** permission (and optionally **Zone > DNS: Edit** for `/domain` automation).
 
-When it succeeds, tell the user setup is complete and they can run `/interview <site-name>`.
+**[SCRIPT]** Initialize the sites repository:
+
+```bash
+bash scripts/setup.sh --init-sites
+```
+
+When both succeed, tell the user setup is complete and they can run `/interview <site-name>`.
