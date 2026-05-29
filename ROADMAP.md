@@ -43,6 +43,15 @@ Shipped May 2026. `/setup` initializes `sites/` as a git repository (idempotent)
 `deploy-finalize.sh` auto-commits after each successful deploy with message
 `deploy: <site-name> → <url>`. No remote management — add a remote and push manually.
 
+### Structured build plan (`build-plan.json`)
+Shipped May 2026. `/plan` now produces `sites/<name>/build-plan.json` — a
+structured document with full per-page content written during inference. `/build`
+reads the JSON and the LLM renders it into Nunjucks templates; no content
+decisions happen at build time. `validate-plan.sh` guards the boundary before
+`/build` runs. The inference boundary is `build-plan.json`: everything before it
+decides, everything after renders. Existing `build-plan.md` files are not read
+by the new pipeline — re-run `/plan <site-name>` to regenerate.
+
 ---
 
 ## Pending
@@ -84,16 +93,13 @@ I heard" summary before generating the spec keeps the LLM inference honest. The
 output is the same schema-validated JSON — the contract with downstream scripts
 doesn't change. The fixed-question script remains as the fallback.
 
-### Structured build plan (`build-plan.json`) and script-generated templates
+### Script-generated templates
 
-v1's `/plan` produces `sites/<name>/build-plan.md` — a human-readable document
-the LLM re-reads during `/build` to generate Nunjucks templates. v2 changes
-`/plan` to produce `sites/<name>/build-plan.json` — a structured document with
-per-page content fields — and replaces the LLM template-generation step in
-`/build` with a script that reads the JSON and emits `.njk` files directly. The
-LLM's job in `/plan` becomes content generation only; `/build` becomes fully
-scripted. This also eliminates the `Write` tool calls and permission prompts that
-currently require `acceptEdits` mode.
+`build-plan.json` is now the structured compile input (shipped May 2026). The
+remaining step is replacing the LLM template-generation step in `/build` with a
+script that reads `build-plan.json` and emits `.njk` files directly — making
+`/build` fully scripted. This eliminates the last `Write` tool calls in `/build`
+and removes the need for `acceptEdits` mode during builds.
 
 ### The `/modify` command
 

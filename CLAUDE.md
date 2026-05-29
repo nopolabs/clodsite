@@ -52,22 +52,23 @@ Guided interview session. Produces `sites/<site-name>/site-spec.json`. The spec 
 ```
 
 ### `/plan` — `[HYBRID]`
-Validate spec. Generate build plan with approved copy. Produces `sites/<site-name>/build-plan.md`.
+Validate spec. Write all page content. Produces `sites/<site-name>/build-plan.json` — the inference boundary. Everything before this is deciding; everything after is rendering.
 
 ```
 [SCRIPT] bash scripts/validate-spec.sh
-[LLM]    Generate sites/<site-name>/build-plan.md (including copy if content_status=draft)
+[LLM]    Generate sites/<site-name>/build-plan.json (full page content if content_status=draft)
 ```
 
-User reviews `sites/<site-name>/build-plan.md` before running `/build`.
+User reviews `sites/<site-name>/build-plan.json` before running `/build`.
 
 ### `/build` — `[HYBRID]`
-Write site data. Generate page templates. Run Eleventy. Produces `sites/<site-name>/dist/`.
+Render build plan to templates. Run Eleventy. Produces `sites/<site-name>/dist/`. All content is read from `build-plan.json` — no content decisions happen here.
 
 ```
+[SCRIPT] bash scripts/validate-plan.sh
 [SCRIPT] bash scripts/write-site-json.sh
 [SCRIPT] bash scripts/apply-theme.sh
-[LLM]    Generate sites/<site-name>/src/[page].njk for each page
+[LLM]    Render build-plan.json → sites/<site-name>/src/[page].njk for each page
 [SCRIPT] bash scripts/build-site.sh
 ```
 
@@ -123,7 +124,7 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
 | `sites/<site-name>/site-spec.json` | `/interview <site-name>` | The site spec (pretty-printed JSON) |
-| `sites/<site-name>/build-plan.md` | `/plan <site-name>` | Approved build plan (review before /build) |
+| `sites/<site-name>/build-plan.json` | `/plan <site-name>` | Structured build plan — all content decisions captured here (review before /build) |
 | `sites/<site-name>/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (gitignored) |
 | `sites/<site-name>/src/*.njk` | `/build <site-name>` | Page templates with content (gitignored) |
 | `sites/<site-name>/dist/` | `/build <site-name>` | Built static site |

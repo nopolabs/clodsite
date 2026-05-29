@@ -60,14 +60,14 @@ Every step is labeled with its execution type:
 ```
 /setup       [HYBRID]  — credential prompts + bash verification
 /interview   [LLM]     — guided session → site-spec.json
-/plan        [HYBRID]  — script validates, LLM generates copy
-/build       [HYBRID]  — script writes data, LLM writes templates
+/plan        [HYBRID]  — script validates, LLM writes all content → build-plan.json
+/build       [HYBRID]  — script validates plan, LLM renders content → templates
 /deploy      [SCRIPT]  — wrangler pages deploy + LLM error interpretation
 /domain      [HYBRID]  — script wires up DNS, LLM interprets result
 /teardown    [HYBRID]  — script deletes Pages project, LLM confirms
 ```
 
-The inference boundary is `site-spec.json`. Before it, Claude. After it, scripts.
+The inference boundary is `build-plan.json`. Before it, Claude decides. After it, scripts (and LLM-as-renderer) execute.
 
 ---
 
