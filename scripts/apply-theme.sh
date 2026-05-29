@@ -3,12 +3,12 @@ set -euo pipefail
 
 SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
 
-if [ ! -f "${SITE_DIR}/build-plan.json" ]; then
-  echo "Error: ${SITE_DIR}/build-plan.json not found."
+if [ ! -f "${SITE_DIR}/build-plan.yaml" ]; then
+  echo "Error: ${SITE_DIR}/build-plan.yaml not found."
   exit 1
 fi
 
-STYLE=$(node -e "const s=JSON.parse(require('fs').readFileSync('${SITE_DIR}/build-plan.json','utf8')); console.log(s.style)")
+STYLE=$(node -e "const yaml=require('js-yaml'); const s=yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml','utf8')); console.log(s.style)")
 THEME_FILE="scaffold/src/css/themes/${STYLE}.css"
 
 if [ ! -f "$THEME_FILE" ]; then

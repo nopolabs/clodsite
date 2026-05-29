@@ -3,13 +3,14 @@ set -euo pipefail
 
 SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
 
-if [ ! -f "${SITE_DIR}/build-plan.json" ]; then
-  echo "Error: ${SITE_DIR}/build-plan.json not found. Run /plan first."
+if [ ! -f "${SITE_DIR}/build-plan.yaml" ]; then
+  echo "Error: ${SITE_DIR}/build-plan.yaml not found. Run /plan first."
   exit 1
 fi
 
 node -e "
-const plan = JSON.parse(require('fs').readFileSync('${SITE_DIR}/build-plan.json', 'utf8'));
+const yaml = require('js-yaml');
+const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
 
 const firstId = plan.nav.order[0];
 const navPages = plan.nav.order.map(id => {
