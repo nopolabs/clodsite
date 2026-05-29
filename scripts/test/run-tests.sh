@@ -277,6 +277,45 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing content exi
 rm -f "${SITE_DIR}/build-plan.json"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing file exits 1" 1 $?
 
+# ── finalize-plan.sh ──────────────────────────────────────────────────────────
+echo ""
+echo "=== finalize-plan.sh ==="
+
+# Happy path: spec + plan without name → injects name, exits 0
+cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+printf '%s\n' '{
+  "slug": "nopo-labs",
+  "overview": "A portfolio site.",
+  "style": "minimal",
+  "tone": "professional",
+  "pages": [{ "id": "home", "title": "Home", "content": "Hello." }],
+  "nav": { "order": ["home"] },
+  "contact": { "enabled": false },
+  "build_notes": ""
+}' > "${SITE_DIR}/build-plan.json"
+bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan injects name, exits 0" 0 $?
+if node -e "const p=JSON.parse(require('fs').readFileSync('${SITE_DIR}/build-plan.json','utf8')); process.exit(p.name === 'Nopo Labs' ? 0 : 1);" 2>/dev/null; then
+  echo "  ✓ name correctly injected into build-plan.json"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ name not correctly injected"
+  FAIL=$((FAIL + 1))
+fi
+
+# Missing spec → exits 1
+rm -f "${SITE_DIR}/site-spec.json"
+bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan missing spec exits 1" 1 $?
+
+# Missing plan → exits 1
+cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+rm -f "${SITE_DIR}/build-plan.json"
+bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan missing plan exits 1" 1 $?
+
+# Invalid plan (missing page content) → name injected but validate fails → exits 1
+cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+cp scripts/test/fixtures/invalid-build-plan-missing-content.json "${SITE_DIR}/build-plan.json"
+bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan with invalid plan exits 1" 1 $?
+
 # ── Results ───────────────────────────────────────────────────────────────────
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
