@@ -19,5 +19,8 @@ site/
 sites/
 scaffold/node_modules/
 
+# Visual brainstorming companion
+.superpowers/
+
 # macOS
 .DS_Store
