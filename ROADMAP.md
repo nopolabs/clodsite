@@ -101,6 +101,18 @@ script that reads `build-plan.json` and emits `.njk` files directly — making
 `/build` fully scripted. This eliminates the last `Write` tool calls in `/build`
 and removes the need for `acceptEdits` mode during builds.
 
+### Unified build contract (merge spec config into build-plan)
+
+`write-site-json.sh` reads structural/config data (contact email, nav, style)
+from `site-spec.json`, while `/plan` writes page content to `build-plan.json`.
+This split means any change to structural config requires re-running `/plan`,
+which re-infers all page content — undesirable. The fix is to consolidate: move
+all inference to the interview+plan stages and make `build-plan.json` (possibly
+renamed) the single complete contract for both content and config. `/build` then
+reads only that one file; `site-spec.json` becomes interview scratch-state only.
+This would also eliminate the separate `write-site-json.sh` pass, since the
+build contract already contains everything needed to write `site.json`.
+
 ### The `/modify` command
 
 v1 covers the build path: interview → spec → plan → build → deploy. v2 adds a
