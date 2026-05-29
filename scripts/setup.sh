@@ -44,7 +44,7 @@ if [ "$MODE" = "--init-sites" ]; then
   mkdir -p sites
   git -C sites init -q
   if [ ! -f "sites/.gitignore" ]; then
-    printf '*/src/\n*/dist/\n*/.deploy-*\n' > sites/.gitignore
+    printf '*/src/\n*/.deploy-*\n' > sites/.gitignore
     echo "✓ sites/.gitignore created."
   fi
   echo "✓ sites/ initialized as a git repository."

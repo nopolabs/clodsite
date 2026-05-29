@@ -222,7 +222,7 @@ assert_dir_exists "sites/.git created" "sites/.git"
 assert_file_exists "sites/.gitignore created" "sites/.gitignore"
 
 # .gitignore content is correct
-if grep -q "\*/src/" sites/.gitignore && grep -q "\*/dist/" sites/.gitignore && grep -q "\*/\.deploy-\*" sites/.gitignore; then
+if grep -q "\*/src/" sites/.gitignore && grep -q "\*/\.deploy-\*" sites/.gitignore && ! grep -q "\*/dist/" sites/.gitignore; then
   echo "  ✓ sites/.gitignore has correct entries"
   PASS=$((PASS + 1))
 else
