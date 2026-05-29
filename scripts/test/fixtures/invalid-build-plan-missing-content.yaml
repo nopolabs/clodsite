@@ -1,0 +1,15 @@
+slug: nopo-labs
+name: Nopo Labs
+overview: A portfolio site.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+nav:
+  order:
+    - home
+contact:
+  enabled: true
+  email: hello@nopolabs.com
+build_notes: ""

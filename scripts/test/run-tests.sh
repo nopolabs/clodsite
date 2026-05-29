@@ -82,7 +82,7 @@ bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "bad enum exits 1" 1
 echo ""
 echo "=== write-site-json.sh ==="
 
-cp scripts/test/fixtures/valid-build-plan.json "${SITE_DIR}/build-plan.json"
+cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/write-site-json.sh > /dev/null 2>&1; assert_exit "write-site-json exits 0" 0 $?
 assert_file_exists "${SITE_DIR}/src/_data/site.json created" "${SITE_DIR}/src/_data/site.json"
 if node -e "const s=JSON.parse(require('fs').readFileSync('${SITE_DIR}/src/_data/site.json','utf8')); process.exit(s.name === 'Nopo Labs' ? 0 : 1);" 2>/dev/null; then
@@ -97,7 +97,7 @@ fi
 echo ""
 echo "=== apply-theme.sh ==="
 
-cp scripts/test/fixtures/valid-build-plan.json "${SITE_DIR}/build-plan.json"
+cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/apply-theme.sh > /dev/null 2>&1; assert_exit "apply-theme exits 0 for valid style" 0 $?
 
 # ── migrate-site.sh ───────────────────────────────────────────────────────────
@@ -257,26 +257,31 @@ rm -rf sites
 echo ""
 echo "=== validate-plan.sh ==="
 
-cp scripts/test/fixtures/valid-build-plan.json "${SITE_DIR}/build-plan.json"
+cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid plan passes" 0 $?
 
-cp scripts/test/fixtures/invalid-build-plan-missing-content.json "${SITE_DIR}/build-plan.json"
+cp scripts/test/fixtures/invalid-build-plan-missing-content.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing content exits 1" 1 $?
 
-rm -f "${SITE_DIR}/build-plan.json"
+rm -f "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing file exits 1" 1 $?
 
-printf '%s\n' '{
-  "slug": "test",
-  "name": "Test",
-  "overview": "Test site.",
-  "style": "minimal",
-  "tone": "professional",
-  "pages": [{ "id": "home", "title": "Home", "content": "Hello." }],
-  "nav": { "order": ["home", "nonexistent"] },
-  "contact": { "enabled": false },
-  "build_notes": ""
-}' > "${SITE_DIR}/build-plan.json"
+printf '%s\n' 'slug: test
+name: Test
+overview: Test site.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    content: Hello.
+nav:
+  order:
+    - home
+    - nonexistent
+contact:
+  enabled: false
+build_notes: ""' > "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "nav.order with unknown page id exits 1" 1 $?
 
 # ── finalize-plan.sh ──────────────────────────────────────────────────────────
@@ -285,19 +290,23 @@ echo "=== finalize-plan.sh ==="
 
 # Happy path: spec + plan without name → injects name, exits 0
 cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
-printf '%s\n' '{
-  "slug": "nopo-labs",
-  "overview": "A portfolio site.",
-  "style": "minimal",
-  "tone": "professional",
-  "pages": [{ "id": "home", "title": "Home", "content": "Hello." }],
-  "nav": { "order": ["home"] },
-  "contact": { "enabled": false },
-  "build_notes": ""
-}' > "${SITE_DIR}/build-plan.json"
+printf '%s\n' 'slug: nopo-labs
+overview: A portfolio site.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    content: Hello.
+nav:
+  order:
+    - home
+contact:
+  enabled: false
+build_notes: ""' > "${SITE_DIR}/build-plan.yaml"
 bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan injects name, exits 0" 0 $?
-if node -e "const p=JSON.parse(require('fs').readFileSync('${SITE_DIR}/build-plan.json','utf8')); process.exit(p.name === 'Nopo Labs' ? 0 : 1);" 2>/dev/null; then
-  echo "  ✓ name correctly injected into build-plan.json"
+if node -e "const yaml=require('js-yaml'); const p=yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml','utf8')); process.exit(p.name === 'Nopo Labs' ? 0 : 1);" 2>/dev/null; then
+  echo "  ✓ name correctly injected into build-plan.yaml"
   PASS=$((PASS + 1))
 else
   echo "  ✗ name not correctly injected"
@@ -310,12 +319,12 @@ bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan missi
 
 # Missing plan → exits 1
 cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
-rm -f "${SITE_DIR}/build-plan.json"
+rm -f "${SITE_DIR}/build-plan.yaml"
 bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan missing plan exits 1" 1 $?
 
 # Invalid plan (missing page content) → name injected but validate fails → exits 1
 cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
-cp scripts/test/fixtures/invalid-build-plan-missing-content.json "${SITE_DIR}/build-plan.json"
+cp scripts/test/fixtures/invalid-build-plan-missing-content.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan with invalid plan exits 1" 1 $?
 
 # ── Results ───────────────────────────────────────────────────────────────────
