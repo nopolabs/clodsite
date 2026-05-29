@@ -4,6 +4,10 @@ clodsite-context.md
 # Environment
 .env
 
+# Root Node modules
+node_modules/
+package-lock.json
+
 # Personal Claude Code settings (not shared)
 .claude/settings.local.json
 
