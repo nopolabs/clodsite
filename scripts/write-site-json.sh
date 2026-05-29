@@ -21,8 +21,7 @@ const navPages = spec.nav.order.map(id => {
   };
 });
 
-const hasContactPage = spec.pages.some(p => p.id === 'contact');
-
+const contact = spec.contact || {};
 const siteData = {
   name: spec.site.name,
   purpose: spec.site.purpose,
@@ -31,10 +30,11 @@ const siteData = {
   style: spec.site.style,
   nav: {
     order: spec.nav.order,
-    show_contact_link: spec.nav.show_contact_link && !hasContactPage,
     pages: navPages
   },
-  contact: spec.contact || { enabled: false, type: 'email', email: '' }
+  contact: contact.enabled
+    ? { enabled: true, email: contact.email }
+    : { enabled: false }
 };
 
 require('fs').mkdirSync('${SITE_DIR}/src/_data', { recursive: true });
