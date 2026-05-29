@@ -39,6 +39,18 @@ if [ "$MODE" = "--import" ]; then
   exit 0
 fi
 
+# ── --init-sites: initialize sites/ as a git repo ───────────────────────────
+if [ "$MODE" = "--init-sites" ]; then
+  mkdir -p sites
+  git -C sites init -q
+  if [ ! -f "sites/.gitignore" ]; then
+    printf '*/src/\n*/dist/\n*/.deploy-*\n' > sites/.gitignore
+    echo "✓ sites/.gitignore created."
+  fi
+  echo "✓ sites/ initialized as a git repository."
+  exit 0
+fi
+
 # ── --check: just verify wrangler is present ────────────────────────────────
 if [ "$MODE" = "--check" ]; then
   if ! command -v wrangler &> /dev/null; then
