@@ -42,8 +42,6 @@ if (!Array.isArray(spec.pages) || spec.pages.length < 1 || spec.pages.length > 5
 
 const contact = spec.contact || {};
 if (contact.enabled) {
-  if (contact.type !== 'email')
-    errors.push('contact.type must be \"email\" when contact.enabled is true (form contact is a v2 feature)');
   if (!contact.email)
     errors.push('contact.email is required when contact.enabled is true');
 }
