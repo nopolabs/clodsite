@@ -110,11 +110,12 @@ and stable page `id`s specifically to support this.
 
 ### Contact form + form backend
 
-v1 contact is a `mailto:` link only. v2 adds a real submittable contact form.
-Because Clodsite sites are static, a form needs a backend to receive the POST —
-either a form service (Formspree, Web3Forms) or a Cloudflare Pages Function
-that handles the submission and sends email via an API (Resend, MailChannels).
-The spec's `contact.type` field is reserved for this.
+Contact is a footer email link (`contact.enabled` / `contact.email` in the
+spec). A submittable contact form would be a user-specified page in `pages[]`
+— built using either a form service (Formspree, Web3Forms) or a Cloudflare
+Pages Function with an email API (Resend, MailChannels). The interview would
+ask for the preferred approach and `/build` would generate the page and form
+markup accordingly.
 
 ### Blog page type
 
