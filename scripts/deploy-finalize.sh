@@ -48,3 +48,10 @@ if [ -n "$BUILD_URL" ] && [ "$BUILD_URL" != "$PROD_URL" ]; then
   echo ""
 fi
 echo "See ${SITE_DIR}/NEXT-STEPS.md for next steps."
+
+# Auto-commit to sites repo if initialised
+SITE_DIR_NAME=$(basename "${SITE_DIR}")
+if [ -d "sites/.git" ]; then
+  git -C sites add "${SITE_DIR_NAME}/" 2>/dev/null || true
+  git -C sites commit -m "deploy: ${SITE_DIR_NAME} → ${PROD_URL}" 2>/dev/null || true
+fi
