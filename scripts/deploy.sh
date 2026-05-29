@@ -78,11 +78,9 @@ echo ""
 echo "Deploying '$SITE_NAME' to Cloudflare Pages..."
 echo ""
 
-mkdir -p scripts
-
 wrangler pages deploy "${SITE_DIR}/dist" --project-name "$SITE_NAME" \
-  > scripts/.deploy-output 2> scripts/.deploy-error
+  > "${SITE_DIR}/.deploy-output" 2> "${SITE_DIR}/.deploy-error"
 WRANGLER_EXIT=$?
 
-echo "$WRANGLER_EXIT" > scripts/.deploy-exit
+echo "$WRANGLER_EXIT" > "${SITE_DIR}/.deploy-exit"
 exit $WRANGLER_EXIT

@@ -3,7 +3,7 @@ set -euo pipefail
 
 SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
 
-if [ ! -f "scripts/.deploy-output" ]; then
+if [ ! -f "${SITE_DIR}/.deploy-output" ]; then
   echo "Error: No deployment output found. Run /deploy first."
   exit 1
 fi
@@ -14,7 +14,7 @@ const slug = spec.site.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-
 console.log(slug);
 ")
 
-BUILD_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' scripts/.deploy-output | tail -1)
+BUILD_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' "${SITE_DIR}/.deploy-output" | tail -1)
 
 # Derive production URL from the snapshot URL by stripping the 8-char deployment
 # hash prefix. Cloudflare may assign a suffixed subdomain (e.g. test-1-ah5.pages.dev)

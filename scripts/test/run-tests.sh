@@ -158,6 +158,20 @@ bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing spec exits 1" 1 
 cp scripts/test/fixtures/teardown-spec-no-name.json "${SITE_DIR}/site-spec.json"
 bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing site.name exits 1" 1 $?
 
+# ── deploy-finalize.sh ────────────────────────────────────────────────────────
+echo ""
+echo "=== deploy-finalize.sh ==="
+
+# Missing .deploy-output → exits 1
+rm -f "${SITE_DIR}/.deploy-output"
+bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "missing .deploy-output exits 1" 1 $?
+
+# Valid .deploy-output → exits 0, writes NEXT-STEPS.md
+cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
+bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with output exits 0" 0 $?
+assert_file_exists "NEXT-STEPS.md created" "${SITE_DIR}/NEXT-STEPS.md"
+
 # ── Results ───────────────────────────────────────────────────────────────────
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
