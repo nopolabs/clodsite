@@ -103,15 +103,17 @@ and removes the need for `acceptEdits` mode during builds.
 
 ### Unified build contract (merge spec config into build-plan)
 
-`write-site-json.sh` reads structural/config data (contact email, nav, style)
-from `site-spec.json`, while `/plan` writes page content to `build-plan.json`.
-This split means any change to structural config requires re-running `/plan`,
-which re-infers all page content — undesirable. The fix is to consolidate: move
-all inference to the interview+plan stages and make `build-plan.json` (possibly
-renamed) the single complete contract for both content and config. `/build` then
-reads only that one file; `site-spec.json` becomes interview scratch-state only.
-This would also eliminate the separate `write-site-json.sh` pass, since the
-build contract already contains everything needed to write `site.json`.
+Shipped May 2026. `build-plan.json` is now the single input to `/build`.
+The `site_name` field was renamed to `slug`; a `name` field (display name,
+injected by `finalize-plan.sh` from `spec.site.name`) was added. `write-site-json.sh`
+and `apply-theme.sh` now read from `build-plan.json` only; `site-spec.json` is
+interview scratch-state that `/build` never touches. `validate-plan.sh` also
+gained a cross-reference check: all IDs in `nav.order` must exist in `pages`.
+
+Known limitation: the nav href logic maps both the page with `id: "home"` AND the
+first page in `nav.order` to `/`, so placing a non-home page first in nav causes a
+routing conflict. All current sites have "home" first so this is inert — fix when
+a site needs a different first-nav-page.
 
 ### The `/modify` command
 
