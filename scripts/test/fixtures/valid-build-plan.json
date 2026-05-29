@@ -16,7 +16,6 @@
   },
   "contact": {
     "enabled": true,
-    "type": "email",
     "email": "hello@nopolabs.com"
   },
   "build_notes": ""

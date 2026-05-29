@@ -10,8 +10,8 @@
     { "id": "home", "title": "Home", "purpose": "Landing page", "content_outline": "Hero + brief intro" },
     { "id": "about", "title": "About", "purpose": "Who we are", "content_outline": "Team and mission" }
   ],
-  "nav": { "order": ["home", "about"], "show_contact_link": false },
-  "contact": { "enabled": false, "type": "email", "email": "" },
+  "nav": { "order": ["home", "about"] },
+  "contact": { "enabled": false },
   "domain": { "custom": false, "hostname": "" },
   "content_status": "draft",
   "meta": { "generated_at": "2026-05-14T00:00:00Z", "spec_version": "1.0" }
