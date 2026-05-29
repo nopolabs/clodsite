@@ -46,13 +46,11 @@ The JSON must match this schema exactly:
     }
   ],
   "nav": {
-    "order": ["<page ids in nav order from spec>"],
-    "show_contact_link": "<true or false from spec>"
+    "order": ["<page ids in nav order from spec>"]
   },
   "contact": {
     "enabled": "<true or false from spec>",
-    "type": "email",
-    "email": "<email from spec, or omit key if contact.enabled is false>"
+    "email": "<email address, or omit key if contact.enabled is false>"
   },
   "build_notes": "<any special rendering notes for /build, or empty string>"
 }
