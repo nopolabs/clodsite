@@ -57,6 +57,7 @@ Validate spec. Write all page content. Produces `sites/<site-name>/build-plan.js
 ```
 [SCRIPT] bash scripts/validate-spec.sh
 [LLM]    Generate sites/<site-name>/build-plan.json (full page content if content_status=draft)
+[SCRIPT] SITE_DIR=sites/<site-name> bash scripts/finalize-plan.sh
 ```
 
 User reviews `sites/<site-name>/build-plan.json` before running `/build`.

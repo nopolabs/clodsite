@@ -34,7 +34,7 @@ The JSON must match this schema exactly:
 
 ```json
 {
-  "site_name": "<value of site.name from spec>",
+  "slug": "<site directory name — same as what was passed to /plan, e.g. acme-corp>",
   "overview": "<one paragraph — purpose, audience, tone>",
   "style": "<value of site.style from spec>",
   "tone": "<value of site.tone from spec>",
@@ -56,6 +56,8 @@ The JSON must match this schema exactly:
 }
 ```
 
+Do not include a `name` field — the display name is injected automatically by `finalize-plan.sh` after this step.
+
 **Content rules for `pages[n].content`:**
 
 - If `content_status = "provided"`: use `content_outline` as-is, wrapped in appropriate markdown headings.
@@ -64,6 +66,16 @@ The JSON must match this schema exactly:
 - Do not include the page title as a top-level heading — the template handles that. Start with the first content element.
 
 Write the complete JSON to `sites/<site-name>/build-plan.json`. No extra commentary in the file.
+
+---
+
+**[SCRIPT]** Finalize the plan — injects display name from the spec and validates:
+
+```bash
+SITE_DIR=sites/<site-name> bash scripts/finalize-plan.sh
+```
+
+If this exits with errors, print them clearly and stop.
 
 ---
 
