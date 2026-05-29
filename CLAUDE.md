@@ -1,6 +1,6 @@
 # Clodsite
 
-An opinionated website-building workflow. Interview → spec → plan → build → deploy. Five commands. One live site.
+Describe your site. Deploy it. Inference on the front end, deterministic scripts on the back end — the spec is the boundary between the two.
 
 ## Getting Started
 
@@ -13,12 +13,14 @@ When a user opens this project without a specific request, greet them with this:
 | Step | Command | What it does |
 |------|---------|--------------|
 | 1 | `/setup` | Verify your Cloudflare token |
-| 2 | `/interview <site-name>` | 10-question session → `sites/<site-name>/site-spec.json` |
+| 2 | `/interview <site-name>` | Guided session → `sites/<site-name>/site-spec.json` |
 | 3 | `/plan <site-name>` | Review and approve copy → `sites/<site-name>/build-plan.md` |
 | 4 | `/build <site-name>` | Generate templates + Eleventy build → `sites/<site-name>/dist/` |
 | 5 | `/deploy <site-name>` | Ship to Cloudflare Pages → live URL |
 
 Or to preview locally without deploying: `/deploy <site-name> local`
+
+After deploying: `/domain <site-name>` to connect a custom domain, `/teardown <site-name>` to delete a Pages project.
 
 Type `/help` at any time to see this again.
 
@@ -38,10 +40,11 @@ Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previo
 [LLM]    Ask for Cloudflare API token + Account ID
 [LLM]    Write .env via the Write tool
 [SCRIPT] bash scripts/setup.sh --verify      (confirm)
+[SCRIPT] bash scripts/setup.sh --init-sites  (initialize sites/ as a git repo)
 ```
 
 ### `/interview` — `[LLM]`
-10-question session. Produces `sites/<site-name>/site-spec.json`.
+Guided interview session. Produces `sites/<site-name>/site-spec.json`. The spec can also be filled directly or produced by another tool — the build pipeline doesn't care how it was generated.
 
 ```
 [LLM]    Conduct interview, synthesize answers into JSON
@@ -78,6 +81,26 @@ Deploy to Cloudflare Pages. Produces a live URL and `sites/<site-name>/NEXT-STEP
 [SCRIPT] bash scripts/deploy-finalize.sh     (on success — production URL, NEXT-STEPS.md)
 ```
 
+### `/domain` — `[HYBRID]`
+Connect a custom domain to a deployed site. Creates the Pages association and proxied CNAME automatically when DNS is in the same Cloudflare account; falls back to manual instructions otherwise.
+
+```
+[LLM]    Read spec, prompt for domain if not already set
+[SCRIPT] SITE_DIR=sites/<site-name> bash scripts/domain.sh
+[LLM]    Interpret output (CNAME created, already exists, or manual DNS instructions)
+```
+
+### `/teardown` — `[HYBRID]`
+Delete a deployed site from Cloudflare Pages. Requires explicit confirmation. Optionally cleans local artifacts with `clean` flag.
+
+```
+[LLM]    Read spec, show destruction summary (project, URL, custom domain if set)
+[LLM]    Ask user to type site name to confirm
+[SCRIPT] SITE_DIR=sites/<site-name> bash scripts/teardown.sh
+[SCRIPT] bash scripts/clean.sh <site-name>   (only if `/teardown <site-name> clean`)
+[LLM]    Interpret error if teardown fails
+```
+
 ---
 
 ## Architecture: `[SCRIPT]` / `[LLM]` / `[HYBRID]`
@@ -108,9 +131,11 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 
 ---
 
-## Scope (Hackathon v1.0)
+## Scope (v2.0)
 
-In scope: static content sites, 1–5 pages, three visual styles, `mailto:` contact, Cloudflare Pages deploy.
+Static content sites, 1–5 pages (or one), three visual styles, `mailto:` contact, Cloudflare Pages deploy, custom domain automation, per-site version control.
 
-See `ROADMAP.md` for everything deferred to v2 and why.
-Full v1 spec: `docs/superpowers/specs/2026-05-13-clodsite-prd.md`.
+The inference boundary is `sites/<site-name>/site-spec.json`. Everything before it is inference; everything after is deterministic scripts.
+
+See `ROADMAP.md` for what's next.
+Original v1 spec: `docs/superpowers/specs/2026-05-13-clodsite-prd.md`.

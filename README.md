@@ -1,40 +1,73 @@
-# Clodsite
+# Clodsite v2.0
 
-**An opinionated website-building workflow for Claude Code.**
+**Describe your site. Deploy it.**
 
-Interview → spec → plan → build → deploy. Five commands. One live site on Cloudflare Pages.
+Imagine you've hired a website designer. You tell them what you want — what the site is for, who it's for, what pages it needs, what tone it should have. They build it. You review it, ask for changes, iterate. You never touch the code.
+
+Clodsite works the same way. Claude interviews you, produces a reviewable spec, and only builds after you approve. The scripts take over from there: deterministic, fast, and free.
+
+---
+
+## The Spec
+
+Everything flows through `sites/<name>/site-spec.json`. It's a structured description of your site — name, pages, tone, contact info, visual style, domain. Everything before it is inference. Everything after it is deterministic.
+
+```
+Describe ──[LLM]──▶ site-spec.json ──[SCRIPT]──▶ Built site ──[SCRIPT]──▶ Deployed
+```
+
+A given spec always produces the same site. You can fill it however you want: let Claude interview you, edit the JSON directly, or produce it from another tool. The build and deploy pipeline doesn't care how it was produced.
+
+---
+
+## Getting Started
 
 ```bash
-git clone https://github.com/nopolabs/clodsite my-site && cd my-site && claude
+git clone https://github.com/nopolabs/clodsite my-sites && cd my-sites && claude
 ```
 
 Then inside Claude Code:
 
-```
-/setup       collect and verify your Cloudflare API token
-/interview   10-question session → site/site-spec.json
-/plan        review and approve the build plan
-/build       generate and build the site
-/deploy      ship to Cloudflare Pages → live URL
-```
+| Step | Command | What it does |
+|------|---------|--------------|
+| 1 | `/setup` | Verify your Cloudflare token; initialize `sites/` |
+| 2 | `/interview <site-name>` | Guided session → `sites/<name>/site-spec.json` |
+| 3 | `/plan <site-name>` | Review and approve copy → `sites/<name>/build-plan.md` |
+| 4 | `/build <site-name>` | Generate templates + Eleventy build → `sites/<name>/dist/` |
+| 5 | `/deploy <site-name>` | Ship to Cloudflare Pages → live URL |
 
-`/deploy local` previews at `http://localhost:8080` without deploying.
+After deploying:
+
+| Command | What it does |
+|---------|--------------|
+| `/domain <site-name>` | Connect a custom domain (auto-creates CNAME if DNS is in your Cloudflare account) |
+| `/teardown <site-name>` | Delete the Pages project and all deployment history |
+
+`/deploy <site-name> local` previews at `http://localhost:8080` without deploying.
 
 ---
 
-## The Idea
+## Architecture
 
-Most AI site builders are autocomplete with a pretty UI. Clodsite is a structured process: the AI interviews you, produces a reviewable spec, and only builds after you approve. Every step is labeled `[SCRIPT]`, `[LLM]`, or `[HYBRID]`.
+Every step is labeled with its execution type:
 
-This isn't a rejection of vibe coding — it's a lane assignment for it. `[LLM]` steps handle what LLMs are actually good at: writing copy, interpreting tone, synthesizing interview answers, explaining errors. `[SCRIPT]` steps handle everything else: reading files, validating schemas, running CLI tools. Each approach does what it's actually good at.
+| Label | What it means | Why it matters |
+|-------|---------------|----------------|
+| `[SCRIPT]` | Deterministic bash — same result every time | Free, fast, reliable |
+| `[LLM]` | Claude inference — reasoning, generation, interpretation | Where creativity earns its cost |
+| `[HYBRID]` | Script validates structure; LLM handles semantics | Best of both |
 
 ```
-/setup     [SCRIPT]  — bash all the way down
-/interview [LLM]     — 10 questions, one JSON spec
-/plan      [HYBRID]  — script validates, LLM generates copy
-/build     [HYBRID]  — script writes data, LLM writes templates
-/deploy    [SCRIPT]  — wrangler pages deploy + LLM error interpretation on failure
+/setup       [HYBRID]  — credential prompts + bash verification
+/interview   [LLM]     — guided session → site-spec.json
+/plan        [HYBRID]  — script validates, LLM generates copy
+/build       [HYBRID]  — script writes data, LLM writes templates
+/deploy      [SCRIPT]  — wrangler pages deploy + LLM error interpretation
+/domain      [HYBRID]  — script wires up DNS, LLM interprets result
+/teardown    [HYBRID]  — script deletes Pages project, LLM confirms
 ```
+
+The inference boundary is `site-spec.json`. Before it, Claude. After it, scripts.
 
 ---
 
@@ -44,8 +77,10 @@ This isn't a rejection of vibe coding — it's a lane assignment for it. `[LLM]`
 - [Node.js](https://nodejs.org/) 18+
 - [Wrangler](https://developers.cloudflare.com/workers/wrangler/install-and-update/) (`npm install -g wrangler`)
 - A [Cloudflare account](https://dash.cloudflare.com/) (free tier works)
-- A Cloudflare API token with **Cloudflare Pages: Edit** permission
-- Your Cloudflare Account ID (shown in the dashboard URL: `dash.cloudflare.com/<account-id>`)
+- A Cloudflare API token with:
+  - **Cloudflare Pages: Edit** — required
+  - **Zone > DNS: Edit** — optional; enables `/domain` to create CNAME records automatically
+- Your Cloudflare Account ID (the 32-character hex ID in `dash.cloudflare.com/<account-id>`)
 
 ---
 
@@ -57,22 +92,20 @@ A static site built with [Eleventy](https://www.11ty.dev/) and deployed to Cloud
 
 ## Why it works this way
 
-Claude Code's `CLAUDE.md` loads when you open Claude Code in a directory. That means you need to be inside the cloned repo for the commands to work — hence the `&& claude` at the end of the clone command. This is a current Claude Code constraint; the natural evolution is dynamic command loading from a remote URL.
+Claude Code's `CLAUDE.md` loads when you open Claude Code in a directory — that's how the commands work and why you need to be inside the cloned repo. This is a current Claude Code constraint; the natural next step is installable skill packaging that removes the clone-and-cd bootstrap entirely.
+
+The longer arc: the spec is a portable document format. A schema that deterministically compiles to a deployed website is a build pipeline, and build pipelines can become services. The inference layer — Claude today, anything tomorrow — stays decoupled from the compilation and deployment back-end.
 
 ---
 
 ## Roadmap
 
-v1 is intentionally scoped to a working, shippable workflow. See [`ROADMAP.md`](ROADMAP.md) for what v2 would add — multi-site workspaces, installable skill packaging, the `/modify` and `/teardown` commands, custom domain automation, a free-form interview opener, contact-form backend, ecommerce, and new page types (blog, calendar, gallery).
+See [`ROADMAP.md`](ROADMAP.md) for the full picture. Coming next: a `/status` command, configurable `sites/` location, structured `build-plan.json`, `/modify` for iterating on live sites, installable skill packaging, and new page types (blog, gallery, events, ecommerce).
 
 ---
 
 ## Origin
 
-Built after a few weeks of using Claude Code on small real sites — [mastertimewaster.com](https://github.com/nopolabs/mtw4), [bigbeautifulpeaceprize.com](https://github.com/nopolabs/bbpp), [hmc-cycling.org](https://github.com/nopolabs/hmc) — where the same lesson kept recurring: most of the work was deterministic and belonged in scripts; only a few steps actually needed inference. Clodsite is that lesson, distilled into a template.
+Started at the [State of Oregon Claude Code Hackathon](https://luma.com/bf9gpp2z) — 2026 — by [@nopolabs](https://github.com/nopolabs).
 
----
-
-## Built for
-
-[State of Oregon Claude Code Hackathon](https://luma.com/bf9gpp2z) — 2026 — by [@nopolabs](https://github.com/nopolabs)
+Built after a few weeks of using Claude Code on small real sites — [mastertimewaster.com](https://github.com/nopolabs/mtw4), [bigbeautifulpeaceprize.com](https://github.com/nopolabs/bbpp), [hmc-cycling.org](https://github.com/nopolabs/hmc) — where the same lesson kept recurring: most of the work was deterministic and belonged in scripts; only a few steps actually needed inference.
