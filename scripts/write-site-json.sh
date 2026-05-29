@@ -3,17 +3,17 @@ set -euo pipefail
 
 SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
 
-if [ ! -f "${SITE_DIR}/site-spec.json" ]; then
-  echo "Error: ${SITE_DIR}/site-spec.json not found. Run /interview first."
+if [ ! -f "${SITE_DIR}/build-plan.json" ]; then
+  echo "Error: ${SITE_DIR}/build-plan.json not found. Run /plan first."
   exit 1
 fi
 
 node -e "
-const spec = JSON.parse(require('fs').readFileSync('${SITE_DIR}/site-spec.json', 'utf8'));
+const plan = JSON.parse(require('fs').readFileSync('${SITE_DIR}/build-plan.json', 'utf8'));
 
-const firstId = spec.nav.order[0];
-const navPages = spec.nav.order.map(id => {
-  const page = spec.pages.find(p => p.id === id);
+const firstId = plan.nav.order[0];
+const navPages = plan.nav.order.map(id => {
+  const page = plan.pages.find(p => p.id === id);
   return {
     id: page.id,
     title: page.title,
@@ -21,15 +21,12 @@ const navPages = spec.nav.order.map(id => {
   };
 });
 
-const contact = spec.contact || {};
+const contact = plan.contact || {};
 const siteData = {
-  name: spec.site.name,
-  purpose: spec.site.purpose,
-  audience: spec.site.audience,
-  tone: spec.site.tone,
-  style: spec.site.style,
+  name: plan.name,
+  style: plan.style,
   nav: {
-    order: spec.nav.order,
+    order: plan.nav.order,
     pages: navPages
   },
   contact: contact.enabled

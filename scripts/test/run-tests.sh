@@ -82,25 +82,14 @@ bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "bad enum exits 1" 1
 echo ""
 echo "=== write-site-json.sh ==="
 
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+cp scripts/test/fixtures/valid-build-plan.json "${SITE_DIR}/build-plan.json"
 bash scripts/write-site-json.sh > /dev/null 2>&1; assert_exit "write-site-json exits 0" 0 $?
 assert_file_exists "${SITE_DIR}/src/_data/site.json created" "${SITE_DIR}/src/_data/site.json"
-
-# Test with a spec that has the deprecated fields
-cp scripts/test/fixtures/domain-spec-deployed.json "${SITE_DIR}/site-spec.json"
-bash scripts/write-site-json.sh > /dev/null 2>&1; assert_exit "write-site-json exits 0 with deprecated fields in spec" 0 $?
-if ! grep -q "show_contact_link" "${SITE_DIR}/src/_data/site.json"; then
-  echo "  ✓ show_contact_link absent from site.json"
+if node -e "const s=JSON.parse(require('fs').readFileSync('${SITE_DIR}/src/_data/site.json','utf8')); process.exit(s.name === 'Nopo Labs' ? 0 : 1);" 2>/dev/null; then
+  echo "  ✓ site.json name set from build-plan"
   PASS=$((PASS + 1))
 else
-  echo "  ✗ show_contact_link present in site.json (should be removed)"
-  FAIL=$((FAIL + 1))
-fi
-if ! grep -q '"type"' "${SITE_DIR}/src/_data/site.json"; then
-  echo "  ✓ contact.type absent from site.json"
-  PASS=$((PASS + 1))
-else
-  echo "  ✗ contact.type present in site.json (should be removed)"
+  echo "  ✗ site.json name not set correctly"
   FAIL=$((FAIL + 1))
 fi
 
@@ -108,7 +97,7 @@ fi
 echo ""
 echo "=== apply-theme.sh ==="
 
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+cp scripts/test/fixtures/valid-build-plan.json "${SITE_DIR}/build-plan.json"
 bash scripts/apply-theme.sh > /dev/null 2>&1; assert_exit "apply-theme exits 0 for valid style" 0 $?
 
 # ── migrate-site.sh ───────────────────────────────────────────────────────────
