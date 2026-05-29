@@ -38,6 +38,11 @@ account. Falls back to printing manual DNS instructions when DNS is external or
 the token lacks `Zone > DNS: Edit`. Handles the HTTP 400 (not 409) Cloudflare
 returns when a domain association already exists.
 
+### Sites version control
+Shipped May 2026. `/setup` initializes `sites/` as a git repository (idempotent).
+`deploy-finalize.sh` auto-commits after each successful deploy with message
+`deploy: <site-name> → <url>`. No remote management — add a remote and push manually.
+
 ---
 
 ## Pending
@@ -49,8 +54,7 @@ The natural follow-on is making the path configurable — so `sites/` can live
 outside the clodsite repo entirely (e.g., `~/my-sites/` or a dedicated GitHub
 repo cloned elsewhere). This would be stored in `.env` as `SITES_DIR` and all
 scripts that currently hardcode `sites/` or construct `SITE_DIR=sites/<name>`
-would resolve paths against it. Depends on sites-as-git-repo being in place
-first, which it will be.
+would resolve paths against it. Depends on sites version control (shipped May 2026).
 
 ### The `/status` command
 
