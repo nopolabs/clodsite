@@ -28,32 +28,28 @@ If this exits with errors, print them clearly to the user and stop. Do not proce
 
 ---
 
-**[LLM]** Read `sites/<site-name>/site-spec.json`. Generate `sites/<site-name>/build-plan.json` using the Write tool.
+**[LLM]** Read `sites/<site-name>/site-spec.json`. Generate `sites/<site-name>/build-plan.yaml` using the Write tool.
 
-The JSON must match this schema exactly:
+The YAML must match this schema exactly:
 
-```json
-{
-  "slug": "<site directory name — same as what was passed to /plan, e.g. acme-corp>",
-  "overview": "<one paragraph — purpose, audience, tone>",
-  "style": "<value of site.style from spec>",
-  "tone": "<value of site.tone from spec>",
-  "pages": [
-    {
-      "id": "<page id from spec>",
-      "title": "<page title from spec>",
-      "content": "<full page content in markdown — see rules below>"
-    }
-  ],
-  "nav": {
-    "order": ["<page ids in nav order from spec>"]
-  },
-  "contact": {
-    "enabled": "<true or false from spec>",
-    "email": "<email address, or omit key if contact.enabled is false>"
-  },
-  "build_notes": "<any special rendering notes for /build, or empty string>"
-}
+```yaml
+slug: <site directory name — same as what was passed to /plan, e.g. acme-corp>
+overview: >-
+  <one paragraph — purpose, audience, tone>
+style: <value of site.style from spec>
+tone: <value of site.tone from spec>
+pages:
+  - id: <page id from spec>
+    title: <page title from spec>
+    content: |
+      <full page content in GFM — see rules below>
+nav:
+  order:
+    - <page ids in nav order from spec>
+contact:
+  enabled: <true or false from spec>
+  email: <email address — omit this key if contact.enabled is false>
+build_notes: <any special rendering notes for /build, or empty string>
 ```
 
 Do not include a `name` field — the display name is injected automatically by `finalize-plan.sh` after this step.
@@ -62,10 +58,10 @@ Do not include a `name` field — the display name is injected automatically by 
 
 - If `content_status = "provided"`: use `content_outline` as-is, wrapped in appropriate markdown headings.
 - If `content_status = "draft"`: write complete, publish-ready copy using `content_outline` as your brief. Write real sentences. Match the site tone. This is the copy that will appear on the live site.
-- Format as markdown: `#` for main heading, `##` for subheadings, plain paragraphs, fenced code blocks with triple backticks, bullet lists.
-- Do not include the page title as a top-level heading — the template handles that. Start with the first content element.
+- Format as GFM (GitHub Flavored Markdown): `#` for main heading, `##` for subheadings, plain paragraphs, fenced code blocks with triple backticks, bullet lists, pipe tables.
+- The `content` field uses a YAML literal block scalar (`|`). Write content starting on the next line, indented 6 spaces (2 beyond the `content:` key at 4 spaces). Do not add a leading `#` heading — the template handles the page title.
 
-Write the complete JSON to `sites/<site-name>/build-plan.json`. No extra commentary in the file.
+Write the complete YAML to `sites/<site-name>/build-plan.yaml`. No extra commentary in the file.
 
 ---
 

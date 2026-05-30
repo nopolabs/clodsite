@@ -42,7 +42,7 @@ SITE_DIR=sites/<site-name> bash scripts/apply-theme.sh
 
 ---
 
-**[LLM]** Read `sites/<site-name>/build-plan.json`.
+**[LLM]** Read `sites/<site-name>/build-plan.yaml`.
 
 Generate an Eleventy Nunjucks template for each page in `pages[]`. All content comes from the build plan — do not invent, shorten, or rewrite any copy.
 
@@ -59,10 +59,10 @@ Generate an Eleventy Nunjucks template for each page in `pages[]`. All content c
 ```
 ---
 layout: base.njk
-pageTitle: [page title from build-plan.json pages[n].title]
+pageTitle: [page title from build-plan.yaml pages[n].title]
 permalink: [/ for first page, /[id]/ for others — trailing slash required]
 ---
-[page content as HTML, converted from build-plan.json pages[n].content]
+[page content as HTML, converted from build-plan.yaml pages[n].content]
 ```
 
 Use the Write tool to create each file at its exact path.

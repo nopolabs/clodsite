@@ -14,7 +14,7 @@ When a user opens this project without a specific request, greet them with this:
 |------|---------|--------------|
 | 1 | `/setup` | Verify your Cloudflare token |
 | 2 | `/interview <site-name>` | Guided session → `sites/<site-name>/site-spec.json` |
-| 3 | `/plan <site-name>` | Review and approve copy → `sites/<site-name>/build-plan.md` |
+| 3 | `/plan <site-name>` | Review and approve copy → `sites/<site-name>/build-plan.yaml` |
 | 4 | `/build <site-name>` | Generate templates + Eleventy build → `sites/<site-name>/dist/` |
 | 5 | `/deploy <site-name>` | Ship to Cloudflare Pages → live URL |
 
@@ -52,24 +52,24 @@ Guided interview session. Produces `sites/<site-name>/site-spec.json`. The spec 
 ```
 
 ### `/plan` — `[HYBRID]`
-Validate spec. Write all page content. Produces `sites/<site-name>/build-plan.json` — the inference boundary. Everything before this is deciding; everything after is rendering.
+Validate spec. Write all page content. Produces `sites/<site-name>/build-plan.yaml` — the inference boundary. Everything before this is deciding; everything after is rendering.
 
 ```
 [SCRIPT] bash scripts/validate-spec.sh
-[LLM]    Generate sites/<site-name>/build-plan.json (full page content if content_status=draft)
+[LLM]    Generate sites/<site-name>/build-plan.yaml (full page content in GFM if content_status=draft)
 [SCRIPT] SITE_DIR=sites/<site-name> bash scripts/finalize-plan.sh
 ```
 
-User reviews `sites/<site-name>/build-plan.json` before running `/build`.
+User reviews `sites/<site-name>/build-plan.yaml` before running `/build`.
 
 ### `/build` — `[HYBRID]`
-Render build plan to templates. Run Eleventy. Produces `sites/<site-name>/dist/`. All content is read from `build-plan.json` — no content decisions happen here.
+Render build plan to templates. Run Eleventy. Produces `sites/<site-name>/dist/`. All content is read from `build-plan.yaml` — no content decisions happen here.
 
 ```
 [SCRIPT] bash scripts/validate-plan.sh
 [SCRIPT] bash scripts/write-site-json.sh
 [SCRIPT] bash scripts/apply-theme.sh
-[LLM]    Render build-plan.json → sites/<site-name>/src/[page].njk for each page
+[LLM]    Render build-plan.yaml → sites/<site-name>/src/[page].njk for each page
 [SCRIPT] bash scripts/build-site.sh
 ```
 
@@ -125,7 +125,7 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
 | `sites/<site-name>/site-spec.json` | `/interview <site-name>` | The site spec (pretty-printed JSON) |
-| `sites/<site-name>/build-plan.json` | `/plan <site-name>` | Structured build plan — all content decisions captured here (review before /build) |
+| `sites/<site-name>/build-plan.yaml` | `/plan <site-name>` | Structured build plan with GFM page content — review before /build |
 | `sites/<site-name>/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (gitignored) |
 | `sites/<site-name>/src/*.njk` | `/build <site-name>` | Page templates with content (gitignored) |
 | `sites/<site-name>/dist/` | `/build <site-name>` | Built static site |
