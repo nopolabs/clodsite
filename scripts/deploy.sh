@@ -34,8 +34,8 @@ if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
   exit 1
 fi
 
-if [ ! -f "${SITE_DIR}/site-spec.json" ]; then
-  echo "Error: ${SITE_DIR}/site-spec.json not found. Run /interview first."
+if [ ! -f "${SITE_DIR}/build-plan.yaml" ]; then
+  echo "Error: ${SITE_DIR}/build-plan.yaml not found. Run /plan first."
   exit 1
 fi
 
@@ -45,12 +45,9 @@ if [ ! -d "${SITE_DIR}/dist" ] || [ -z "$(ls -A "${SITE_DIR}/dist" 2>/dev/null)"
 fi
 
 SITE_NAME=$(node -e "
-const spec = JSON.parse(require('fs').readFileSync('${SITE_DIR}/site-spec.json', 'utf8'));
-const slug = spec.site.name
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+\$/g, '');
-console.log(slug);
+const yaml = require('js-yaml');
+const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
+console.log(plan.slug);
 ")
 
 # Ensure the Cloudflare Pages project exists in *this* account.

@@ -9,9 +9,9 @@ if [ ! -f "${SITE_DIR}/.deploy-output" ]; then
 fi
 
 SITE_NAME=$(node -e "
-const spec = JSON.parse(require('fs').readFileSync('${SITE_DIR}/site-spec.json', 'utf8'));
-const slug = spec.site.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+\$/g,'');
-console.log(slug);
+const yaml = require('js-yaml');
+const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
+console.log(plan.slug);
 ")
 
 BUILD_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' "${SITE_DIR}/.deploy-output" | tail -1)
@@ -26,12 +26,6 @@ else
   PROD_URL="https://${SITE_NAME}.pages.dev"
 fi
 
-node -e "
-const spec = JSON.parse(require('fs').readFileSync('${SITE_DIR}/site-spec.json', 'utf8'));
-if (!spec.meta) spec.meta = {};
-spec.meta.deployed_url = '$PROD_URL';
-require('fs').writeFileSync('${SITE_DIR}/site-spec.json', JSON.stringify(spec, null, 2) + '\n');
-"
 
 sed "s|{{DEPLOY_URL}}|$PROD_URL|g; s|{{SITE_NAME}}|$SITE_NAME|g" \
   scripts/templates/NEXT-STEPS.template.md > "${SITE_DIR}/NEXT-STEPS.md"

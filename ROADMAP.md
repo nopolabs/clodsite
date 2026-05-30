@@ -65,6 +65,15 @@ first page in `nav.order` to `/`, so placing a non-home page first in nav causes
 routing conflict. All current sites have "home" first so this is inert — fix when
 a site needs a different first-nav-page.
 
+### Deploy pipeline reads slug from build-plan.yaml
+Shipped May 2026. `deploy.sh` and `deploy-finalize.sh` now read the project slug
+directly from `build-plan.yaml` instead of `site-spec.json`. The `site-spec.json`
+existence check in `deploy.sh` was replaced with a `build-plan.yaml` check.
+The `deployed_url` write-back in `deploy-finalize.sh` was removed entirely — the
+live URL is shown in the terminal and written to `NEXT-STEPS.md`. Sites built
+from a hand-authored `build-plan.yaml` no longer need a `site-spec.json` at any
+stage of the pipeline.
+
 ---
 
 ## Pending
