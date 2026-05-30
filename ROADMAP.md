@@ -106,11 +106,18 @@ I heard" summary before generating the spec keeps the LLM inference honest. The
 output is the same schema-validated JSON — the contract with downstream scripts
 doesn't change. The fixed-question script remains as the fallback.
 
+### GFM build plan format (build-plan.yaml)
+Shipped May 2026. `build-plan.json` replaced by `build-plan.yaml`. Page content
+uses YAML literal block scalars (`|`) containing GitHub Flavored Markdown — human-readable
+in any editor, with a well-defined HTML mapping. `js-yaml` added as a root-level
+dependency; all four build pipeline scripts (`validate-plan`, `finalize-plan`,
+`write-site-json`, `apply-theme`) parse YAML via `require('js-yaml').load()`.
+
 ### Script-generated templates
 
-`build-plan.json` is now the structured compile input (shipped May 2026). The
+`build-plan.yaml` is the structured compile input (shipped May 2026). The
 remaining step is replacing the LLM template-generation step in `/build` with a
-script that reads `build-plan.json` and emits `.njk` files directly — making
+script that reads `build-plan.yaml` and emits `.njk` files directly — making
 `/build` fully scripted. This eliminates the last `Write` tool calls in `/build`
 and removes the need for `acceptEdits` mode during builds.
 
