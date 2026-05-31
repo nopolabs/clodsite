@@ -13,7 +13,7 @@ if [ ! -d "scaffold/node_modules" ]; then
 fi
 
 rm -rf "${SITE_DIR}/dist"
-mkdir -p "${SITE_DIR}/images"
+mkdir -p "${SITE_DIR}/assets/favicons"
 mkdir -p "${SITE_DIR}/src"
 
 (cd scaffold && npx @11ty/eleventy 2>&1)
