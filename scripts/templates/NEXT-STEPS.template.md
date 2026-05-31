@@ -6,7 +6,7 @@ Your site is live at: **{{DEPLOY_URL}}**
 
 ## Connect to GitHub for automatic deploys
 
-Right now you deploy by running `/deploy` in Claude Code. To get automatic deploys on every git push:
+Right now you deploy by running `/deploy {{SITE_NAME}}` in Claude Code. To get automatic deploys on every git push:
 
 1. Create a GitHub repo: `gh repo create {{SITE_NAME}} --public` (or via github.com)
 2. Push this repo:
@@ -42,7 +42,7 @@ it prints the exact record to add at your registrar.
 
 - **Edit page content:** Open Claude Code in this directory and modify the `.njk` files in `scaffold/src/`
 - **Change structure or branding:** Re-run `/interview` to update the spec, then `/plan` and `/build`
-- **Re-deploy after changes:** Run `/deploy` (or push to GitHub if connected)
+- **Re-deploy after changes:** Run `/deploy {{SITE_NAME}}` (or push to GitHub if connected)
 
 ---
 
