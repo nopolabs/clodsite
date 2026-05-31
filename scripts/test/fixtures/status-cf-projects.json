@@ -1,0 +1,20 @@
+[
+  {
+    "Project Name": "site-alpha",
+    "Project Domains": "site-alpha.pages.dev, alpha.example.com",
+    "Git Provider": "No",
+    "Last Modified": "2 days ago"
+  },
+  {
+    "Project Name": "site-beta",
+    "Project Domains": "site-beta.pages.dev",
+    "Git Provider": "No",
+    "Last Modified": "1 week ago"
+  },
+  {
+    "Project Name": "external-project",
+    "Project Domains": "external-project.pages.dev",
+    "Git Provider": "Yes",
+    "Last Modified": "1 month ago"
+  }
+]
