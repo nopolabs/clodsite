@@ -1,4 +1,14 @@
 const path = require('path');
+const fs   = require('fs');
+
+const FAVICON_FILES = [
+  'favicon.ico',
+  'favicon.svg',
+  'favicon-16x16.png',
+  'favicon-32x32.png',
+  'favicon-48x48.png',
+  'apple-touch-icon.png',
+];
 
 module.exports = function(eleventyConfig) {
   const siteDir = process.env.SITE_DIR;
@@ -6,15 +16,31 @@ module.exports = function(eleventyConfig) {
     throw new Error('SITE_DIR is not set. Export it before running Eleventy.');
   }
 
-  const repoRoot   = path.resolve(__dirname, '..');
-  const sharedSrc  = path.join(__dirname, 'src');
-  const siteSrc    = path.resolve(repoRoot, siteDir, 'src');
-  const siteDist   = path.resolve(repoRoot, siteDir, 'dist');
-  const siteImages = path.resolve(repoRoot, siteDir, 'images');
+  const repoRoot     = path.resolve(__dirname, '..');
+  const sharedSrc    = path.join(__dirname, 'src');
+  const siteSrc      = path.resolve(repoRoot, siteDir, 'src');
+  const siteDist     = path.resolve(repoRoot, siteDir, 'dist');
+  const siteAssets   = path.resolve(repoRoot, siteDir, 'assets');
+  const siteFavicons = path.join(siteAssets, 'favicons');
 
+  // Shared scaffold passthroughs
   eleventyConfig.addPassthroughCopy({ [path.join(sharedSrc, 'css')]: 'css' });
   eleventyConfig.addPassthroughCopy({ [path.join(sharedSrc, 'favicon.svg')]: 'favicon.svg' });
-  eleventyConfig.addPassthroughCopy({ [siteImages]: 'images' });
+
+  // Per-site assets subtree (entire assets/ → dist/assets/, including assets/favicons/)
+  if (fs.existsSync(siteAssets)) {
+    eleventyConfig.addPassthroughCopy({ [siteAssets]: 'assets' });
+  }
+
+  // Per-site favicon files: each recognized file in assets/favicons/ also copied to dist/ root
+  if (fs.existsSync(siteFavicons) && fs.statSync(siteFavicons).isDirectory()) {
+    for (const name of FAVICON_FILES) {
+      const src = path.join(siteFavicons, name);
+      if (fs.existsSync(src)) {
+        eleventyConfig.addPassthroughCopy({ [src]: name });
+      }
+    }
+  }
 
   return {
     dir: {
