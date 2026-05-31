@@ -4,7 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% if pageTitle %}{{ pageTitle }} | {% endif %}{{ site.name }}</title>
+  {% if site.has_custom_favicons %}
+    {% for f in site.favicons %}
+  <link rel="{{ f.rel }}" href="{{ f.href }}"{% if f.type %} type="{{ f.type }}"{% endif %}{% if f.sizes %} sizes="{{ f.sizes }}"{% endif %}>
+    {% endfor %}
+  {% else %}
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  {% endif %}
   <link rel="stylesheet" href="/css/themes/{{ site.style }}.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
