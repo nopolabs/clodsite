@@ -106,6 +106,39 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# ── write-site-json.sh: favicon discovery ─────────────────────────────────────
+echo ""
+echo "=== write-site-json.sh: favicon discovery ==="
+
+# Case A: no favicons folder → favicons=[], has_custom_favicons=false
+rm -rf "${SITE_DIR}/assets"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+JSON=$(cat "${SITE_DIR}/src/_data/site.json")
+assert_contains "no folder → has_custom_favicons false" '"has_custom_favicons": false' "$JSON"
+assert_contains "no folder → empty favicons array"      '"favicons": []'                "$JSON"
+
+# Case B: full set of recognized favicons → 6 entries, has_custom_favicons=true
+mkdir -p "${SITE_DIR}/assets/favicons"
+cp scripts/test/fixtures/favicons-full/* "${SITE_DIR}/assets/favicons/"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+JSON=$(cat "${SITE_DIR}/src/_data/site.json")
+assert_contains "full set → has_custom_favicons true"           '"has_custom_favicons": true' "$JSON"
+assert_contains "full set → favicon.ico entry"                  '"href": "/favicon.ico"'      "$JSON"
+assert_contains "full set → 16x16 sizes attr"                   '"sizes": "16x16"'            "$JSON"
+assert_contains "full set → apple-touch-icon rel"               '"rel": "apple-touch-icon"'   "$JSON"
+assert_contains "full set → svg type attr"                      '"type": "image/svg+xml"'     "$JSON"
+
+# Case C: partial set with unknown file → only ico recognized, warning printed
+rm -rf "${SITE_DIR}/assets"
+mkdir -p "${SITE_DIR}/assets/favicons"
+cp scripts/test/fixtures/favicons-partial/* "${SITE_DIR}/assets/favicons/"
+STDERR=$(bash scripts/write-site-json.sh 2>&1 >/dev/null)
+JSON=$(cat "${SITE_DIR}/src/_data/site.json")
+assert_contains "partial → has_custom_favicons true" '"has_custom_favicons": true' "$JSON"
+assert_contains "partial → favicon.ico present"     '"href": "/favicon.ico"'      "$JSON"
+assert_contains "partial → unknown file warning"    'unrecognized files'           "$STDERR"
+assert_contains "partial → unknown.png named"       'unknown.png'                  "$STDERR"
+
 # ── apply-theme.sh ────────────────────────────────────────────────────────────
 echo ""
 echo "=== apply-theme.sh ==="
