@@ -74,6 +74,8 @@ cleanup() {
   if [ -n "$SITES_BACKUP" ]; then
     mkdir -p sites && cp -r "$SITES_BACKUP/." sites/ && rm -rf "$SITES_BACKUP"
   fi
+  [ -n "${MOCK_BIN:-}" ] && rm -rf "$MOCK_BIN"
+  [ -n "${ORIGINAL_PATH:-}" ] && export PATH="$ORIGINAL_PATH"
 }
 trap cleanup EXIT
 
