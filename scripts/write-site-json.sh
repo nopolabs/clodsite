@@ -8,6 +8,11 @@ if [ ! -f "${SITE_DIR}/build-plan.yaml" ]; then
   exit 1
 fi
 
+# Wipe src/ so stale templates from removed pages can't survive a rebuild.
+# The LLM render step (after this script) writes fresh .njk files; this script
+# recreates src/_data/site.json below.
+rm -rf "${SITE_DIR}/src"
+
 node -e "
 const fs = require('fs');
 const path = require('path');
