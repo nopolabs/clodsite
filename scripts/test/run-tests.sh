@@ -37,6 +37,17 @@ assert_dir_exists() {
   fi
 }
 
+assert_contains() {
+  local desc="$1" needle="$2" haystack="$3"
+  if echo "$haystack" | grep -qF "$needle"; then
+    echo "  ✓ $desc"
+    PASS=$((PASS + 1))
+  else
+    echo "  ✗ $desc (expected to contain: $needle)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 # ── Isolated SITE_DIR for all script tests ────────────────────────────────────
 export SITE_DIR
 SITE_DIR=$(mktemp -d)
@@ -326,6 +337,54 @@ bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan missi
 cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
 cp scripts/test/fixtures/invalid-build-plan-missing-content.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan with invalid plan exits 1" 1 $?
+
+# ── status.sh ─────────────────────────────────────────────────────────────────
+echo ""
+echo "=== status.sh ==="
+
+# Shared mock wrangler setup
+MOCK_BIN=$(mktemp -d)
+CF_FIXTURE="$(pwd)/scripts/test/fixtures/status-cf-projects.json"
+cat > "$MOCK_BIN/wrangler" << WRANGLER_EOF
+#!/usr/bin/env bash
+cat "$CF_FIXTURE"
+WRANGLER_EOF
+chmod +x "$MOCK_BIN/wrangler"
+ORIGINAL_PATH="$PATH"
+export PATH="$MOCK_BIN:$PATH"
+
+# Shared temp SITES_DIR for status tests
+STATUS_SITES_DIR=$(mktemp -d)
+
+# Test 1: empty SITES_DIR → exits 0, prints guidance message
+EMPTY_SITES=$(mktemp -d)
+OUTPUT=$(SITES_DIR="$EMPTY_SITES" bash scripts/status.sh 2>/dev/null); STATUS_EXIT=$?
+assert_exit "empty SITES_DIR exits 0" 0 "$STATUS_EXIT"
+assert_contains "empty SITES_DIR prints guidance" "No Clodsite-managed sites found" "$OUTPUT"
+rm -rf "$EMPTY_SITES"
+
+# Set up fixtures: site-alpha (matched + custom domain), site-beta (matched, no custom domain),
+# site-gamma (no CF match → not deployed)
+mkdir -p "$STATUS_SITES_DIR/site-alpha" "$STATUS_SITES_DIR/site-beta" "$STATUS_SITES_DIR/site-gamma"
+printf 'slug: site-alpha\nname: Site Alpha\noverview: Alpha.\nstyle: minimal\ntone: professional\npages:\n  - id: home\n    title: Home\n    content: Hello.\nnav:\n  order:\n    - home\ncontact:\n  enabled: false\nbuild_notes: ""\n' > "$STATUS_SITES_DIR/site-alpha/build-plan.yaml"
+printf 'slug: site-beta\nname: Site Beta\noverview: Beta.\nstyle: minimal\ntone: professional\npages:\n  - id: home\n    title: Home\n    content: Hello.\nnav:\n  order:\n    - home\ncontact:\n  enabled: false\nbuild_notes: ""\n' > "$STATUS_SITES_DIR/site-beta/build-plan.yaml"
+printf 'slug: site-gamma\nname: Site Gamma\noverview: Gamma.\nstyle: minimal\ntone: professional\npages:\n  - id: home\n    title: Home\n    content: Hello.\nnav:\n  order:\n    - home\ncontact:\n  enabled: false\nbuild_notes: ""\n' > "$STATUS_SITES_DIR/site-gamma/build-plan.yaml"
+
+OUTPUT=$(SITES_DIR="$STATUS_SITES_DIR" bash scripts/status.sh 2>/dev/null)
+
+# Test 2: matched sites appear in table
+assert_contains "site-alpha appears in table" "site-alpha" "$OUTPUT"
+assert_contains "site-beta appears in table" "site-beta" "$OUTPUT"
+assert_contains "site-alpha custom domain shown" "alpha.example.com" "$OUTPUT"
+
+# Test 3: unmatched local site shows not-deployed marker
+assert_contains "site-gamma shows not deployed" "not deployed" "$OUTPUT"
+
+# Test 4: CF-only project appears in footer
+assert_contains "non-Clodsite project listed in footer" "external-project" "$OUTPUT"
+
+rm -rf "$STATUS_SITES_DIR" "$MOCK_BIN"
+export PATH="$ORIGINAL_PATH"
 
 # ── Results ───────────────────────────────────────────────────────────────────
 echo ""
