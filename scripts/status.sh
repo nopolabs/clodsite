@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SITES_DIR="${SITES_DIR:-sites}"
+export SITES_DIR="${SITES_DIR:-sites}"
 
 # ── Credentials ───────────────────────────────────────────────────────────────
 if [ ! -f ".env" ]; then
@@ -22,7 +22,7 @@ CF_ERR_TMP=$(mktemp)
 trap 'rm -f "$LOCAL_TMP" "$CF_TMP" "$CF_ERR_TMP"' EXIT
 
 # ── Discover local Clodsite sites ─────────────────────────────────────────────
-SITES_DIR="$SITES_DIR" node << 'NODEJS' > "$LOCAL_TMP"
+node << 'NODEJS' > "$LOCAL_TMP"
 const fs = require('fs');
 const yaml = require('js-yaml');
 const sitesDir = process.env.SITES_DIR;
