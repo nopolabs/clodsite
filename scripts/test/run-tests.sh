@@ -228,6 +228,7 @@ assert_file_exists "NEXT-STEPS.md created" "${SITE_DIR}/NEXT-STEPS.md"
 # No sites/.git → git block is skipped, exits 0
 rm -rf sites/.git
 cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize without sites/.git exits 0" 0 $?
 
@@ -240,6 +241,7 @@ git init -q sites
 git -C sites config user.email "test@example.com"
 git -C sites config user.name "Test"
 cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with sites/.git exits 0" 0 $?
 COMMIT_COUNT=$(git -C sites log --oneline 2>/dev/null | wc -l | tr -d ' ')
