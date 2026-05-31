@@ -74,6 +74,16 @@ live URL is shown in the terminal and written to `NEXT-STEPS.md`. Sites built
 from a hand-authored `build-plan.yaml` no longer need a `site-spec.json` at any
 stage of the pipeline.
 
+### The `/status` command
+Shipped May 2026. A read-only `[SCRIPT]` command that cross-references local
+`sites/` with live Cloudflare Pages state. For each site it shows the
+production URL, custom domain (if any), and last deploy timestamp — pulled from
+`wrangler pages project list --json` and matched against each site's
+`build-plan.yaml`. Flags local sites with no live Cloudflare Pages project as
+"not deployed". Lists any Cloudflare Pages projects that exist outside
+Clodsite's `sites/` as a footer line. Accepts a `SITES_DIR` env override for
+testability.
+
 ---
 
 ## Pending
@@ -86,15 +96,6 @@ outside the clodsite repo entirely (e.g., `~/my-sites/` or a dedicated GitHub
 repo cloned elsewhere). This would be stored in `.env` as `SITES_DIR` and all
 scripts that currently hardcode `sites/` or construct `SITE_DIR=sites/<name>`
 would resolve paths against it. Depends on sites version control (shipped May 2026).
-
-### The `/status` command
-
-A read-only command that cross-references local `sites/` with live Cloudflare
-Pages state. For each site it shows the Pages project name, production URL,
-custom domain (if any), and last deployed timestamp — pulled from
-`wrangler pages project list` and matched against `sites/*/site-spec.json`.
-Also surfaces mismatches: a local site with no Pages project, or a deployed URL
-that differs from what's in the spec. Useful once multiple sites are in flight.
 
 ### Installable skill packaging
 
