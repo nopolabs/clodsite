@@ -103,6 +103,13 @@ Delete a deployed site from Cloudflare Pages. Requires explicit confirmation. Op
 [LLM]    Interpret error if teardown fails
 ```
 
+### `/status` — `[SCRIPT]`
+Show the status of all Clodsite-managed sites, cross-referenced against live Cloudflare Pages state.
+
+```
+[SCRIPT] bash scripts/status.sh
+```
+
 ---
 
 ## Architecture: `[SCRIPT]` / `[LLM]` / `[HYBRID]`
