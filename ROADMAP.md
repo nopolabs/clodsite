@@ -84,6 +84,20 @@ production URL, custom domain (if any), and last deploy timestamp — pulled fro
 Clodsite's `sites/` as a footer line. Accepts a `SITES_DIR` env override for
 testability.
 
+### Per-site assets + favicons (page-types slice 1)
+Shipped May 2026. First slice of the **page-types extension track** —
+extending `build-plan.yaml`'s expressive range so that sites like
+`bigbeautifulpeaceprize.com` (forms, server functions, secrets) can
+eventually be expressed. Replaced the `sites/<name>/images/` convention
+with a single general `sites/<name>/assets/` folder; added a special
+`assets/favicons/` subfolder that is filename-pattern-detected at build
+time and produces `<link>` tags in `<head>`. Zero new build-plan schema —
+the compiler scans the filesystem and populates `site.favicons[]` /
+`site.has_custom_favicons` on `site.json`. `sites/anchovy` migrated as
+part of the change. The scaffold `favicon.svg` remains the default when
+a site has no custom favicons. Spec:
+`docs/superpowers/specs/2026-05-31-static-assets-favicons-design.md`.
+
 ---
 
 ## Pending
@@ -137,6 +151,26 @@ v1 covers the build path: interview → spec → plan → build → deploy. v2 a
 governed *change* path — a delta interview that updates the existing spec and
 selectively rebuilds only what changed. The spec carries a `spec_version` field
 and stable page `id`s specifically to support this.
+
+### Page-types extension track (remaining slices)
+Slice 1 (per-site assets + favicons) shipped May 2026. Remaining slices,
+ordered:
+
+- **Slice 2:** `<head>` extras + per-path response `_headers`. Schema
+  grows a `head:` block and a `headers:` block. Multi-component header
+  additivity is the open design question.
+- **Slice 3:** Forms — `mailto:` / form-service tier, no backend.
+  Closes the `### Contact form + form backend` roadmap item and gets
+  bbpp's form *shape* expressible (backend deferred to slice 4).
+- **Slice 4:** Cloudflare Pages Functions + secrets pipeline. The big
+  unlock — Turnstile, proxying, dynamic capabilities. Deliberately
+  deferred until slices 1–3 ship so the schema can be designed against
+  two real form examples (mailto + bbpp) rather than one.
+
+Each slice gets its own spec → plan → ship cycle. bbpp is the driving
+example for the track; the spec for slice 1
+(`docs/superpowers/specs/2026-05-31-static-assets-favicons-design.md`)
+documents the full bbpp gap analysis.
 
 ### Contact form + form backend
 
