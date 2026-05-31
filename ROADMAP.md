@@ -145,6 +145,13 @@ script that reads `build-plan.yaml` and emits `.njk` files directly — making
 `/build` fully scripted. This eliminates the last `Write` tool calls in `/build`
 and removes the need for `acceptEdits` mode during builds.
 
+**Depends on the page-type / component catalog below.** Without a catalog,
+scripted rendering can only handle predictable GFM→HTML transforms — pages
+like anchovy's gallery (custom grid CSS) and ndig's usage (custom code-block
+styling), today driven by free-form `build_notes`, would be orphaned. The
+catalog gives the script a fixed vocabulary to render from; `build_notes`
+goes away.
+
 ### The `/modify` command
 
 v1 covers the build path: interview → spec → plan → build → deploy. v2 adds a
@@ -181,35 +188,38 @@ Pages Function with an email API (Resend, MailChannels). The interview would
 ask for the preferred approach and `/build` would generate the page and form
 markup accordingly.
 
-### Blog page type
+### Page-type / component catalog
 
-v1 pages are static, hand-authored content. v2 adds a blog page type — a
-collection of dated posts with an index/listing page and individual post pages.
-Eleventy collections handle the listing natively; the interview would ask for
-post titles, dates, and content, and `/build` would generate one template per
-post plus the index. Tags and an RSS feed are natural follow-ons.
+Unifying entry for what were previously four parallel roadmap items (Blog,
+Calendar/events, Gallery, Ecommerce). The mental model: the LLM does not
+generate arbitrary HTML/CSS — it picks from a typed catalog of page types and
+composable component types and fills in variables/config. Clodsite grows the
+catalog over time; expression range is bounded by what the catalog supports.
 
-### Calendar / events page type
+This constraint is what makes `### Script-generated templates` above
+implementable. `build_notes` (the free-form field the LLM uses today to
+synthesize ad-hoc CSS) goes away once the catalog covers its real use cases.
 
-v2 adds a calendar page type for events — a list or month view of upcoming
-dated entries (title, date/time, location, description). Useful for the kind of
-content site that currently has to hand-maintain an events list. Could render
-purely static from the spec, or pull from an external calendar feed (iCal).
+The catalog needs its own design spec before any entry below is built. Initial
+catalog entries to design for (the four formerly-separate roadmap items):
 
-### Gallery page type
+- **Blog** — collection of dated posts; index/listing page plus individual
+  post pages. Eleventy collections handle listing natively. Interview collects
+  titles, dates, content. Tags and RSS feed are natural follow-ons.
+- **Calendar / events** — list or month view of dated entries (title,
+  date/time, location, description). Static from the spec, or pulled from an
+  external iCal feed.
+- **Gallery** — responsive image grid with optional captions and lightbox.
+  Subsumes anchovy's current hand-built grid (`assets/images/` + ad-hoc CSS).
+- **Ecommerce** — product/catalog page type and shopping cart, Shopify-
+  storefront + Cloudflare Pages pattern. Largest entry; likely its own sub-
+  project once the catalog framework exists.
 
-v2 adds a first-class gallery page type — a responsive image grid with optional
-captions and lightbox. In v1 a gallery can be hand-built (images in
-`sites/<name>/images/`, grid CSS in a page `<style>` block), but it isn't a
-recognized type: the interview doesn't ask for it and `/build` doesn't generate
-the grid. A gallery type would let the interview collect images and captions, and
-`/build` would emit the grid markup and scoped styles automatically.
-
-### Ecommerce page and shopping cart
-
-v1 produces generic content sites. v2 adds commerce: a product/catalog page
-type and a shopping cart, following the Shopify-storefront + Cloudflare Pages
-pattern. This is the largest v2 item and would likely be its own sub-project.
+The page-types extension track above (slices 2–4: head/headers, forms,
+Functions) is a separate concern — those are infrastructure capabilities
+exposed via schema, not visual page types. They may end up sharing the
+catalog's component model (e.g., a "form" component) but the tracks ship
+independently.
 
 ---
 
