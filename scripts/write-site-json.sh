@@ -9,8 +9,10 @@ if [ ! -f "${SITE_DIR}/build-plan.yaml" ]; then
 fi
 
 node -e "
+const fs = require('fs');
+const path = require('path');
 const yaml = require('js-yaml');
-const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
+const plan = yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
 
 const firstId = plan.nav.order[0];
 const navPages = plan.nav.order.map(id => {
@@ -23,6 +25,35 @@ const navPages = plan.nav.order.map(id => {
 });
 
 const contact = plan.contact || {};
+
+// Favicon discovery: scan \${SITE_DIR}/assets/favicons/ for recognized filenames.
+const FAVICON_RULES = [
+  { file: 'favicon.ico',        rel: 'icon',             sizes: 'any'                                  },
+  { file: 'favicon.svg',        rel: 'icon',             type: 'image/svg+xml'                         },
+  { file: 'favicon-16x16.png',  rel: 'icon',             type: 'image/png',         sizes: '16x16'     },
+  { file: 'favicon-32x32.png',  rel: 'icon',             type: 'image/png',         sizes: '32x32'     },
+  { file: 'favicon-48x48.png',  rel: 'icon',             type: 'image/png',         sizes: '48x48'     },
+  { file: 'apple-touch-icon.png', rel: 'apple-touch-icon'                                              },
+];
+
+const favDir = '${SITE_DIR}/assets/favicons';
+let favicons = [];
+let unknownFavFiles = [];
+if (fs.existsSync(favDir) && fs.statSync(favDir).isDirectory()) {
+  const present = new Set(fs.readdirSync(favDir).filter(f => fs.statSync(path.join(favDir, f)).isFile()));
+  for (const rule of FAVICON_RULES) {
+    if (present.has(rule.file)) {
+      const entry = { rel: rule.rel, href: '/' + rule.file };
+      if (rule.type)  entry.type  = rule.type;
+      if (rule.sizes) entry.sizes = rule.sizes;
+      favicons.push(entry);
+      present.delete(rule.file);
+    }
+  }
+  unknownFavFiles = [...present];
+}
+const hasCustomFavicons = favicons.length > 0;
+
 const siteData = {
   name: plan.name,
   style: plan.style,
@@ -32,14 +63,22 @@ const siteData = {
   },
   contact: contact.enabled
     ? { enabled: true, email: contact.email }
-    : { enabled: false }
+    : { enabled: false },
+  favicons,
+  has_custom_favicons: hasCustomFavicons
 };
 
-require('fs').mkdirSync('${SITE_DIR}/src/_data', { recursive: true });
-require('fs').writeFileSync(
+fs.mkdirSync('${SITE_DIR}/src/_data', { recursive: true });
+fs.writeFileSync(
   '${SITE_DIR}/src/_data/site.json',
   JSON.stringify(siteData, null, 2)
 );
 console.log('✓ ${SITE_DIR}/src/_data/site.json written');
 console.log('  Site: ' + siteData.name + ' | Style: ' + siteData.style + ' | Pages: ' + siteData.nav.pages.length);
+if (!hasCustomFavicons) {
+  console.warn('  ⚠ no site favicons found in assets/favicons/ — using scaffold default');
+}
+if (unknownFavFiles.length > 0) {
+  console.warn('  ⚠ unrecognized files in assets/favicons/ (copied but not linked): ' + unknownFavFiles.join(', '));
+}
 "
