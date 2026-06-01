@@ -1,0 +1,7 @@
+{
+  "description": "Renders a Markdown body to HTML. Supports GFM: headings, paragraphs, lists, links, inline code, blockquotes, tables, fenced code blocks.",
+  "required": {
+    "markdown": "string"
+  },
+  "optional": {}
+}
