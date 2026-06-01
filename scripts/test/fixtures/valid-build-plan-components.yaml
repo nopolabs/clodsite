@@ -1,0 +1,27 @@
+slug: render-test
+name: Render Test
+overview: Fixture for render-templates.sh.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          ## Hello
+          A paragraph.
+  - id: gallery
+    title: Gallery
+    components:
+      - type: prose
+        markdown: |
+          ## Gallery
+      - type: gallery
+        images:
+          - { src: /assets/a.jpg, alt: A }
+          - { src: /assets/b.jpg, alt: B }
+nav:
+  order: [home, gallery]
+contact:
+  enabled: false

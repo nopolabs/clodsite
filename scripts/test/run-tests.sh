@@ -272,6 +272,27 @@ rm -rf sites
 # Restore SITE_DIR for any tests that follow
 export SITE_DIR="$SAVED_SITE_DIR"
 
+# ── render-templates.sh ───────────────────────────────────────────────────────
+echo ""
+echo "=== render-templates.sh ==="
+
+cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src"
+bash scripts/render-templates.sh > /dev/null 2>&1
+assert_exit "render-templates exits 0" 0 $?
+assert_file_exists "home page rendered"    "${SITE_DIR}/src/index.njk"
+assert_file_exists "gallery page rendered" "${SITE_DIR}/src/gallery.njk"
+
+INDEX=$(cat "${SITE_DIR}/src/index.njk")
+assert_contains "index has front matter"          "permalink: /"          "$INDEX"
+assert_contains "index sets pageTitle"            "pageTitle: Home"       "$INDEX"
+assert_contains "index includes prose component"  "prose/component.njk"   "$INDEX"
+
+GAL=$(cat "${SITE_DIR}/src/gallery.njk")
+assert_contains "gallery permalink"               "permalink: /gallery/"  "$GAL"
+assert_contains "gallery includes prose first"    "prose/component.njk"   "$GAL"
+assert_contains "gallery includes gallery type"   "gallery/component.njk" "$GAL"
+
 # ── generate-catalog-md.sh ────────────────────────────────────────────────────
 echo ""
 echo "=== generate-catalog-md.sh ==="
