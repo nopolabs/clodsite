@@ -264,6 +264,21 @@ rm -rf sites
 # Restore SITE_DIR for any tests that follow
 export SITE_DIR="$SAVED_SITE_DIR"
 
+# ── generate-catalog-md.sh ────────────────────────────────────────────────────
+echo ""
+echo "=== generate-catalog-md.sh ==="
+
+TMP_CATALOG=$(mktemp)
+bash scripts/generate-catalog-md.sh > "$TMP_CATALOG" 2>&1
+assert_exit "generate-catalog-md exits 0" 0 $?
+CATALOG=$(cat "$TMP_CATALOG")
+assert_contains "catalog lists prose"           "## prose"        "$CATALOG"
+assert_contains "catalog lists gallery"         "## gallery"      "$CATALOG"
+assert_contains "catalog lists mailto-form"     "## mailto-form"  "$CATALOG"
+assert_contains "catalog shows required field"  "markdown"        "$CATALOG"
+assert_contains "catalog shows mailto fields"   "to"              "$CATALOG"
+rm -f "$TMP_CATALOG"
+
 # ── setup.sh --init-sites ─────────────────────────────────────────────────────
 echo ""
 echo "=== setup.sh --init-sites ==="
