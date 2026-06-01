@@ -146,6 +146,14 @@ echo "=== apply-theme.sh ==="
 cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/apply-theme.sh > /dev/null 2>&1; assert_exit "apply-theme exits 0 for valid style" 0 $?
 
+# Component CSS bundling
+rm -f scaffold/src/css/components.css
+bash scripts/apply-theme.sh > /dev/null 2>&1
+assert_file_exists "components.css written"         "scaffold/src/css/components.css"
+BUNDLE=$(cat scaffold/src/css/components.css)
+assert_contains   "bundle has c-gallery rule"       ".c-gallery"      "$BUNDLE"
+assert_contains   "bundle has c-mailto-form rule"   ".c-mailto-form"  "$BUNDLE"
+
 # ── migrate-site.sh ───────────────────────────────────────────────────────────
 echo ""
 echo "=== migrate-site.sh ==="
