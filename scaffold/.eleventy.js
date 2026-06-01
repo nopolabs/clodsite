@@ -1,5 +1,7 @@
 const path = require('path');
 const fs   = require('fs');
+const MarkdownIt = require('markdown-it');
+const md = new MarkdownIt({ html: true, linkify: true, typographer: false });
 
 const FAVICON_FILES = [
   'favicon.ico',
@@ -11,6 +13,9 @@ const FAVICON_FILES = [
 ];
 
 module.exports = function(eleventyConfig) {
+  eleventyConfig.addFilter('md', (str) => md.render(str || ''));
+  eleventyConfig.addFilter('mdInline', (str) => md.renderInline(str || ''));
+
   const siteDir = process.env.SITE_DIR;
   if (!siteDir) {
     throw new Error('SITE_DIR is not set. Export it before running Eleventy.');
