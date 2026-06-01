@@ -1,0 +1,7 @@
+{
+  "description": "Responsive image grid. Each image: { src (string), alt (string), caption (optional string) }.",
+  "required": {
+    "images": "array"
+  },
+  "optional": {}
+}
