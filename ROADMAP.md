@@ -98,6 +98,25 @@ part of the change. The scaffold `favicon.svg` remains the default when
 a site has no custom favicons. Spec:
 `docs/superpowers/specs/2026-05-31-static-assets-favicons-design.md`.
 
+### Script-generated templates
+Shipped May 2026. The `[LLM]` template-render step in `/build` is gone.
+`scripts/render-templates.sh` reads `build-plan.yaml` and emits one `.njk`
+file per page that `{% include %}`s component templates from `components/`.
+`/build` is now fully `[SCRIPT]`. `acceptEdits` mode is no longer needed.
+Depended on the component catalog (also shipped May 2026).
+
+### Page-type / component catalog (v1)
+Shipped May 2026. New top-level `components/` directory holds typed,
+self-contained components: `component.njk` + `component.css` + `schema.json`
+per entry. v1 ships three: `prose` (default GFM body), `gallery` (responsive
+image grid, subsumes anchovy's hand-built CSS), `mailto-form` (client-side
+contact form, no backend). `build-plan.yaml` pages are now
+`components: [{ type, ... }, ...]` — the LLM at `/plan` time picks from
+`components/CATALOG.md` (auto-generated from schemas) and cannot invent types
+(`validate-plan.sh` rejects them). `build_notes` is removed. All five
+existing sites migrated. Spec:
+`docs/superpowers/specs/2026-05-31-component-catalog-design.md`.
+
 ---
 
 ## Pending
@@ -137,21 +156,6 @@ in any editor, with a well-defined HTML mapping. `js-yaml` added as a root-level
 dependency; all four build pipeline scripts (`validate-plan`, `finalize-plan`,
 `write-site-json`, `apply-theme`) parse YAML via `require('js-yaml').load()`.
 
-### Script-generated templates
-
-`build-plan.yaml` is the structured compile input (shipped May 2026). The
-remaining step is replacing the LLM template-generation step in `/build` with a
-script that reads `build-plan.yaml` and emits `.njk` files directly — making
-`/build` fully scripted. This eliminates the last `Write` tool calls in `/build`
-and removes the need for `acceptEdits` mode during builds.
-
-**Depends on the page-type / component catalog below.** Without a catalog,
-scripted rendering can only handle predictable GFM→HTML transforms — pages
-like anchovy's gallery (custom grid CSS) and ndig's usage (custom code-block
-styling), today driven by free-form `build_notes`, would be orphaned. The
-catalog gives the script a fixed vocabulary to render from; `build_notes`
-goes away.
-
 ### The `/modify` command
 
 v1 covers the build path: interview → spec → plan → build → deploy. v2 adds a
@@ -187,39 +191,6 @@ spec). A submittable contact form would be a user-specified page in `pages[]`
 Pages Function with an email API (Resend, MailChannels). The interview would
 ask for the preferred approach and `/build` would generate the page and form
 markup accordingly.
-
-### Page-type / component catalog
-
-Unifying entry for what were previously four parallel roadmap items (Blog,
-Calendar/events, Gallery, Ecommerce). The mental model: the LLM does not
-generate arbitrary HTML/CSS — it picks from a typed catalog of page types and
-composable component types and fills in variables/config. Clodsite grows the
-catalog over time; expression range is bounded by what the catalog supports.
-
-This constraint is what makes `### Script-generated templates` above
-implementable. `build_notes` (the free-form field the LLM uses today to
-synthesize ad-hoc CSS) goes away once the catalog covers its real use cases.
-
-The catalog needs its own design spec before any entry below is built. Initial
-catalog entries to design for (the four formerly-separate roadmap items):
-
-- **Blog** — collection of dated posts; index/listing page plus individual
-  post pages. Eleventy collections handle listing natively. Interview collects
-  titles, dates, content. Tags and RSS feed are natural follow-ons.
-- **Calendar / events** — list or month view of dated entries (title,
-  date/time, location, description). Static from the spec, or pulled from an
-  external iCal feed.
-- **Gallery** — responsive image grid with optional captions and lightbox.
-  Subsumes anchovy's current hand-built grid (`assets/images/` + ad-hoc CSS).
-- **Ecommerce** — product/catalog page type and shopping cart, Shopify-
-  storefront + Cloudflare Pages pattern. Largest entry; likely its own sub-
-  project once the catalog framework exists.
-
-The page-types extension track above (slices 2–4: head/headers, forms,
-Functions) is a separate concern — those are infrastructure capabilities
-exposed via schema, not visual page types. They may end up sharing the
-catalog's component model (e.g., a "form" component) but the tracks ship
-independently.
 
 ---
 

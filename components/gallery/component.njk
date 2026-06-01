@@ -1,0 +1,8 @@
+<div class="c-gallery">
+  {% for img in component.images %}
+  <figure class="c-gallery__item">
+    <img src="{{ img.src }}" alt="{{ img.alt }}">
+    {% if img.caption %}<figcaption>{{ img.caption }}</figcaption>{% endif %}
+  </figure>
+  {% endfor %}
+</div>

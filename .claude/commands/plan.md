@@ -28,6 +28,14 @@ If this exits with errors, print them clearly to the user and stop. Do not proce
 
 ---
 
+**[SCRIPT]** Generate the component catalog reference:
+
+```bash
+bash scripts/generate-catalog-md.sh
+```
+
+---
+
 **[LLM]** Read `sites/<site-name>/site-spec.json`. Generate `sites/<site-name>/build-plan.yaml` using the Write tool.
 
 The YAML must match this schema exactly:
@@ -39,27 +47,40 @@ overview: >-
 style: <value of site.style from spec>
 tone: <value of site.tone from spec>
 pages:
-  - id: <page id from spec>
-    title: <page title from spec>
-    content: |
-      <full page content in GFM — see rules below>
+  - id: <page id>
+    title: <page title>
+    components:
+      - type: <component name from components/CATALOG.md>
+        # ... required and optional fields per the component's schema
 nav:
   order:
     - <page ids in nav order from spec>
 contact:
   enabled: <true or false from spec>
   email: <email address — omit this key if contact.enabled is false>
-build_notes: <any special rendering notes for /build, or empty string>
 ```
 
 Do not include a `name` field — the display name is injected automatically by `finalize-plan.sh` after this step.
 
-**Content rules for `pages[n].content`:**
+**Content rules for `pages[n].components`:**
 
-- If `content_status = "provided"`: use `content_outline` as-is, wrapped in appropriate markdown headings.
-- If `content_status = "draft"`: write complete, publish-ready copy using `content_outline` as your brief. Write real sentences. Match the site tone. This is the copy that will appear on the live site.
-- Format as GFM (GitHub Flavored Markdown): `#` for main heading, `##` for subheadings, plain paragraphs, fenced code blocks with triple backticks, bullet lists, pipe tables.
-- The `content` field uses a YAML literal block scalar (`|`). Write content starting on the next line, indented 6 spaces (2 beyond the `content:` key at 4 spaces). Do not add a leading `#` heading — the template handles the page title.
+Read `components/CATALOG.md` first — it lists every available component type
+and its required/optional fields. You MUST only use component types listed
+there. `validate-plan.sh` will reject unknown types.
+
+The default and most common component is `prose`, which accepts a `markdown`
+field containing GFM (headings, paragraphs, lists, links, fenced code blocks,
+tables). A page whose body is purely textual is a single `prose` component.
+
+Pages that need richer presentation (image gallery, contact form) compose
+multiple components in order. Components stack vertically.
+
+- If `content_status = "provided"`: use `content_outline` as-is inside a
+  `prose` component's `markdown` field.
+- If `content_status = "draft"`: write complete, publish-ready copy as GFM
+  inside a `prose` component's `markdown` field. Match the site tone.
+- Component fields use the appropriate YAML type (string, array, object) per
+  the component's schema.
 
 Write the complete YAML to `sites/<site-name>/build-plan.yaml`. No extra commentary in the file.
 

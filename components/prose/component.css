@@ -1,0 +1,3 @@
+/* prose uses global typography from the theme (scaffold/src/css/themes/<theme>.css).
+   No component-scoped CSS needed for v1. If future themes want to scope typography
+   inside .c-prose specifically, add rules here. */

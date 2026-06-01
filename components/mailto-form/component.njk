@@ -1,0 +1,41 @@
+<form class="c-mailto-form"
+      data-mailto-to="{{ component.to }}"
+      {% if component.subject %}data-mailto-subject="{{ component.subject }}"{% endif %}>
+  {% for field in component.fields %}
+  <div class="c-mailto-form__field">
+    <label for="mf-{{ field.name }}">
+      {{ field.label }}{% if field.required %} <span class="c-mailto-form__required">*</span>{% endif %}
+    </label>
+    {% if field.type == 'textarea' %}
+    <textarea id="mf-{{ field.name }}" name="{{ field.name }}"{% if field.required %} required{% endif %}></textarea>
+    {% else %}
+    <input id="mf-{{ field.name }}" name="{{ field.name }}" type="{{ field.type }}"{% if field.required %} required{% endif %}>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <button type="submit" class="c-mailto-form__submit">{{ component.submit_label or "Send" }}</button>
+  <script>
+    (function(){
+      var script = document.currentScript;
+      var form = script.closest('form');
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        var to = form.dataset.mailtoTo;
+        var subject = form.dataset.mailtoSubject || '';
+        var body = '';
+        for (var i = 0; i < form.elements.length; i++) {
+          var el = form.elements[i];
+          if (el.name) {
+            var labelEl = form.querySelector('label[for="' + el.id + '"]');
+            var label = labelEl ? labelEl.textContent.replace(/\s*\*\s*$/, '').trim() : el.name;
+            body += label + ': ' + el.value + '\n\n';
+          }
+        }
+        var params = new URLSearchParams();
+        if (subject) params.set('subject', subject);
+        params.set('body', body);
+        window.location.href = 'mailto:' + to + '?' + params.toString();
+      });
+    })();
+  </script>
+</form>

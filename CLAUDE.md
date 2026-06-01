@@ -56,20 +56,21 @@ Validate spec. Write all page content. Produces `sites/<site-name>/build-plan.ya
 
 ```
 [SCRIPT] bash scripts/validate-spec.sh
-[LLM]    Generate sites/<site-name>/build-plan.yaml (full page content in GFM if content_status=draft)
+[SCRIPT] bash scripts/generate-catalog-md.sh
+[LLM]    Generate sites/<site-name>/build-plan.yaml (reads components/CATALOG.md for the component vocabulary)
 [SCRIPT] SITE_DIR=sites/<site-name> bash scripts/finalize-plan.sh
 ```
 
 User reviews `sites/<site-name>/build-plan.yaml` before running `/build`.
 
-### `/build` — `[HYBRID]`
+### `/build` — `[SCRIPT]`
 Render build plan to templates. Run Eleventy. Produces `sites/<site-name>/dist/`. All content is read from `build-plan.yaml` — no content decisions happen here.
 
 ```
 [SCRIPT] bash scripts/validate-plan.sh
 [SCRIPT] bash scripts/write-site-json.sh
 [SCRIPT] bash scripts/apply-theme.sh
-[LLM]    Render build-plan.yaml → sites/<site-name>/src/[page].njk for each page
+[SCRIPT] bash scripts/render-templates.sh
 [SCRIPT] bash scripts/build-site.sh
 ```
 
@@ -132,9 +133,9 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
 | `sites/<site-name>/site-spec.json` | `/interview <site-name>` | The site spec (pretty-printed JSON) |
-| `sites/<site-name>/build-plan.yaml` | `/plan <site-name>` | Structured build plan with GFM page content — review before /build |
+| `sites/<site-name>/build-plan.yaml` | `/plan <site-name>` | Structured build plan with typed component arrays — review before /build |
 | `sites/<site-name>/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (gitignored) |
-| `sites/<site-name>/src/*.njk` | `/build <site-name>` | Page templates with content (gitignored) |
+| `sites/<site-name>/src/*.njk` | `/build <site-name>` (via `render-templates.sh`) | Page templates with content (gitignored) |
 | `sites/<site-name>/dist/` | `/build <site-name>` | Built static site |
 | `sites/<site-name>/NEXT-STEPS.md` | `/deploy <site-name>` | Post-deploy ops guide |
 

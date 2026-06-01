@@ -1,0 +1,11 @@
+{
+  "description": "Client-side contact form. On submit, composes a mailto: URL from field values and navigates to it. No backend.",
+  "required": {
+    "to": "string",
+    "fields": "array"
+  },
+  "optional": {
+    "subject": "string",
+    "submit_label": "string"
+  }
+}

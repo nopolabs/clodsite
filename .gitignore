@@ -22,6 +22,7 @@ scripts/.plan-draft.md
 site/
 sites/
 scaffold/node_modules/
+scaffold/src/css/components.css
 
 # Visual brainstorming companion
 .superpowers/

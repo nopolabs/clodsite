@@ -146,6 +146,14 @@ echo "=== apply-theme.sh ==="
 cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/apply-theme.sh > /dev/null 2>&1; assert_exit "apply-theme exits 0 for valid style" 0 $?
 
+# Component CSS bundling
+rm -f scaffold/src/css/components.css
+bash scripts/apply-theme.sh > /dev/null 2>&1
+assert_file_exists "components.css written"         "scaffold/src/css/components.css"
+BUNDLE=$(cat scaffold/src/css/components.css)
+assert_contains   "bundle has c-gallery rule"       ".c-gallery"      "$BUNDLE"
+assert_contains   "bundle has c-mailto-form rule"   ".c-mailto-form"  "$BUNDLE"
+
 # ── migrate-site.sh ───────────────────────────────────────────────────────────
 echo ""
 echo "=== migrate-site.sh ==="
@@ -264,6 +272,42 @@ rm -rf sites
 # Restore SITE_DIR for any tests that follow
 export SITE_DIR="$SAVED_SITE_DIR"
 
+# ── render-templates.sh ───────────────────────────────────────────────────────
+echo ""
+echo "=== render-templates.sh ==="
+
+cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src"
+bash scripts/render-templates.sh > /dev/null 2>&1
+assert_exit "render-templates exits 0" 0 $?
+assert_file_exists "home page rendered"    "${SITE_DIR}/src/index.njk"
+assert_file_exists "gallery page rendered" "${SITE_DIR}/src/gallery.njk"
+
+INDEX=$(cat "${SITE_DIR}/src/index.njk")
+assert_contains "index has front matter"          "permalink: /"          "$INDEX"
+assert_contains "index sets pageTitle"            "pageTitle: Home"       "$INDEX"
+assert_contains "index includes prose component"  "prose/component.njk"   "$INDEX"
+
+GAL=$(cat "${SITE_DIR}/src/gallery.njk")
+assert_contains "gallery permalink"               "permalink: /gallery/"  "$GAL"
+assert_contains "gallery includes prose first"    "prose/component.njk"   "$GAL"
+assert_contains "gallery includes gallery type"   "gallery/component.njk" "$GAL"
+
+# ── generate-catalog-md.sh ────────────────────────────────────────────────────
+echo ""
+echo "=== generate-catalog-md.sh ==="
+
+TMP_CATALOG=$(mktemp)
+bash scripts/generate-catalog-md.sh > "$TMP_CATALOG" 2>&1
+assert_exit "generate-catalog-md exits 0" 0 $?
+CATALOG=$(cat "$TMP_CATALOG")
+assert_contains "catalog lists prose"           "## prose"        "$CATALOG"
+assert_contains "catalog lists gallery"         "## gallery"      "$CATALOG"
+assert_contains "catalog lists mailto-form"     "## mailto-form"  "$CATALOG"
+assert_contains "catalog shows required field"  "markdown"        "$CATALOG"
+assert_contains "catalog shows mailto fields"   "to"              "$CATALOG"
+rm -f "$TMP_CATALOG"
+
 # ── setup.sh --init-sites ─────────────────────────────────────────────────────
 echo ""
 echo "=== setup.sh --init-sites ==="
@@ -322,15 +366,29 @@ tone: professional
 pages:
   - id: home
     title: Home
-    content: Hello.
+    components:
+      - type: prose
+        markdown: Hello.
 nav:
   order:
     - home
     - nonexistent
 contact:
-  enabled: false
-build_notes: ""' > "${SITE_DIR}/build-plan.yaml"
+  enabled: false' > "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "nav.order with unknown page id exits 1" 1 $?
+
+# Component validation
+cp scripts/test/fixtures/invalid-build-plan-bad-component.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "unknown component type exits 1" 1 $?
+
+cp scripts/test/fixtures/invalid-build-plan-missing-field.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing required field exits 1" 1 $?
+
+cp scripts/test/fixtures/invalid-build-plan-has-build-notes.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "build_notes is rejected" 1 $?
+
+cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component plan exits 0" 0 $?
 
 # ── finalize-plan.sh ──────────────────────────────────────────────────────────
 echo ""
@@ -345,13 +403,14 @@ tone: professional
 pages:
   - id: home
     title: Home
-    content: Hello.
+    components:
+      - type: prose
+        markdown: Hello.
 nav:
   order:
     - home
 contact:
-  enabled: false
-build_notes: ""' > "${SITE_DIR}/build-plan.yaml"
+  enabled: false' > "${SITE_DIR}/build-plan.yaml"
 bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan injects name, exits 0" 0 $?
 if node -e "const yaml=require('js-yaml'); const p=yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml','utf8')); process.exit(p.name === 'Nopo Labs' ? 0 : 1);" 2>/dev/null; then
   echo "  ✓ name correctly injected into build-plan.yaml"
