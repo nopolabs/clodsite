@@ -133,7 +133,7 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
 | `sites/<site-name>/site-spec.json` | `/interview <site-name>` | The site spec (pretty-printed JSON) |
-| `sites/<site-name>/build-plan.yaml` | `/plan <site-name>` | Structured build plan with GFM page content — review before /build |
+| `sites/<site-name>/build-plan.yaml` | `/plan <site-name>` | Structured build plan with typed component arrays — review before /build |
 | `sites/<site-name>/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (gitignored) |
 | `sites/<site-name>/src/*.njk` | `/build <site-name>` (via `render-templates.sh`) | Page templates with content (gitignored) |
 | `sites/<site-name>/dist/` | `/build <site-name>` | Built static site |

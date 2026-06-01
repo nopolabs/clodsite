@@ -29,7 +29,8 @@ module.exports = function(eleventyConfig) {
   const componentsDir = path.join(repoRoot, 'components');
 
   eleventyConfig.addFilter('md',       (str) => md.render(str || ''));
-  eleventyConfig.addFilter('mdInline', (str) => md.renderInline(str || ''));
+  // mdInline is reserved for future components that need inline markdown
+  // (e.g. captions with bold/italics). Not used by v1 catalog (prose, gallery, mailto-form).
 
   // Hand Eleventy a Nunjucks env that can resolve {% include "<name>/component.njk" %}
   eleventyConfig.setLibrary('njk', nunjucks.configure(
