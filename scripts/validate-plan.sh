@@ -3,6 +3,7 @@ set -euo pipefail
 
 SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
 PLAN="${SITE_DIR}/build-plan.yaml"
+COMPONENTS_DIR="${COMPONENTS_DIR:-components}"
 
 if [ ! -f "$PLAN" ]; then
   echo "Error: $PLAN not found. Run /plan first."
@@ -11,7 +12,10 @@ fi
 
 node -e "
 const yaml = require('js-yaml');
-const plan = yaml.load(require('fs').readFileSync('$PLAN', 'utf8'));
+const fs   = require('fs');
+const path = require('path');
+
+const plan = yaml.load(fs.readFileSync('$PLAN', 'utf8'));
 const errors = [];
 
 if (!plan.slug)     errors.push('slug is required');
@@ -26,13 +30,68 @@ const validTones = ['professional', 'casual', 'technical', 'friendly'];
 if (!validTones.includes(plan.tone))
   errors.push('tone must be one of: ' + validTones.join(', ') + ' (got: ' + plan.tone + ')');
 
+if ('build_notes' in plan)
+  errors.push('build_notes is no longer supported (removed in component-catalog v1)');
+
+const catalog = {};
+if (fs.existsSync('$COMPONENTS_DIR')) {
+  for (const name of fs.readdirSync('$COMPONENTS_DIR')) {
+    const schemaPath = path.join('$COMPONENTS_DIR', name, 'schema.json');
+    if (fs.existsSync(schemaPath)) {
+      catalog[name] = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+    }
+  }
+}
+
+function checkType(value, type) {
+  if (type === 'string')  return typeof value === 'string';
+  if (type === 'array')   return Array.isArray(value);
+  if (type === 'object')  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (type === 'number')  return typeof value === 'number';
+  if (type === 'boolean') return typeof value === 'boolean';
+  return true;
+}
+
 if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
   errors.push('pages must be a non-empty array');
 } else {
   plan.pages.forEach(function(p, i) {
-    if (!p.id)      errors.push('pages[' + i + '].id is required');
-    if (!p.title)   errors.push('pages[' + i + '].title is required');
-    if (!p.content) errors.push('pages[' + i + '].content is required');
+    const tag = 'pages[' + i + ']';
+    if (!p.id)    errors.push(tag + '.id is required');
+    if (!p.title) errors.push(tag + '.title is required');
+    if ('content' in p)
+      errors.push(tag + '.content is no longer supported — use components: [{ type: prose, markdown: ... }]');
+    if (!Array.isArray(p.components) || p.components.length === 0) {
+      errors.push(tag + '.components must be a non-empty array');
+    } else {
+      p.components.forEach(function(c, j) {
+        const ctag = tag + '.components[' + j + ']';
+        if (!c.type) {
+          errors.push(ctag + '.type is required');
+          return;
+        }
+        const schema = catalog[c.type];
+        if (!schema) {
+          errors.push(ctag + '.type \"' + c.type + '\" is not a known component (see $COMPONENTS_DIR/CATALOG.md)');
+          return;
+        }
+        const required = schema.required || {};
+        for (const [field, type] of Object.entries(required)) {
+          if (!(field in c)) {
+            errors.push(ctag + ' missing required field \"' + field + '\"');
+          } else if (!checkType(c[field], type)) {
+            errors.push(ctag + '.' + field + ' must be ' + type);
+          }
+        }
+        const optional = schema.optional || {};
+        const allowed = new Set(['type', ...Object.keys(required), ...Object.keys(optional)]);
+        for (const key of Object.keys(c)) {
+          if (!allowed.has(key)) {
+            errors.push(ctag + ' has unknown field \"' + key + '\" for component type \"' + c.type + '\"');
+          }
+        }
+      });
+    }
   });
 }
 

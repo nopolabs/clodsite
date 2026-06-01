@@ -366,15 +366,29 @@ tone: professional
 pages:
   - id: home
     title: Home
-    content: Hello.
+    components:
+      - type: prose
+        markdown: Hello.
 nav:
   order:
     - home
     - nonexistent
 contact:
-  enabled: false
-build_notes: ""' > "${SITE_DIR}/build-plan.yaml"
+  enabled: false' > "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "nav.order with unknown page id exits 1" 1 $?
+
+# Component validation
+cp scripts/test/fixtures/invalid-build-plan-bad-component.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "unknown component type exits 1" 1 $?
+
+cp scripts/test/fixtures/invalid-build-plan-missing-field.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "missing required field exits 1" 1 $?
+
+cp scripts/test/fixtures/invalid-build-plan-has-build-notes.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "build_notes is rejected" 1 $?
+
+cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component plan exits 0" 0 $?
 
 # ── finalize-plan.sh ──────────────────────────────────────────────────────────
 echo ""
@@ -389,13 +403,14 @@ tone: professional
 pages:
   - id: home
     title: Home
-    content: Hello.
+    components:
+      - type: prose
+        markdown: Hello.
 nav:
   order:
     - home
 contact:
-  enabled: false
-build_notes: ""' > "${SITE_DIR}/build-plan.yaml"
+  enabled: false' > "${SITE_DIR}/build-plan.yaml"
 bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan injects name, exits 0" 0 $?
 if node -e "const yaml=require('js-yaml'); const p=yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml','utf8')); process.exit(p.name === 'Nopo Labs' ? 0 : 1);" 2>/dev/null; then
   echo "  ✓ name correctly injected into build-plan.yaml"

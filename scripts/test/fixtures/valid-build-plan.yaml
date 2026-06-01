@@ -6,14 +6,15 @@ tone: professional
 pages:
   - id: home
     title: Home
-    content: |
-      # Welcome
+    components:
+      - type: prose
+        markdown: |
+          # Welcome
 
-      This is the home page.
+          This is the home page.
 nav:
   order:
     - home
 contact:
   enabled: true
   email: hello@nopolabs.com
-build_notes: ""
