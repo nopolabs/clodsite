@@ -7,5 +7,6 @@
   "optional": {
     "subject": "string",
     "submit_label": "string"
-  }
+  },
+  "example": "type: mailto-form\nto: hello@example.com\nsubject: Message from my-site  # optional\nsubmit_label: Send             # optional, default: Send\nfields:                        # at least one required\n  - { name: name,    label: Your name,  type: text,     required: true }\n  - { name: email,   label: Your email, type: email,    required: true }\n  - { name: message, label: Message,    type: textarea, required: true }\n"
 }

@@ -3,5 +3,6 @@
   "required": {
     "markdown": "string"
   },
-  "optional": {}
+  "optional": {},
+  "example": "type: prose\nmarkdown: |\n  ## Heading\n  Body text. Supports **bold**, _italic_, `inline code`,\n  [links](https://example.com), lists, blockquotes, tables,\n  and fenced code blocks.\n"
 }

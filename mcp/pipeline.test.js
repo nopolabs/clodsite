@@ -4,11 +4,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { listComponents, extractUrl, stripAnsi, deploySite, getSchema } = require('./pipeline.js');
 
-test('listComponents returns CATALOG.md content', () => {
+test('listComponents returns catalog with all component types', () => {
   const catalog = listComponents();
-  assert.ok(catalog.includes('## prose'));
-  assert.ok(catalog.includes('## gallery'));
-  assert.ok(catalog.includes('## mailto-form'));
+  assert.ok(catalog.includes('prose'));
+  assert.ok(catalog.includes('gallery'));
+  assert.ok(catalog.includes('mailto-form'));
+  // should be a brief listing, not full sub-schemas
+  assert.ok(!catalog.includes('Required fields:'));
 });
 
 test('extractUrl returns URL from deploy-finalize stdout', () => {
@@ -46,7 +48,7 @@ test('deploySite returns error shape when validate-plan fails', async () => {
   assert.ok(result.message.length > 0);
 });
 
-test('getSchema returns annotated build-plan.yaml covering all fields and components', () => {
+test('getSchema() returns top-level build-plan.yaml reference', () => {
   const schema = getSchema();
   // Top-level required fields
   assert.ok(schema.includes('slug:'));
@@ -64,10 +66,33 @@ test('getSchema returns annotated build-plan.yaml covering all fields and compon
   assert.ok(schema.includes('casual'));
   assert.ok(schema.includes('technical'));
   assert.ok(schema.includes('friendly'));
-  // All three component types present
-  assert.ok(schema.includes('type: prose'));
-  assert.ok(schema.includes('type: gallery'));
-  assert.ok(schema.includes('type: mailto-form'));
+  // Pointer to component drill-down
+  assert.ok(schema.includes('get_schema'));
+  // Should NOT embed full component sub-schemas inline
+  assert.ok(!schema.includes('type: prose\n'));
+});
+
+test('getSchema(component_name) returns sub-schema and example', () => {
+  const prose = getSchema('prose');
+  assert.ok(prose.includes('prose'));
+  assert.ok(prose.includes('markdown'));
+  assert.ok(prose.includes('Example:'));
+
+  const gallery = getSchema('gallery');
+  assert.ok(gallery.includes('gallery'));
+  assert.ok(gallery.includes('images'));
+  assert.ok(gallery.includes('Example:'));
+
+  const form = getSchema('mailto-form');
+  assert.ok(form.includes('mailto-form'));
+  assert.ok(form.includes('fields'));
+  assert.ok(form.includes('Example:'));
+});
+
+test('getSchema(unknown) returns helpful error with available types', () => {
+  const result = getSchema('not-a-component');
+  assert.ok(result.includes('Unknown component'));
+  assert.ok(result.includes('prose'));
 });
 
 test('server.js loads without throwing', () => {

@@ -3,5 +3,6 @@
   "required": {
     "images": "array"
   },
-  "optional": {}
+  "optional": {},
+  "example": "type: gallery\nimages:\n  - { src: /assets/images/photo.jpg, alt: Description of photo }\n  - { src: /assets/images/photo2.jpg, alt: Another photo, caption: Optional caption }\n"
 }

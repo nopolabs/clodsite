@@ -7,7 +7,20 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 
 function listComponents() {
-  return fs.readFileSync(path.join(ROOT, 'components', 'CATALOG.md'), 'utf8');
+  const dir = path.join(ROOT, 'components');
+  const names = fs.readdirSync(dir)
+    .filter(n => fs.statSync(path.join(dir, n)).isDirectory())
+    .sort();
+
+  let out = '# Component Catalog\n\n';
+  out += 'Available component types. Call `get_schema` with a component name for the full sub-schema and example.\n\n';
+  for (const name of names) {
+    const schemaPath = path.join(dir, name, 'schema.json');
+    if (!fs.existsSync(schemaPath)) continue;
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+    out += `- **${name}** — ${schema.description || '_no description_'}\n`;
+  }
+  return out;
 }
 
 function stripAnsi(str) {
@@ -69,8 +82,45 @@ async function deploySite(siteName, buildPlanYaml) {
   }
 }
 
-function getSchema() {
-  return `# build-plan.yaml — complete field reference
+function getSchema(componentName) {
+  if (componentName) {
+    const schemaPath = path.join(ROOT, 'components', componentName, 'schema.json');
+    if (!fs.existsSync(schemaPath)) {
+      const dir = path.join(ROOT, 'components');
+      const available = fs.readdirSync(dir)
+        .filter(n => fs.statSync(path.join(dir, n)).isDirectory())
+        .sort()
+        .join(', ');
+      return `Unknown component type: "${componentName}". Available types: ${available}`;
+    }
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+    let out = `# ${componentName}\n\n${schema.description || ''}\n\n`;
+
+    const req = schema.required || {};
+    const opt = schema.optional || {};
+    if (Object.keys(req).length > 0) {
+      out += '**Required fields:**\n';
+      for (const [field, type] of Object.entries(req)) out += `- \`${field}\` (${type})\n`;
+      out += '\n';
+    }
+    if (Object.keys(opt).length > 0) {
+      out += '**Optional fields:**\n';
+      for (const [field, type] of Object.entries(opt)) out += `- \`${field}\` (${type})\n`;
+      out += '\n';
+    }
+    if (schema.example) {
+      out += `**Example:**\n\`\`\`yaml\n${schema.example}\`\`\`\n`;
+    }
+    return out;
+  }
+
+  const dir = path.join(ROOT, 'components');
+  const available = fs.readdirSync(dir)
+    .filter(n => fs.statSync(path.join(dir, n)).isDirectory())
+    .sort()
+    .join(', ');
+
+  return `# build-plan.yaml — field reference
 # Deploy with: deploy_site(site_name, build_plan_yaml)
 # site_name must match slug (used as Cloudflare Pages project name + sites/ directory)
 
@@ -83,44 +133,14 @@ tone: professional         # professional | casual | technical | friendly
 pages:
   - id: home               # unique identifier; the page with id "home" maps to /
     title: Home            # shown in browser tab and nav
-    components:
-      - type: prose
-        markdown: |
-          ## Heading
-          Body text. Supports GFM: headings, lists, links, bold, italic,
-          inline code, blockquotes, tables, fenced code blocks.
-
-  - id: gallery
-    title: Gallery
-    components:
-      - type: prose
-        markdown: |
-          ## Gallery
-      - type: gallery
-        images:
-          - { src: /assets/images/photo.jpg, alt: Description of photo }
-          - { src: /assets/images/photo2.jpg, alt: Description, caption: Optional caption }
-
-  - id: contact
-    title: Contact
-    components:
-      - type: prose
-        markdown: |
-          ## Get in touch
-      - type: mailto-form
-        to: hello@example.com          # required: recipient email address
-        subject: Message from my-site  # optional: pre-filled subject line
-        submit_label: Send             # optional: button label (default: Send)
-        fields:                        # required: at least one field
-          - { name: name,    label: Your name,  type: text,     required: true }
-          - { name: email,   label: Your email, type: email,    required: true }
-          - { name: message, label: Message,    type: textarea, required: true }
+    components:            # list of component objects stacked vertically on the page
+      - type: <component-type>
+        # Available types: ${available}
+        # Call get_schema(component_name) for the full sub-schema and example of each type.
 
 nav:
   order:                   # page ids in display order; must reference valid page ids
     - home
-    - gallery
-    - contact
   show_contact_link: true  # optional: show contact link in footer (default: false)
 
 contact:

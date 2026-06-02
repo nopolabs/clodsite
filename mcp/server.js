@@ -18,14 +18,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: 'list_components',
       description:
-        'Returns the Clodsite component catalog. Read this before authoring a build-plan.yaml to know which component types exist.',
+        'Returns a brief catalog of available component types with one-line descriptions. Use this to browse what components exist, then call get_schema(component_name) to get the full sub-schema for any type you want to use.',
       inputSchema: { type: 'object', properties: {}, required: [] },
     },
     {
       name: 'get_schema',
       description:
-        'Returns an annotated build-plan.yaml example showing all fields, valid enum values, and all available component types. Call this (along with list_components) before authoring a build-plan.yaml.',
-      inputSchema: { type: 'object', properties: {}, required: [] },
+        'Without a component_name: returns the top-level build-plan.yaml field reference. With a component_name: returns the full sub-schema and YAML example for that component type. Workflow: call get_schema() to understand the document structure, list_components() to browse available types, then get_schema(component_name) for each type you plan to use.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          component_name: {
+            type: 'string',
+            description: 'Optional. Name of a component type (e.g. "prose", "gallery", "mailto-form"). Omit to get the top-level build-plan.yaml reference.',
+          },
+        },
+        required: [],
+      },
     },
     {
       name: 'deploy_site',
@@ -55,7 +64,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   if (name === 'get_schema') {
     return {
-      content: [{ type: 'text', text: pipeline.getSchema() }],
+      content: [{ type: 'text', text: pipeline.getSchema(args?.component_name) }],
     };
   }
 
