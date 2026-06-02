@@ -22,6 +22,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: { type: 'object', properties: {}, required: [] },
     },
     {
+      name: 'get_schema',
+      description:
+        'Returns an annotated build-plan.yaml example showing all fields, valid enum values, and all available component types. Call this (along with list_components) before authoring a build-plan.yaml.',
+      inputSchema: { type: 'object', properties: {}, required: [] },
+    },
+    {
       name: 'deploy_site',
       description:
         'Build and deploy a site from a build-plan.yaml. Returns { url, site_name } on success or { error, step, message } on failure.',
@@ -46,6 +52,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+
+  if (name === 'get_schema') {
+    return {
+      content: [{ type: 'text', text: pipeline.getSchema() }],
+    };
+  }
 
   if (name === 'list_components') {
     return {

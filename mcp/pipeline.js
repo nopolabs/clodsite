@@ -69,4 +69,64 @@ async function deploySite(siteName, buildPlanYaml) {
   }
 }
 
-module.exports = { listComponents, stripAnsi, extractUrl, deploySite };
+function getSchema() {
+  return `# build-plan.yaml — complete field reference
+# Deploy with: deploy_site(site_name, build_plan_yaml)
+# site_name must match slug (used as Cloudflare Pages project name + sites/ directory)
+
+slug: my-site              # lowercase letters, numbers, hyphens only; must match site_name arg
+name: My Site              # display name shown in nav and browser title
+overview: One sentence describing the site and its purpose.
+style: minimal             # minimal | professional | bold
+tone: professional         # professional | casual | technical | friendly
+
+pages:
+  - id: home               # unique identifier; the page with id "home" maps to /
+    title: Home            # shown in browser tab and nav
+    components:
+      - type: prose
+        markdown: |
+          ## Heading
+          Body text. Supports GFM: headings, lists, links, bold, italic,
+          inline code, blockquotes, tables, fenced code blocks.
+
+  - id: gallery
+    title: Gallery
+    components:
+      - type: prose
+        markdown: |
+          ## Gallery
+      - type: gallery
+        images:
+          - { src: /assets/images/photo.jpg, alt: Description of photo }
+          - { src: /assets/images/photo2.jpg, alt: Description, caption: Optional caption }
+
+  - id: contact
+    title: Contact
+    components:
+      - type: prose
+        markdown: |
+          ## Get in touch
+      - type: mailto-form
+        to: hello@example.com          # required: recipient email address
+        subject: Message from my-site  # optional: pre-filled subject line
+        submit_label: Send             # optional: button label (default: Send)
+        fields:                        # required: at least one field
+          - { name: name,    label: Your name,  type: text,     required: true }
+          - { name: email,   label: Your email, type: email,    required: true }
+          - { name: message, label: Message,    type: textarea, required: true }
+
+nav:
+  order:                   # page ids in display order; must reference valid page ids
+    - home
+    - gallery
+    - contact
+  show_contact_link: true  # optional: show contact link in footer (default: false)
+
+contact:
+  enabled: true            # whether to show contact info in footer
+  email: hello@example.com # footer contact email (used for mailto: link)
+`;
+}
+
+module.exports = { listComponents, getSchema, stripAnsi, extractUrl, deploySite };
