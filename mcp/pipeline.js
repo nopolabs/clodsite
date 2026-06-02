@@ -21,13 +21,17 @@ function extractUrl(stdout) {
 
 function runScript(scriptPath, env) {
   return new Promise((resolve) => {
-    exec(`bash "${scriptPath}"`, { env }, (error, stdout, stderr) => {
+    exec(`bash "${scriptPath}"`, { env, cwd: ROOT }, (error, stdout, stderr) => {
       resolve({ ok: !error, stdout: stdout || '', stderr: stderr || '' });
     });
   });
 }
 
 async function deploySite(siteName, buildPlanYaml) {
+  if (!/^[a-z0-9_][a-z0-9_-]*$/.test(siteName)) {
+    return { error: true, step: 'input-validation', message: `Invalid site name: ${siteName}` };
+  }
+
   const siteDir = path.join(ROOT, 'sites', siteName);
 
   fs.mkdirSync(siteDir, { recursive: true });
@@ -57,6 +61,9 @@ async function deploySite(siteName, buildPlanYaml) {
     }
     if (script === 'deploy-finalize.sh') {
       const url = extractUrl(result.stdout);
+      if (!url) {
+        return { error: true, step: 'deploy-finalize', message: 'No pages.dev URL found in deploy output' };
+      }
       return { url, site_name: siteName };
     }
   }
