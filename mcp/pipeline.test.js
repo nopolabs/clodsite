@@ -2,7 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { listComponents, extractUrl, stripAnsi } = require('./pipeline.js');
+const { listComponents, extractUrl, stripAnsi, deploySite } = require('./pipeline.js');
 
 test('listComponents returns CATALOG.md content', () => {
   const catalog = listComponents();
@@ -32,4 +32,16 @@ test('stripAnsi removes ANSI escape sequences', () => {
 
 test('stripAnsi trims surrounding whitespace', () => {
   assert.equal(stripAnsi('  hello  '), 'hello');
+});
+
+test('deploySite returns error shape when validate-plan fails', async () => {
+  const result = await deploySite('__mcp-test__', 'not: valid: yaml: [[[');
+  // Clean up before asserting so the directory is always removed
+  const { rmSync } = require('fs');
+  const { join } = require('path');
+  rmSync(join(__dirname, '..', 'sites', '__mcp-test__'), { recursive: true, force: true });
+  assert.equal(result.error, true);
+  assert.equal(result.step, 'validate-plan');
+  assert.equal(typeof result.message, 'string');
+  assert.ok(result.message.length > 0);
 });
