@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "clodsite": {
+      "command": "node",
+      "args": ["mcp/server.js"],
+      "cwd": "/Users/danrevel/dev/clodsite",
+      "env": {}
+    }
+  }
+}

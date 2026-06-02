@@ -117,6 +117,14 @@ contact form, no backend). `build-plan.yaml` pages are now
 existing sites migrated. Spec:
 `docs/superpowers/specs/2026-05-31-component-catalog-design.md`.
 
+### Clodsite MCP server (v1)
+Shipped June 2026. Exposes the build + deploy pipeline as an MCP server
+(`mcp/server.js` + `mcp/pipeline.js`). Two tools: `list_components` returns
+the component catalog; `deploy_site` takes a site name and `build-plan.yaml`
+content, runs the full build pipeline, and returns the live URL. Stdio
+transport only; designed for HTTP transport in a future increment. Spec:
+`docs/superpowers/specs/2026-06-02-clodsite-mcp-server-design.md`.
+
 ---
 
 ## Pending
