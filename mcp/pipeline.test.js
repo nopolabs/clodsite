@@ -102,3 +102,11 @@ test('server.js loads without throwing', () => {
   const { server } = require('./server.js');
   assert.ok(server, 'server instance is exported');
 });
+
+test('server advertises purpose via instructions', () => {
+  const { server } = require('./server.js');
+  const instructions = server._options?.instructions;
+  assert.ok(typeof instructions === 'string' && instructions.length > 0, 'instructions must be a non-empty string');
+  assert.ok(instructions.includes('deploy'), 'instructions should mention deploying');
+  assert.ok(instructions.includes('build-plan.yaml'), 'instructions should mention build-plan.yaml');
+});

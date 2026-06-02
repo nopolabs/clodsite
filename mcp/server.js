@@ -10,7 +10,17 @@ const pipeline = require('./pipeline.js');
 
 const server = new Server(
   { name: 'clodsite', version: '1.0.0' },
-  { capabilities: { tools: {} } }
+  {
+    capabilities: { tools: {} },
+    instructions: `Clodsite builds and deploys static websites to Cloudflare Pages.
+
+Workflow:
+1. Call get_schema() — understand the build-plan.yaml structure
+2. Call list_components() — browse available component types
+3. Call get_schema(component_name) — get the full spec for each component you plan to use
+4. Author a build-plan.yaml for your site
+5. Call deploy_site(site_name, build_plan_yaml) — returns a live URL`,
+  }
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
