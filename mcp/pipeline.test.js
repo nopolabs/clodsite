@@ -45,3 +45,11 @@ test('deploySite returns error shape when validate-plan fails', async () => {
   assert.equal(typeof result.message, 'string');
   assert.ok(result.message.length > 0);
 });
+
+test('server.js loads without throwing', () => {
+  // Require server.js in a way that does not start the stdio transport.
+  // server.js guards startup behind `require.main === module`, so requiring
+  // it here only registers handlers and exports the server instance.
+  const { server } = require('./server.js');
+  assert.ok(server, 'server instance is exported');
+});
