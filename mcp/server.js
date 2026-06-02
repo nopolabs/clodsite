@@ -39,7 +39,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: 'deploy_site',
       description:
-        'Build and deploy a site from a build-plan.yaml. Returns { url, site_name } on success or { error, step, message } on failure.',
+        'Build and deploy a site from a build-plan.yaml. Returns { url, site_name } on success or { error, step, message } on failure. Call get_schema() first if you need the build-plan.yaml field reference, and get_schema(component_name) for each component type you plan to use.',
       inputSchema: {
         type: 'object',
         properties: {
