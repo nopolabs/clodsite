@@ -28,7 +28,7 @@ function runScript(scriptPath, env) {
 }
 
 async function deploySite(siteName, buildPlanYaml) {
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(siteName)) {
+  if (typeof siteName !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(siteName)) {
     return { error: true, step: 'input-validation', message: `Invalid site name: ${siteName}` };
   }
 

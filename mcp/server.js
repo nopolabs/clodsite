@@ -54,7 +54,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (name === 'deploy_site') {
-    const { site_name, build_plan_yaml } = args;
+    const { site_name, build_plan_yaml } = args ?? {};
     const result = await pipeline.deploySite(site_name, build_plan_yaml);
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
