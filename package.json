@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "Script dependencies for Clodsite build pipeline",
+  "scripts": {
+    "test:mcp": "node --test mcp/pipeline.test.js"
+  },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "js-yaml": "^4.1.0"
   }
 }
