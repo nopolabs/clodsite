@@ -29,3 +29,6 @@ scaffold/src/css/components.css
 
 # macOS
 .DS_Store
+
+# IntelliJ
+.idea/
