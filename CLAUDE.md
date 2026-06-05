@@ -1,6 +1,6 @@
 # Clodsite
 
-Describe your site. Deploy it. Inference on the front end, deterministic scripts on the back end — the spec is the boundary between the two.
+Describe your site. Deploy it. Inference on the front end, deterministic scripts on the back end — `build-plan.yaml` is the boundary between the two.
 
 ## Getting Started
 
@@ -13,14 +13,15 @@ When a user opens this project without a specific request, greet them with this:
 | Step | Command | What it does |
 |------|---------|--------------|
 | 1 | `/setup` | Verify your Cloudflare token |
-| 2 | `/interview <site-name>` | Guided session → `sites/<site-name>/site-spec.json` |
-| 3 | `/plan <site-name>` | Review and approve copy → `sites/<site-name>/build-plan.yaml` |
-| 4 | `/build <site-name>` | Generate templates + Eleventy build → `sites/<site-name>/dist/` |
-| 5 | `/deploy <site-name>` | Ship to Cloudflare Pages → live URL |
+| 2 | Create `sites/<site-name>/build-plan.yaml` | Work with the AI agent however you like until the plan is complete |
+| 3 | `/build <site-name>` | Generate templates + Eleventy build → `sites/<site-name>/dist/` |
+| 4 | `/deploy <site-name>` | Ship to Cloudflare Pages → live URL |
 
 Or to preview locally without deploying: `/deploy <site-name> local`
 
 After deploying: `/domain <site-name>` to connect a custom domain, `/teardown <site-name>` to delete a Pages project.
+
+`/interview` and `/plan` still exist as legacy scaffolding commands, but they are not the core model. The core model is: collaborate until `build-plan.yaml` is valid and approved, then build and deploy.
 
 Type `/help` at any time to see this again.
 
@@ -43,16 +44,16 @@ Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previo
 [SCRIPT] bash scripts/setup.sh --init-sites  (initialize sites/ as a git repo)
 ```
 
-### `/interview` — `[LLM]`
-Guided interview session. Produces `sites/<site-name>/site-spec.json`. The spec can also be filled directly or produced by another tool — the build pipeline doesn't care how it was generated.
+### `/interview` — `[LLM]` legacy scaffold
+Guided interview session. Produces `sites/<site-name>/site-spec.json`. This was the original discovery path and remains useful as a structured fallback, but it is not required by the build pipeline.
 
 ```
 [LLM]    Conduct interview, synthesize answers into JSON
 [SCRIPT] bash scripts/write-spec.sh
 ```
 
-### `/plan` — `[HYBRID]`
-Validate spec. Write all page content. Produces `sites/<site-name>/build-plan.yaml` — the inference boundary. Everything before this is deciding; everything after is rendering.
+### `/plan` — `[HYBRID]` legacy scaffold
+Validate a legacy spec. Write all page content. Produces `sites/<site-name>/build-plan.yaml` — the actual inference boundary. Agents may also produce `build-plan.yaml` directly from a customer brief, notes, files, or an interactive conversation.
 
 ```
 [SCRIPT] bash scripts/validate-spec.sh
@@ -85,19 +86,19 @@ Deploy to Cloudflare Pages. Produces a live URL and `sites/<site-name>/NEXT-STEP
 ```
 
 ### `/domain` — `[HYBRID]`
-Connect a custom domain to a deployed site. Creates the Pages association and proxied CNAME automatically when DNS is in the same Cloudflare account; falls back to manual instructions otherwise.
+Connect a custom domain to a deployed site. Reads `slug` and `custom_domain` from `build-plan.yaml`, reads the deployed `*.pages.dev` URL from Cloudflare, creates the Pages association and proxied CNAME automatically when DNS is in the same Cloudflare account, and falls back to manual instructions otherwise.
 
 ```
-[LLM]    Read spec, prompt for domain if not already set
+[LLM]    Read build-plan.yaml, prompt for custom_domain if not already set
 [SCRIPT] SITE_DIR=sites/<site-name> bash scripts/domain.sh
 [LLM]    Interpret output (CNAME created, already exists, or manual DNS instructions)
 ```
 
 ### `/teardown` — `[HYBRID]`
-Delete a deployed site from Cloudflare Pages. Requires explicit confirmation. Optionally cleans local artifacts with `clean` flag.
+Delete a deployed site from Cloudflare Pages. Reads `slug` and `custom_domain` from `build-plan.yaml` and reads the deployed `*.pages.dev` URL from Cloudflare before deleting. Requires explicit confirmation. Optionally cleans local artifacts with `clean` flag.
 
 ```
-[LLM]    Read spec, show destruction summary (project, URL, custom domain if set)
+[LLM]    Read build-plan.yaml, show destruction summary (project, URL, custom domain if set)
 [LLM]    Ask user to type site name to confirm
 [SCRIPT] SITE_DIR=sites/<site-name> bash scripts/teardown.sh
 [SCRIPT] bash scripts/clean.sh <site-name>   (only if `/teardown <site-name> clean`)
@@ -123,7 +124,7 @@ Every step is labeled with its execution type:
 | `[LLM]` | Claude inference — reasoning, generation, interpretation | Where creativity earns its cost |
 | `[HYBRID]` | Script validates structure; LLM handles semantics | Best of both |
 
-The LLM handles: collecting user input through the chat (interview answers, credentials, clean/keep choices), synthesizing structured data from natural language (the spec JSON), generating content (page copy, Nunjucks templates), and interpreting errors. Everything else is a script.
+The LLM handles: collecting user input through the chat, reading source material, synthesizing structured site content into `build-plan.yaml`, and interpreting errors. Everything after a valid `build-plan.yaml` is a script.
 
 ---
 
@@ -132,8 +133,8 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 | File | Written by | Purpose |
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
-| `sites/<site-name>/site-spec.json` | `/interview <site-name>` | The site spec (pretty-printed JSON) |
-| `sites/<site-name>/build-plan.yaml` | `/plan <site-name>` | Structured build plan with typed component arrays — review before /build |
+| `sites/<site-name>/site-spec.json` | `/interview <site-name>` | Optional legacy discovery artifact |
+| `sites/<site-name>/build-plan.yaml` | AI agent or `/plan <site-name>` | Contract for the build: display name, slug, style, content, pages, nav, contact, optional custom domain, and typed component arrays |
 | `sites/<site-name>/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (gitignored) |
 | `sites/<site-name>/src/*.njk` | `/build <site-name>` (via `render-templates.sh`) | Page templates with content (gitignored) |
 | `sites/<site-name>/dist/` | `/build <site-name>` | Built static site |
@@ -145,7 +146,7 @@ The LLM handles: collecting user input through the chat (interview answers, cred
 
 Static content sites, 1–5 pages (or one), three visual styles, `mailto:` contact, Cloudflare Pages deploy, custom domain automation, per-site version control.
 
-The inference boundary is `sites/<site-name>/site-spec.json`. Everything before it is inference; everything after is deterministic scripts.
+The inference boundary is `sites/<site-name>/build-plan.yaml`. Everything before it is customer-agent collaboration; everything after it is deterministic scripts.
 
 See `ROADMAP.md` for what's next.
 Original v1 spec: `docs/superpowers/specs/2026-05-13-clodsite-prd.md`.

@@ -65,14 +65,24 @@ if [ -d "sites" ]; then
   cp -r sites/. "$SITES_BACKUP/"
 fi
 
+ENV_BACKUP=""
+if [ -f ".env" ]; then
+  ENV_BACKUP=$(mktemp)
+  cp .env "$ENV_BACKUP"
+fi
+
 cleanup() {
   rm -rf "$SITE_DIR"
   rm -rf site sites
+  rm -f .env
   if [ -n "$SITE_BACKUP" ]; then
     mkdir -p site && cp -r "$SITE_BACKUP/." site/ && rm -rf "$SITE_BACKUP"
   fi
   if [ -n "$SITES_BACKUP" ]; then
     mkdir -p sites && cp -r "$SITES_BACKUP/." sites/ && rm -rf "$SITES_BACKUP"
+  fi
+  if [ -n "$ENV_BACKUP" ]; then
+    cp "$ENV_BACKUP" .env && rm -f "$ENV_BACKUP"
   fi
   [ -n "${MOCK_BIN:-}" ] && rm -rf "$MOCK_BIN"
   [ -n "${ORIGINAL_PATH:-}" ] && export PATH="$ORIGINAL_PATH"
@@ -188,12 +198,13 @@ echo "=== domain.sh ==="
 # Missing SITE_DIR → exits 1
 SITE_DIR="" bash scripts/domain.sh > /dev/null 2>&1; assert_exit "missing SITE_DIR exits 1" 1 $?
 
-# Spec missing deployed_url → exits 1
-cp scripts/test/fixtures/domain-spec-no-deploy.json "${SITE_DIR}/site-spec.json"
-bash scripts/domain.sh > /dev/null 2>&1; assert_exit "missing deployed_url exits 1" 1 $?
+# Missing build-plan → exits 1
+rm -f "${SITE_DIR}/build-plan.yaml"
+bash scripts/domain.sh > /dev/null 2>&1; assert_exit "missing build-plan exits 1" 1 $?
 
-# Restore SITE_DIR for apex tests (the SITE_DIR="" test overwrote it in subshell only)
-cp scripts/test/fixtures/domain-spec-deployed.json "${SITE_DIR}/site-spec.json"
+# build-plan without custom_domain → exits 1 before credentials are loaded
+cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/domain.sh > /dev/null 2>&1; assert_exit "missing custom_domain exits 1" 1 $?
 
 # Apex extraction (mirrors extract_apex in domain.sh)
 extract_apex_test() { echo "$1" | rev | cut -d. -f1,2 | rev; }
@@ -211,13 +222,27 @@ echo "=== teardown.sh ==="
 # Missing SITE_DIR → exits 1
 SITE_DIR="" bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing SITE_DIR exits 1" 1 $?
 
-# Missing spec file → exits 1
-rm -f "${SITE_DIR}/site-spec.json"
-bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing spec exits 1" 1 $?
+# Missing build-plan → exits 1
+rm -f "${SITE_DIR}/build-plan.yaml"
+bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing build-plan exits 1" 1 $?
 
-# Spec with empty site.name → exits 1
-cp scripts/test/fixtures/teardown-spec-no-name.json "${SITE_DIR}/site-spec.json"
-bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing site.name exits 1" 1 $?
+# build-plan with missing slug → exits 1
+printf '%s\n' 'name: No Slug
+overview: Test site.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: Hello.
+nav:
+  order:
+    - home
+contact:
+  enabled: false' > "${SITE_DIR}/build-plan.yaml"
+bash scripts/teardown.sh > /dev/null 2>&1; assert_exit "missing slug exits 1" 1 $?
 
 # ── deploy-finalize.sh ────────────────────────────────────────────────────────
 echo ""
@@ -390,6 +415,25 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "build_notes is reje
 cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component plan exits 0" 0 $?
 
+printf '%s\n' 'slug: test
+name: Test
+overview: Test site.
+style: minimal
+tone: professional
+custom_domain: https://example.com/path
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: Hello.
+nav:
+  order:
+    - home
+contact:
+  enabled: false' > "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "custom_domain URL exits 1" 1 $?
+
 # ── finalize-plan.sh ──────────────────────────────────────────────────────────
 echo ""
 echo "=== finalize-plan.sh ==="
@@ -438,6 +482,9 @@ bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan with 
 echo ""
 echo "=== status.sh ==="
 
+printf '%s\n' 'CLOUDFLARE_API_TOKEN=test-token
+CLOUDFLARE_ACCOUNT_ID=test-account' > .env
+
 # Shared mock wrangler setup
 MOCK_BIN=$(mktemp -d)
 CF_FIXTURE="$(pwd)/scripts/test/fixtures/status-cf-projects.json"
@@ -452,11 +499,12 @@ export PATH="$MOCK_BIN:$PATH"
 # Shared temp SITES_DIR for status tests
 STATUS_SITES_DIR=$(mktemp -d)
 
-# Test 1: empty SITES_DIR → exits 0, prints guidance message
+# Test 1: empty SITES_DIR → exits 0, prints empty-state message
 EMPTY_SITES=$(mktemp -d)
 OUTPUT=$(SITES_DIR="$EMPTY_SITES" bash scripts/status.sh 2>/dev/null); STATUS_EXIT=$?
 assert_exit "empty SITES_DIR exits 0" 0 "$STATUS_EXIT"
-assert_contains "empty SITES_DIR prints guidance" "No Clodsite-managed sites found" "$OUTPUT"
+assert_contains "empty SITES_DIR prints empty-state message" "No Clodsite-managed sites found." "$OUTPUT"
+assert_contains "empty SITES_DIR lists Cloudflare-only projects" "external-project" "$OUTPUT"
 rm -rf "$EMPTY_SITES"
 
 # Set up fixtures: site-alpha (matched + custom domain), site-beta (matched, no custom domain),

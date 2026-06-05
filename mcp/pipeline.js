@@ -129,6 +129,7 @@ name: My Site              # display name shown in nav and browser title
 overview: One sentence describing the site and its purpose.
 style: minimal             # minimal | professional | bold
 tone: professional         # professional | casual | technical | friendly
+custom_domain: ""          # optional hostname only; e.g. www.example.com
 
 pages:
   - id: home               # unique identifier; the page with id "home" maps to /

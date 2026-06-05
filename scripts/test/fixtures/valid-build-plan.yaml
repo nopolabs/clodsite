@@ -3,6 +3,7 @@ name: Nopo Labs
 overview: nopo-labs is a portfolio site for a software engineer.
 style: minimal
 tone: professional
+custom_domain: ""
 pages:
   - id: home
     title: Home

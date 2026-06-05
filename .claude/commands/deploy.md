@@ -50,7 +50,7 @@ This reads `.env`, runs `wrangler pages deploy`, and captures the output.
 
 Common cases:
 - **Authentication error:** Token has expired or lacks permissions. Run `/setup` to re-enter the token.
-- **Project name conflict:** A Pages project with this slug already exists under a different account. Edit `site.name` in `sites/<site-name>/site-spec.json` and re-run `/deploy <site-name>`.
+- **Project name conflict:** A Pages project with this slug already exists under a different account. Edit `slug` in `sites/<site-name>/build-plan.yaml` or choose a different site directory, then rebuild and re-run `/deploy <site-name>`.
 - **dist/ missing:** Run `/build <site-name>` first.
 - **Wrangler not found:** Run `npm install -g wrangler`.
 
@@ -66,4 +66,4 @@ Do not attempt to re-run deploy automatically. Print the fix suggestion and stop
 SITE_DIR=sites/<site-name> bash scripts/deploy-finalize.sh
 ```
 
-This parses the live URL, writes it to `sites/<site-name>/site-spec.json`, generates `sites/<site-name>/NEXT-STEPS.md`, and prints the URL.
+This parses the live URL from the deploy output, generates `sites/<site-name>/NEXT-STEPS.md`, optionally commits the deployed site inside `sites/.git`, and prints the production URL. It does not write back to `site-spec.json`; `build-plan.yaml` remains the build contract.

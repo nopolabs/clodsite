@@ -18,18 +18,19 @@ bash scripts/migrate-site.sh
 
 ---
 
-**[LLM]** Read `sites/<site-name>/site-spec.json`.
+**[LLM]** Read `sites/<site-name>/build-plan.yaml`.
 
-If `domain.custom = false` or `domain.hostname` is empty, ask:
+If `custom_domain` is omitted or empty, ask:
 
 > "What domain or subdomain should this site use? (e.g. `ndig.nopolabs.com` or `acme.com`)"
 
-Wait for the reply. Then update the spec using the Write tool:
-- Set `domain.custom` to `true`
-- Set `domain.hostname` to the answer
+Wait for the reply. Then update `build-plan.yaml` using the Write tool:
+- Set `custom_domain` to the hostname only, with no protocol or path
 - Leave all other fields unchanged
 
-If `meta.deployed_url` is not set, tell the user:
+The deployed `*.pages.dev` URL is read from Cloudflare at script time. Do not write deployment URLs into `site-spec.json` or `build-plan.yaml`.
+
+If the site has not been deployed yet, `domain.sh` will report that no Cloudflare Pages project exists for the plan's `slug`. In that case tell the user:
 
 > "This site hasn't been deployed yet. Run `/deploy <site-name>` first, then re-run `/domain <site-name>`."
 
@@ -54,6 +55,6 @@ SITE_DIR=sites/<site-name> bash scripts/domain.sh
 
 **Common errors:**
 - `CLOUDFLARE_API_TOKEN … not set` → run `/setup`
-- `site has not been deployed yet` → run `/deploy <site-name>` first
-- `Error adding Pages domain association (HTTP 4xx)` → check that the Pages project name matches the slug in `site.name`; re-run `/deploy <site-name>` if the project was deleted
-
+- `custom_domain not set` → add `custom_domain: <hostname>` to `build-plan.yaml`
+- `Cloudflare Pages project not found` → run `/deploy <site-name>` first
+- `Error adding Pages domain association (HTTP 4xx)` → check that the Pages project name matches `slug` in `build-plan.yaml`; re-run `/deploy <site-name>` if the project was deleted

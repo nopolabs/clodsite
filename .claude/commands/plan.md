@@ -1,4 +1,11 @@
-Generate the Clodsite build plan from the approved spec.
+Generate a Clodsite `build-plan.yaml` from a legacy `site-spec.json`.
+
+This command is a scaffolding bridge from the original interview/spec workflow.
+The current Clodsite contract is `sites/<site-name>/build-plan.yaml`; an AI
+agent may produce that file directly from a customer conversation, brief, source
+documents, existing copy, or any other collaboration path. Use `/plan` when a
+valid `site-spec.json` already exists and the user wants it converted into the
+build contract.
 
 ---
 
@@ -38,14 +45,16 @@ bash scripts/generate-catalog-md.sh
 
 **[LLM]** Read `sites/<site-name>/site-spec.json`. Generate `sites/<site-name>/build-plan.yaml` using the Write tool.
 
-The YAML must match this schema exactly:
+The YAML must match this schema exactly after finalization:
 
 ```yaml
 slug: <site directory name — same as what was passed to /plan, e.g. acme-corp>
+name: <display name injected from site-spec.json by finalize-plan.sh>
 overview: >-
   <one paragraph — purpose, audience, tone>
 style: <value of site.style from spec>
 tone: <value of site.tone from spec>
+custom_domain: <optional hostname only, e.g. www.example.com, or "">
 pages:
   - id: <page id>
     title: <page title>
@@ -96,4 +105,4 @@ If this exits with errors, print them clearly and stop.
 
 ---
 
-Tell the user: "Review `sites/<site-name>/build-plan.json` — check the page content and structure. When ready, run `/build <site-name>`."
+Tell the user: "Review `sites/<site-name>/build-plan.yaml` — this is the build contract. Check the page content, component structure, navigation, style, and contact settings. When ready, run `/build <site-name>`."

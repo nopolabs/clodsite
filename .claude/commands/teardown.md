@@ -22,11 +22,11 @@ bash scripts/migrate-site.sh
 
 ---
 
-**[LLM]** Read `sites/<site-name>/site-spec.json` and build a destruction summary:
+**[LLM]** Read `sites/<site-name>/build-plan.yaml` and build a destruction summary:
 
-- **Pages project:** `<slugified site.name>` (slugify: lowercase, replace non-alphanumeric runs with `-`, strip leading/trailing `-`)
-- **Live URL:** `<meta.deployed_url>` if set, otherwise "not recorded"
-- **Custom domain:** `<domain.hostname>` — only include this line if `domain.custom = true`
+- **Pages project:** `<slug>`
+- **Live URL:** read from Cloudflare Pages project state if available; otherwise say "will be checked by script"
+- **Custom domain:** `<custom_domain>` — only include this line if set
 
 Show the summary and ask:
 
@@ -62,5 +62,4 @@ bash scripts/clean.sh <site-name>
 **Common errors:**
 - `CLOUDFLARE_API_TOKEN … not set` → run `/setup`
 - Wrangler error about project not found → the project may have already been deleted; check with `wrangler pages project list`
-
 

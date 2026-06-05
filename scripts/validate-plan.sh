@@ -33,6 +33,14 @@ if (!validTones.includes(plan.tone))
 if ('build_notes' in plan)
   errors.push('build_notes is no longer supported (removed in component-catalog v1)');
 
+if ('custom_domain' in plan && plan.custom_domain !== null && typeof plan.custom_domain !== 'string')
+  errors.push('custom_domain must be a string hostname or omitted');
+if (typeof plan.custom_domain === 'string' && plan.custom_domain.trim() !== '') {
+  const domain = plan.custom_domain.trim();
+  if (/^https?:\/\//i.test(domain) || domain.includes('/'))
+    errors.push('custom_domain must be a hostname only, e.g. www.example.com');
+}
+
 const catalog = {};
 if (fs.existsSync('$COMPONENTS_DIR')) {
   for (const name of fs.readdirSync('$COMPONENTS_DIR')) {

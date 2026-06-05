@@ -41,10 +41,6 @@ process.stdout.write(JSON.stringify(sites) + '\n');
 NODEJS
 
 LOCAL_SITES=$(cat "$LOCAL_TMP")
-if [ "$LOCAL_SITES" = "[]" ]; then
-  echo "No Clodsite-managed sites found. Run /interview first."
-  exit 0
-fi
 
 # ── Live Cloudflare Pages state ───────────────────────────────────────────────
 if ! wrangler pages project list --json > "$CF_TMP" 2> "$CF_ERR_TMP"; then
@@ -77,18 +73,22 @@ const rows = localSites.map(site => {
   return { site: site.slug, url, customDomain, lastDeploy: cf['Last Modified'] };
 });
 
-const headers = ['Site', 'URL', 'Custom Domain', 'Last Deploy'];
-const keys = ['site', 'url', 'customDomain', 'lastDeploy'];
-const widths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[keys[i]].length)));
+if (rows.length === 0) {
+  console.log('No Clodsite-managed sites found.');
+} else {
+  const headers = ['Site', 'URL', 'Custom Domain', 'Last Deploy'];
+  const keys = ['site', 'url', 'customDomain', 'lastDeploy'];
+  const widths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[keys[i]].length)));
 
-const sep = (l, m, r, c) => l + widths.map(w => c.repeat(w + 2)).join(m) + r;
-const row = cells => '│ ' + cells.map((c, i) => c.padEnd(widths[i])).join(' │ ') + ' │';
+  const sep = (l, m, r, c) => l + widths.map(w => c.repeat(w + 2)).join(m) + r;
+  const row = cells => '│ ' + cells.map((c, i) => c.padEnd(widths[i])).join(' │ ') + ' │';
 
-console.log(sep('┌', '┬', '┐', '─'));
-console.log(row(headers));
-console.log(sep('├', '┼', '┤', '─'));
-rows.forEach(r => console.log(row([r.site, r.url, r.customDomain, r.lastDeploy])));
-console.log(sep('└', '┴', '┘', '─'));
+  console.log(sep('┌', '┬', '┐', '─'));
+  console.log(row(headers));
+  console.log(sep('├', '┼', '┤', '─'));
+  rows.forEach(r => console.log(row([r.site, r.url, r.customDomain, r.lastDeploy])));
+  console.log(sep('└', '┴', '┘', '─'));
+}
 
 if (others.length > 0) {
   console.log('');

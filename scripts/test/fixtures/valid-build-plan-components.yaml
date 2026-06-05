@@ -3,6 +3,7 @@ name: Render Test
 overview: Fixture for render-templates.sh.
 style: minimal
 tone: professional
+custom_domain: gallery.nopolabs.com
 pages:
   - id: home
     title: Home

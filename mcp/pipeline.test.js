@@ -56,6 +56,7 @@ test('getSchema() returns top-level build-plan.yaml reference', () => {
   assert.ok(schema.includes('overview:'));
   assert.ok(schema.includes('style:'));
   assert.ok(schema.includes('tone:'));
+  assert.ok(schema.includes('custom_domain:'));
   assert.ok(schema.includes('pages:'));
   assert.ok(schema.includes('nav:'));
   assert.ok(schema.includes('contact:'));
