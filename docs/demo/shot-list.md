@@ -22,6 +22,10 @@
 
 ---
 
+## Cmd-Shift-5
+
+---
+
 ## Shot 1 (0:00–0:15) — Open
 
 **Show:** Terminal at `~/dev`. Optionally a browser tab on `github.com/nopolabs/clodsite`.
