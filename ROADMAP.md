@@ -129,15 +129,6 @@ transport only; designed for HTTP transport in a future increment. Spec:
 
 ## Pending
 
-### Configurable `sites/` location
-
-`sites/` version control ships in May 2026 with the repo initialized in-place.
-The natural follow-on is making the path configurable — so `sites/` can live
-outside the clodsite repo entirely (e.g., `~/my-sites/` or a dedicated GitHub
-repo cloned elsewhere). This would be stored in `.env` as `SITES_DIR` and all
-scripts that currently hardcode `sites/` or construct `SITE_DIR=sites/<name>`
-would resolve paths against it. Depends on sites version control (shipped May 2026).
-
 ### Installable skill packaging
 
 v1 ships as a template repo: clone it, `cd` in, open Claude Code. v2 packages

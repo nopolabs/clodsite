@@ -6,6 +6,21 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 
+function readEnvValue(name) {
+  if (process.env[name]) return process.env[name];
+  const envPath = path.join(ROOT, '.env');
+  if (!fs.existsSync(envPath)) return '';
+  const line = fs.readFileSync(envPath, 'utf8')
+    .split(/\r?\n/)
+    .find(l => l.startsWith(`${name}=`));
+  return line ? line.slice(name.length + 1).trim() : '';
+}
+
+function resolveSitesDir() {
+  const configured = readEnvValue('SITES_DIR') || 'sites';
+  return path.isAbsolute(configured) ? configured : path.join(ROOT, configured);
+}
+
 function listComponents() {
   const dir = path.join(ROOT, 'components');
   const names = fs.readdirSync(dir)
@@ -45,7 +60,8 @@ async function deploySite(siteName, buildPlanYaml) {
     return { error: true, step: 'input-validation', message: `Invalid site name: ${siteName}` };
   }
 
-  const siteDir = path.join(ROOT, 'sites', siteName);
+  const sitesDir = resolveSitesDir();
+  const siteDir = path.join(sitesDir, siteName);
 
   fs.mkdirSync(siteDir, { recursive: true });
   fs.writeFileSync(path.join(siteDir, 'build-plan.yaml'), buildPlanYaml, 'utf8');
@@ -60,7 +76,7 @@ async function deploySite(siteName, buildPlanYaml) {
     'deploy-finalize.sh',
   ];
 
-  const env = { ...process.env, SITE_DIR: siteDir };
+  const env = { ...process.env, SITES_DIR: sitesDir, SITE_DIR: siteDir };
 
   for (const script of scripts) {
     const scriptPath = path.join(ROOT, 'scripts', script);
@@ -122,7 +138,7 @@ function getSchema(componentName) {
 
   return `# build-plan.yaml — field reference
 # Deploy with: deploy_site(site_name, build_plan_yaml)
-# site_name must match slug (used as Cloudflare Pages project name + sites/ directory)
+# site_name must match slug (used as Cloudflare Pages project name + SITES_DIR folder)
 
 slug: my-site              # lowercase letters, numbers, hyphens only; must match site_name arg
 name: My Site              # display name shown in nav and browser title

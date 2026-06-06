@@ -25,12 +25,12 @@ If it prints a migration message, tell the user what happened.
 **[SCRIPT]** Confirm the site doesn't already exist:
 
 ```bash
-[ ! -d "sites/<site-name>" ] || echo "EXISTS"
+SITE_NAME=<site-name> bash -c 'source scripts/lib/sites.sh && clodsite_init_site_dir && [ ! -d "$SITE_DIR" ] || echo "EXISTS"'
 ```
 
 If it prints `EXISTS`, tell the user:
 
-> "`sites/<site-name>/` already exists. Use `/plan <site-name>` or `/build <site-name>` to continue it. Use `/setup clean <site-name>` to start over."
+> "`$SITES_DIR/<site-name>/` already exists. Use `/plan <site-name>` or `/build <site-name>` to continue it. Use `/setup clean <site-name>` to start over."
 
 And stop.
 
@@ -39,7 +39,7 @@ And stop.
 **[SCRIPT]** Create the site directory:
 
 ```bash
-mkdir -p sites/<site-name>/images
+SITE_NAME=<site-name> bash -c 'source scripts/lib/sites.sh && clodsite_init_site_dir && mkdir -p "$SITE_DIR/assets/favicons"'
 ```
 
 ---
@@ -110,14 +110,14 @@ Rules:
 - If `domain.custom = false`, set `hostname: ""`
 - `content_status` = `"provided"` if user supplied copy; `"draft"` if Claude should write it
 
-Write the JSON to `sites/<site-name>/site-spec.json`. Use the Write tool. First run `mkdir -p sites/<site-name>` if the directory doesn't already exist. The file should contain only the JSON — no markdown fences, no explanation.
+Write the JSON to `$SITES_DIR/<site-name>/site-spec.json`. Use the Write tool. First run `mkdir -p "$SITES_DIR/<site-name>"` if the directory doesn't already exist. The file should contain only the JSON — no markdown fences, no explanation.
 
 ---
 
 **[SCRIPT]** Run:
 
 ```bash
-SITE_DIR=sites/<site-name> bash scripts/write-spec.sh
+SITE_NAME=<site-name> bash scripts/write-spec.sh
 ```
 
 This validates the JSON is parseable and pretty-prints it in place.

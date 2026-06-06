@@ -10,6 +10,10 @@ set -euo pipefail
 # Destructive cleanup lives in scripts/clean.sh — kept separate so the whole
 # of this script is non-destructive and safe to auto-allow.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/sites.sh
+source "${SCRIPT_DIR}/lib/sites.sh"
+
 MODE="${1:-}"
 
 # ── --import: copy credentials from an existing env file ────────────────────
@@ -39,15 +43,16 @@ if [ "$MODE" = "--import" ]; then
   exit 0
 fi
 
-# ── --init-sites: initialize sites/ as a git repo ───────────────────────────
+# ── --init-sites: initialize SITES_DIR as a git repo ────────────────────────
 if [ "$MODE" = "--init-sites" ]; then
-  mkdir -p sites
-  git -C sites init -q
-  if [ ! -f "sites/.gitignore" ]; then
-    printf '*/src/\n*/.deploy-*\n' > sites/.gitignore
-    echo "✓ sites/.gitignore created."
+  clodsite_init_sites_dir
+  mkdir -p "$SITES_DIR"
+  git -C "$SITES_DIR" init -q
+  if [ ! -f "${SITES_DIR}/.gitignore" ]; then
+    printf '*/src/\n*/.deploy-*\n' > "${SITES_DIR}/.gitignore"
+    echo "✓ ${SITES_DIR}/.gitignore created."
   fi
-  echo "✓ sites/ initialized as a git repository."
+  echo "✓ ${SITES_DIR} initialized as a git repository."
   exit 0
 fi
 
@@ -98,8 +103,10 @@ if [ "$MODE" = "--verify" ]; then
   echo "✓ Token verified (Cloudflare Pages: Edit confirmed)."
   echo "✓ Account ID present."
   echo "✓ .env is ready."
+  clodsite_init_sites_dir
+  echo "✓ SITES_DIR: ${SITES_DIR}"
   echo ""
-  echo "Next step: run /interview"
+  echo "Next step: create a build-plan.yaml, then run /build <site-name>"
   exit 0
 fi
 

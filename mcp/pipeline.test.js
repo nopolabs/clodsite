@@ -37,11 +37,17 @@ test('stripAnsi trims surrounding whitespace', () => {
 });
 
 test('deploySite returns error shape when validate-plan fails', async () => {
-  const result = await deploySite('mcp-test', 'not: valid: yaml: [[[');
-  // Clean up before asserting so the directory is always removed
-  const { rmSync } = require('fs');
+  const { mkdtempSync, rmSync } = require('fs');
   const { join } = require('path');
-  rmSync(join(__dirname, '..', 'sites', 'mcp-test'), { recursive: true, force: true });
+  const { tmpdir } = require('os');
+  const oldSitesDir = process.env.SITES_DIR;
+  const sitesDir = mkdtempSync(join(tmpdir(), 'clodsite-mcp-sites-'));
+  process.env.SITES_DIR = sitesDir;
+  const result = await deploySite('mcp-test', 'not: valid: yaml: [[[');
+  // Clean up before asserting so the directory is always removed.
+  rmSync(sitesDir, { recursive: true, force: true });
+  if (oldSitesDir === undefined) delete process.env.SITES_DIR;
+  else process.env.SITES_DIR = oldSitesDir;
   assert.equal(result.error, true);
   assert.equal(result.step, 'validate-plan');
   assert.equal(typeof result.message, 'string');

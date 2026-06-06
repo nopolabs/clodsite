@@ -3,6 +3,8 @@ set -uo pipefail
 
 PASS=0
 FAIL=0
+ORIGINAL_SITES_DIR="${SITES_DIR:-}"
+export SITES_DIR="sites"
 
 assert_exit() {
   local desc="$1" expected="$2" actual="$3"
@@ -83,6 +85,11 @@ cleanup() {
   fi
   if [ -n "$ENV_BACKUP" ]; then
     cp "$ENV_BACKUP" .env && rm -f "$ENV_BACKUP"
+  fi
+  if [ -n "$ORIGINAL_SITES_DIR" ]; then
+    export SITES_DIR="$ORIGINAL_SITES_DIR"
+  else
+    unset SITES_DIR
   fi
   [ -n "${MOCK_BIN:-}" ] && rm -rf "$MOCK_BIN"
   [ -n "${ORIGINAL_PATH:-}" ] && export PATH="$ORIGINAL_PATH"
@@ -369,6 +376,29 @@ else
 fi
 
 rm -rf sites
+
+# ── SITES_DIR path resolution ─────────────────────────────────────────────────
+echo ""
+echo "=== SITES_DIR path resolution ==="
+
+ALT_SITES_DIR=$(mktemp -d)
+mkdir -p "$ALT_SITES_DIR/alt-site"
+cp scripts/test/fixtures/valid-build-plan.yaml "$ALT_SITES_DIR/alt-site/build-plan.yaml"
+SITES_DIR="$ALT_SITES_DIR" SITE_NAME="alt-site" bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "SITE_NAME resolves inside custom SITES_DIR" 0 $?
+
+SITES_DIR="$ALT_SITES_DIR" bash scripts/setup.sh --init-sites > /dev/null 2>&1
+assert_exit "--init-sites respects custom SITES_DIR" 0 $?
+assert_dir_exists "custom SITES_DIR .git created" "$ALT_SITES_DIR/.git"
+assert_file_exists "custom SITES_DIR .gitignore created" "$ALT_SITES_DIR/.gitignore"
+rm -rf "$ALT_SITES_DIR"
+
+RELATIVE_SITES_DIR=".test-clodsite-sites"
+mkdir -p "$RELATIVE_SITES_DIR/relative-site"
+cp scripts/test/fixtures/valid-build-plan.yaml "$RELATIVE_SITES_DIR/relative-site/build-plan.yaml"
+SITES_DIR="$RELATIVE_SITES_DIR" SITE_NAME="relative-site" bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "relative SITES_DIR resolves from repository root" 0 $?
+rm -rf "$RELATIVE_SITES_DIR"
 
 # ── validate-plan.sh ──────────────────────────────────────────────────────────
 echo ""

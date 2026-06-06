@@ -10,7 +10,7 @@ Clodsite works the same way. An AI agent collaborates with you however you prefe
 
 ## The Build Plan
 
-Everything flows through `sites/<name>/build-plan.yaml`. It is the contract: site name, slug, pages, navigation, tone, visual style, contact settings, optional custom domain, and typed page components with their final content.
+Everything flows through `$SITES_DIR/<name>/build-plan.yaml`. It is the contract: site name, slug, pages, navigation, tone, visual style, contact settings, optional custom domain, and typed page components with their final content.
 
 Everything before `build-plan.yaml` is collaboration and inference. The customer and AI agent can get there through a guided interview, a pasted brief, direct YAML editing, or any other workflow that produces a valid plan. Everything after `build-plan.yaml` is deterministic compilation and deployment.
 
@@ -32,9 +32,9 @@ Then inside Claude Code:
 
 | Step | Command | What it does |
 |------|---------|--------------|
-| 1 | `/setup` | Verify your Cloudflare token; initialize `sites/` |
-| 2 | Produce `sites/<name>/build-plan.yaml` | Work with the AI agent however you like until the plan is complete and approved |
-| 3 | `/build <site-name>` | Generate templates + Eleventy build → `sites/<name>/dist/` |
+| 1 | `/setup` | Verify your Cloudflare token; initialize `SITES_DIR` |
+| 2 | Produce `$SITES_DIR/<name>/build-plan.yaml` | Work with the AI agent however you like until the plan is complete and approved |
+| 3 | `/build <site-name>` | Generate templates + Eleventy build → `$SITES_DIR/<name>/dist/` |
 | 4 | `/deploy <site-name>` | Ship to Cloudflare Pages → live URL |
 
 After deploying:
@@ -45,6 +45,29 @@ After deploying:
 | `/teardown <site-name>` | Delete the Pages project and all deployment history |
 
 `/deploy <site-name> local` previews at `http://localhost:8080` without deploying.
+
+### Site storage
+
+`SITES_DIR` controls where Clodsite stores every site's source files, generated
+templates, build output, and deploy artifacts. It defaults to `sites/` inside
+this repository, so existing installations continue to work unchanged.
+
+Set it in `.env` to keep site state in a separate private repository:
+
+```bash
+SITES_DIR=/absolute/path/to/clodsite-sites
+```
+
+Relative paths are resolved from the Clodsite repository root. An environment
+variable supplied for a command overrides the value in `.env`:
+
+```bash
+SITES_DIR=/tmp/clodsite-preview bash scripts/status.sh
+```
+
+Command workflows pass `SITE_NAME=<site-name>` and resolve the site as
+`$SITES_DIR/<site-name>`. Low-level scripts also continue to accept an explicit
+`SITE_DIR` override, primarily for tests and direct scripting.
 
 ---
 
@@ -101,7 +124,7 @@ The longer arc: the build plan is a portable document format. A schema that dete
 
 ## Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for the full picture. Coming next: configurable `sites/` location, installable skill packaging, a more flexible change workflow, and new page types (blog, gallery, events, ecommerce).
+See [`ROADMAP.md`](ROADMAP.md) for the full picture. Coming next: installable skill packaging, a more flexible change workflow, and new page types (blog, gallery, events, ecommerce).
 
 ---
 

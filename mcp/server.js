@@ -56,7 +56,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           site_name: {
             type: 'string',
             description:
-              'Slug used as the directory name under sites/ and as the Cloudflare Pages project name. Must match the slug field in build-plan.yaml.',
+              'Slug used as the directory name under SITES_DIR and as the Cloudflare Pages project name. Must match the slug field in build-plan.yaml.',
           },
           build_plan_yaml: {
             type: 'string',

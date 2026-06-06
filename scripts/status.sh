@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export SITES_DIR="${SITES_DIR:-sites}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/sites.sh
+source "${SCRIPT_DIR}/lib/sites.sh"
+clodsite_init_sites_dir
 
 # ── Credentials ───────────────────────────────────────────────────────────────
 if [ ! -f ".env" ]; then
   echo "Error: .env not found. Run /setup first."
   exit 1
 fi
-set -a; source .env; set +a
 
 if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
   echo "Error: CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID not set in .env. Run /setup first."

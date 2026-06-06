@@ -5,11 +5,15 @@ set -euo pipefail
 #
 # Usage: bash scripts/clean.sh <site-slug>
 #
-# Destructive: deletes sites/<slug>/ entirely and clears generated scaffold
+# Destructive: deletes SITES_DIR/<slug>/ entirely and clears generated scaffold
 # files. Intentionally NOT auto-allowed in .claude/settings.json.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/sites.sh
+source "${SCRIPT_DIR}/lib/sites.sh"
+
 SITE="${1:?Usage: bash scripts/clean.sh <site-slug>}"
-SITE_DIR="sites/$SITE"
+SITE_DIR="$(clodsite_site_dir_for "$SITE")"
 
 if [ ! -d "$SITE_DIR" ]; then
   echo "Error: $SITE_DIR not found."

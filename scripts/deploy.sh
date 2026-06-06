@@ -3,7 +3,10 @@
 
 set -uo pipefail
 
-SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/sites.sh
+source "${SCRIPT_DIR}/lib/sites.sh"
+clodsite_init_site_dir
 MODE="${1:-}"
 
 # ── --local: serve locally, no Cloudflare token needed ───────────────────────

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SITE_DIR="${SITE_DIR:?Error: SITE_DIR is not set. Export it before running this script.}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/sites.sh
+source "${SCRIPT_DIR}/lib/sites.sh"
+clodsite_init_site_dir
 
 if [ ! -f "${SITE_DIR}/.deploy-output" ]; then
   echo "Error: No deployment output found. Run /deploy first."
@@ -45,7 +48,7 @@ echo "See ${SITE_DIR}/NEXT-STEPS.md for next steps."
 
 # Auto-commit to sites repo if initialised
 SITE_DIR_NAME=$(basename "${SITE_DIR}")
-if [ -d "sites/.git" ]; then
-  git -C sites add "${SITE_DIR_NAME}/" 2>/dev/null || true
-  git -C sites commit -m "deploy: ${SITE_DIR_NAME} → ${PROD_URL}" 2>/dev/null || true
+if [ -d "${SITES_DIR}/.git" ]; then
+  git -C "$SITES_DIR" add "${SITE_DIR_NAME}/" 2>/dev/null || true
+  git -C "$SITES_DIR" commit -m "deploy: ${SITE_DIR_NAME} → ${PROD_URL}" 2>/dev/null || true
 fi

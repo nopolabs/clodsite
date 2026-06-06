@@ -22,7 +22,7 @@ bash scripts/migrate-site.sh
 
 ---
 
-**[LLM]** Read `sites/<site-name>/build-plan.yaml` and build a destruction summary:
+**[LLM]** Read `$SITES_DIR/<site-name>/build-plan.yaml` and build a destruction summary:
 
 - **Pages project:** `<slug>`
 - **Live URL:** read from Cloudflare Pages project state if available; otherwise say "will be checked by script"
@@ -41,7 +41,7 @@ Wait for the user's reply. If the reply does not exactly match `<site-name>`, sa
 **[SCRIPT]** Delete the Pages project:
 
 ```bash
-SITE_DIR=sites/<site-name> bash scripts/teardown.sh
+SITE_NAME=<site-name> bash scripts/teardown.sh
 ```
 
 ---
@@ -56,10 +56,9 @@ bash scripts/clean.sh <site-name>
 
 **[LLM]** Interpret the output:
 
-- If output contains `✓ Deleted Pages project`: confirm the site is offline. If `clean` was used, confirm local files were also removed. If not, note that local files in `sites/<site-name>/` are still present and the user can run `/teardown <site-name> clean` or delete them manually.
+- If output contains `✓ Deleted Pages project`: confirm the site is offline. If `clean` was used, confirm local files were also removed. If not, note that local files in `$SITES_DIR/<site-name>/` are still present and the user can run `/teardown <site-name> clean` or delete them manually.
 - If the script exits with a non-zero code: explain the error clearly.
 
 **Common errors:**
 - `CLOUDFLARE_API_TOKEN … not set` → run `/setup`
 - Wrangler error about project not found → the project may have already been deleted; check with `wrangler pages project list`
-

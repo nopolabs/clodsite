@@ -50,6 +50,6 @@ it prints the exact record to add at your registrar.
 
 Run `/teardown {{SITE_NAME}}` to delete the Cloudflare Pages project and take
 the site offline. This is permanent — the live site and all deployment history
-are gone. Your local files in `sites/{{SITE_NAME}}/` are unaffected.
+are gone. Your local files in this site's `SITES_DIR` folder are unaffected.
 
 To also delete local files: `/teardown {{SITE_NAME}} clean`

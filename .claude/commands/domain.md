@@ -18,7 +18,7 @@ bash scripts/migrate-site.sh
 
 ---
 
-**[LLM]** Read `sites/<site-name>/build-plan.yaml`.
+**[LLM]** Read `$SITES_DIR/<site-name>/build-plan.yaml`.
 
 If `custom_domain` is omitted or empty, ask:
 
@@ -41,7 +41,7 @@ And stop.
 **[SCRIPT]** Wire up the custom domain:
 
 ```bash
-SITE_DIR=sites/<site-name> bash scripts/domain.sh
+SITE_NAME=<site-name> bash scripts/domain.sh
 ```
 
 ---

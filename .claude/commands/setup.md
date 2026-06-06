@@ -39,7 +39,7 @@ Then continue with the normal setup steps below.
 
 ---
 
-**[SCRIPT]** Check for artifacts from previous builds:
+**[SCRIPT]** Check for artifacts from previous builds in `SITES_DIR`:
 
 ```bash
 bash scripts/check-artifacts.sh
@@ -49,7 +49,7 @@ If it prints `NO_ARTIFACTS`, skip ahead to the wrangler check below.
 
 If it prints `ARTIFACTS_FOUND` (followed by a listing of site slugs), tell the user what was found and ask:
 
-> "Found sites from previous builds in `sites/`: `<slugs>`. Would you like to **keep** them and continue, or **clean** a specific site?"
+> "Found sites from previous builds in `SITES_DIR`: `<slugs>`. Would you like to **keep** them and continue, or **clean** a specific site?"
 >
 > (You can also run `/setup clean <site-name>` to skip this prompt.)
 
@@ -105,11 +105,13 @@ bash scripts/setup.sh --import <path-to-file>
 
 Replace `<path-to-file>` with the path the user gave (e.g. `~/clodsite-demo.env`). The script validates and copies the file to `.env` without exposing credentials in the chat or tool preview.
 
-If the user typed credentials directly into chat instead, write them to `.env` using the Write tool. The file should contain exactly:
+If the user typed credentials directly into chat instead, write them to `.env` using the Write tool. Preserve any existing `SITES_DIR=...` line if present. If the user asks where sites should live, add a `SITES_DIR` line pointing at that directory; otherwise omit it and Clodsite defaults to `sites/`.
 
 ```
 CLOUDFLARE_API_TOKEN=<token>
 CLOUDFLARE_ACCOUNT_ID=<account-id>
+# Optional:
+# SITES_DIR=/absolute/path/to/clodsite-sites
 ```
 
 Replace `<token>` and `<account-id>` with what the user provided. No extra lines, no quotes around values.
@@ -132,4 +134,4 @@ If this exits with an error, tell the user their token failed verification and a
 bash scripts/setup.sh --init-sites
 ```
 
-When both succeed, tell the user setup is complete and they can run `/interview <site-name>`.
+When both succeed, tell the user setup is complete and they can create `$SITES_DIR/<site-name>/build-plan.yaml`, then run `/build <site-name>`.

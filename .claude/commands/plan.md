@@ -1,7 +1,7 @@
 Generate a Clodsite `build-plan.yaml` from a legacy `site-spec.json`.
 
 This command is a scaffolding bridge from the original interview/spec workflow.
-The current Clodsite contract is `sites/<site-name>/build-plan.yaml`; an AI
+The current Clodsite contract is `$SITES_DIR/<site-name>/build-plan.yaml`; an AI
 agent may produce that file directly from a customer conversation, brief, source
 documents, existing copy, or any other collaboration path. Use `/plan` when a
 valid `site-spec.json` already exists and the user wants it converted into the
@@ -28,10 +28,10 @@ bash scripts/migrate-site.sh
 **[SCRIPT]** Validate the spec:
 
 ```bash
-SITE_DIR=sites/<site-name> bash scripts/validate-spec.sh
+SITE_NAME=<site-name> bash scripts/validate-spec.sh
 ```
 
-If this exits with errors, print them clearly to the user and stop. Do not proceed until the spec is valid. The user can edit `sites/<site-name>/site-spec.json` directly or re-run `/interview <site-name>`.
+If this exits with errors, print them clearly to the user and stop. Do not proceed until the spec is valid. The user can edit `$SITES_DIR/<site-name>/site-spec.json` directly or re-run `/interview <site-name>`.
 
 ---
 
@@ -43,7 +43,7 @@ bash scripts/generate-catalog-md.sh
 
 ---
 
-**[LLM]** Read `sites/<site-name>/site-spec.json`. Generate `sites/<site-name>/build-plan.yaml` using the Write tool.
+**[LLM]** Read `$SITES_DIR/<site-name>/site-spec.json`. Generate `$SITES_DIR/<site-name>/build-plan.yaml` using the Write tool.
 
 The YAML must match this schema exactly after finalization:
 
@@ -91,18 +91,18 @@ multiple components in order. Components stack vertically.
 - Component fields use the appropriate YAML type (string, array, object) per
   the component's schema.
 
-Write the complete YAML to `sites/<site-name>/build-plan.yaml`. No extra commentary in the file.
+Write the complete YAML to `$SITES_DIR/<site-name>/build-plan.yaml`. No extra commentary in the file.
 
 ---
 
 **[SCRIPT]** Finalize the plan — injects display name from the spec and validates:
 
 ```bash
-SITE_DIR=sites/<site-name> bash scripts/finalize-plan.sh
+SITE_NAME=<site-name> bash scripts/finalize-plan.sh
 ```
 
 If this exits with errors, print them clearly and stop.
 
 ---
 
-Tell the user: "Review `sites/<site-name>/build-plan.yaml` — this is the build contract. Check the page content, component structure, navigation, style, and contact settings. When ready, run `/build <site-name>`."
+Tell the user: "Review `$SITES_DIR/<site-name>/build-plan.yaml` — this is the build contract. Check the page content, component structure, navigation, style, and contact settings. When ready, run `/build <site-name>`."
