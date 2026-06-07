@@ -6,12 +6,89 @@ deferred to keep the workflow shippable and honest.
 
 ---
 
+## Pending
+
+Items are ordered by proposed implementation priority.
+
+### 1. Resend-backed contact form
+
+Implement the approved `resend-form` component: a real contact form backed by
+a Cloudflare Pages Function and the Resend API. The design and implementation
+plan already exist, so this is the highest-value item that is ready to execute.
+It adds server-side delivery while preserving `mailto-form` as the zero-backend
+option.
+
+Specs:
+`docs/superpowers/specs/2026-06-02-resend-form-component-design.md` and
+`docs/superpowers/plans/2026-06-02-resend-form-component.md`.
+
+### 2. Installable skill/plugin packaging
+
+Clodsite currently ships as a template repo: clone it, `cd` into it, and open
+an agent there. Package Clodsite as an installable skill or plugin available
+from any directory, removing the clone-and-`cd` bootstrap. Multi-site
+workspaces and configurable `SITES_DIR` have cleared the original storage and
+invocation blockers.
+
+### 3. `<head>` metadata and response headers
+
+Add structured `head:` configuration for metadata such as descriptions,
+canonical URLs, and social-sharing tags, plus per-path Cloudflare Pages
+`_headers` output. Resolve how headers contributed by multiple components are
+combined. This is the next static-site expressiveness gap and requires no
+server runtime.
+
+### 4. General Pages Functions, secrets, and Turnstile support
+
+Generalize the function and secret pipeline beyond the specific
+`resend-form` use case. Support generated Cloudflare Pages Functions, deploy
+secrets safely, and make Turnstile-protected workflows expressible. BBPP is
+the driving example: Turnstile verification, authenticated proxying, and a
+separate rendering/email service.
+
+### 5. The `/modify` workflow
+
+Add a governed change path for existing sites. The current build contract
+already supports direct, reviewable edits to `build-plan.yaml`; `/modify`
+should add a deliberate delta workflow, preserve stable page IDs, validate the
+result, and rebuild only after approval. Design this against current
+build-plan-first usage rather than the legacy spec-first workflow.
+
+### 6. MCP HTTP transport
+
+The MCP server currently supports stdio only. Add an authenticated HTTP
+transport so Clodsite can run as a shared or hosted deployment service while
+preserving the same `list_components` and `deploy_site` contracts.
+
+### 7. Free-form legacy interview opener
+
+Replace the fixed ten-question `/interview` sequence with one open prompt,
+targeted follow-up questions for missing information, and a confirmation
+summary before writing `site-spec.json`. Keep the fixed sequence as a fallback.
+This is lower priority because direct collaboration on `build-plan.yaml` is now
+the primary workflow and interview/spec is explicitly legacy scaffolding.
+
+### 8. Root-page routing contract
+
+Fix the current assumption that both the page with `id: home` and the first
+page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
+conflicting plans during validation. This remains low priority because all
+current sites put `home` first.
+
+---
+
 ## Completed
 
 ### Multi-site workspaces
 Shipped May 2026. All commands require a `<site-name>` argument. Each site's
 files live under `sites/<name>/` — specs, build plans, built output, and deploy
 artifacts are all per-site and never shared.
+
+### Configurable site storage (`SITES_DIR`)
+Shipped June 2026. Site state can live outside the Clodsite repository in a
+separate private workspace. `SITES_DIR` may be configured in `.env` or supplied
+per command; relative paths resolve from the repository root. Scripts, tests,
+and the MCP server share the same path-resolution contract.
 
 ### Per-site scaffold isolation
 Shipped May 2026. Generated files (`src/_data/site.json`, `*.njk` templates)
@@ -60,11 +137,6 @@ and `apply-theme.sh` now read from `build-plan.json` only; `site-spec.json` is
 interview scratch-state that `/build` never touches. `validate-plan.sh` also
 gained a cross-reference check: all IDs in `nav.order` must exist in `pages`.
 
-Known limitation: the nav href logic maps both the page with `id: "home"` AND the
-first page in `nav.order` to `/`, so placing a non-home page first in nav causes a
-routing conflict. All current sites have "home" first so this is inert — fix when
-a site needs a different first-nav-page.
-
 ### Deploy pipeline reads slug from build-plan.yaml
 Shipped May 2026. `deploy.sh` and `deploy-finalize.sh` now read the project slug
 directly from `build-plan.yaml` instead of `site-spec.json`. The `site-spec.json`
@@ -73,6 +145,12 @@ The `deployed_url` write-back in `deploy-finalize.sh` was removed entirely — t
 live URL is shown in the terminal and written to `NEXT-STEPS.md`. Sites built
 from a hand-authored `build-plan.yaml` no longer need a `site-spec.json` at any
 stage of the pipeline.
+
+### GFM build-plan format (`build-plan.yaml`)
+Shipped May 2026. `build-plan.json` was replaced by human-readable YAML. Page
+content uses literal block scalars containing GitHub Flavored Markdown.
+`js-yaml` parses the contract throughout validation, planning, build, deploy,
+domain, teardown, status, and MCP workflows.
 
 ### The `/status` command
 Shipped May 2026. A read-only `[SCRIPT]` command that cross-references local
@@ -117,6 +195,16 @@ contact form, no backend). `build-plan.yaml` pages are now
 existing sites migrated. Spec:
 `docs/superpowers/specs/2026-05-31-component-catalog-design.md`.
 
+### `media-section` component
+Shipped June 2026. Added a constrained editorial component pairing one image
+with one Markdown block in `image-left`, `image-right`, `image-above`, or
+`image-below` layouts. Layouts stack in deterministic reading order on narrow
+screens. Component schemas now support nested object validation, enums, and
+non-empty strings. `danrevel.com` is the first production use.
+
+Spec:
+`docs/superpowers/specs/2026-06-07-media-section-component-design.md`.
+
 ### Clodsite MCP server (v1)
 Shipped June 2026. Exposes the build + deploy pipeline as an MCP server
 (`mcp/server.js` + `mcp/pipeline.js`). Two tools: `list_components` returns
@@ -131,72 +219,6 @@ Shipped June 2026. Below the shared narrow-screen breakpoint, all three themes
 place the site name on its own row and wrap navigation links beneath it. Every
 link remains accessible without horizontal page overflow, with no JavaScript or
 menu-control state.
-
----
-
-## Pending
-
-### Installable skill packaging
-
-v1 ships as a template repo: clone it, `cd` in, open Claude Code. v2 packages
-Clodsite as an installable skill/plugin available in any directory — removing
-the clone-and-`cd` bootstrap step. The command files are already structured
-(with `[SCRIPT]`/`[LLM]` annotations) to convert directly into a skill bundle.
-Now that multi-site workspaces are shipped, the dependency on per-invocation
-output isolation is cleared.
-
-### Free-form interview opener
-
-v1's `/interview` walks the user through a fixed 10-question script in a fixed
-order. v2 starts with one open question — "Tell me about the site you want to
-build" — and lets the LLM extract whatever it can from that response. Follow-up
-questions are then targeted only at gaps and ambiguities. A "let me confirm what
-I heard" summary before generating the spec keeps the LLM inference honest. The
-output is the same schema-validated JSON — the contract with downstream scripts
-doesn't change. The fixed-question script remains as the fallback.
-
-### GFM build plan format (build-plan.yaml)
-Shipped May 2026. `build-plan.json` replaced by `build-plan.yaml`. Page content
-uses YAML literal block scalars (`|`) containing GitHub Flavored Markdown — human-readable
-in any editor, with a well-defined HTML mapping. `js-yaml` added as a root-level
-dependency; all four build pipeline scripts (`validate-plan`, `finalize-plan`,
-`write-site-json`, `apply-theme`) parse YAML via `require('js-yaml').load()`.
-
-### The `/modify` command
-
-v1 covers the build path: interview → spec → plan → build → deploy. v2 adds a
-governed *change* path — a delta interview that updates the existing spec and
-selectively rebuilds only what changed. The spec carries a `spec_version` field
-and stable page `id`s specifically to support this.
-
-### Page-types extension track (remaining slices)
-Slice 1 (per-site assets + favicons) shipped May 2026. Remaining slices,
-ordered:
-
-- **Slice 2:** `<head>` extras + per-path response `_headers`. Schema
-  grows a `head:` block and a `headers:` block. Multi-component header
-  additivity is the open design question.
-- **Slice 3:** Forms — `mailto:` / form-service tier, no backend.
-  Closes the `### Contact form + form backend` roadmap item and gets
-  bbpp's form *shape* expressible (backend deferred to slice 4).
-- **Slice 4:** Cloudflare Pages Functions + secrets pipeline. The big
-  unlock — Turnstile, proxying, dynamic capabilities. Deliberately
-  deferred until slices 1–3 ship so the schema can be designed against
-  two real form examples (mailto + bbpp) rather than one.
-
-Each slice gets its own spec → plan → ship cycle. bbpp is the driving
-example for the track; the spec for slice 1
-(`docs/superpowers/specs/2026-05-31-static-assets-favicons-design.md`)
-documents the full bbpp gap analysis.
-
-### Contact form + form backend
-
-Contact is a footer email link (`contact.enabled` / `contact.email` in the
-spec). A submittable contact form would be a user-specified page in `pages[]`
-— built using either a form service (Formspree, Web3Forms) or a Cloudflare
-Pages Function with an email API (Resend, MailChannels). The interview would
-ask for the preferred approach and `/build` would generate the page and form
-markup accordingly.
 
 ---
 
