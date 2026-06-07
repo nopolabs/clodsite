@@ -129,6 +129,14 @@ transport only; designed for HTTP transport in a future increment. Spec:
 
 ## Pending
 
+### Responsive navigation for narrow screens
+
+The minimal theme's horizontal navigation overflows the viewport at very
+narrow mobile widths. Add a responsive navigation treatment that keeps every
+link accessible without horizontal page overflow and works consistently across
+all three themes. The exact interaction pattern — wrapping, compact navigation,
+or a menu control — requires a focused design pass before implementation.
+
 ### Installable skill packaging
 
 v1 ships as a template repo: clone it, `cd` in, open Claude Code. v2 packages
