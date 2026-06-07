@@ -23,6 +23,35 @@ out += 'A page in build-plan.yaml is a list of components stacked vertically.\n'
 out += 'Each component has a \`type\` field naming one of the entries below.\n\n';
 out += '---\n\n';
 
+function describeDescriptor(descriptor) {
+  if (typeof descriptor === 'string') return descriptor;
+  let description = descriptor.type;
+  if (descriptor.non_empty === true) description = 'non-empty ' + description;
+  if (Array.isArray(descriptor.enum))
+    description += '; one of: ' + descriptor.enum.join(', ');
+  return description;
+}
+
+function collectFields(fields, prefix, requiredOut, optionalOut, isRequired) {
+  for (const [field, descriptor] of Object.entries(fields || {})) {
+    const fieldPath = prefix ? prefix + '.' + field : field;
+    const target = isRequired ? requiredOut : optionalOut;
+    target.push([fieldPath, describeDescriptor(descriptor)]);
+
+    if (descriptor && typeof descriptor === 'object' && descriptor.type === 'object') {
+      collectFields(descriptor.required || {}, fieldPath, requiredOut, optionalOut, true);
+      collectFields(descriptor.optional || {}, fieldPath, requiredOut, optionalOut, false);
+    }
+  }
+}
+
+function renderFieldList(entries) {
+  if (entries.length === 0) return '_(none)_\n\n';
+  return entries.map(([field, description]) =>
+    '- \`' + field + '\` (' + description + ')'
+  ).join('\n') + '\n\n';
+}
+
 for (const name of names) {
   const schemaPath = path.join(dir, name, 'schema.json');
   if (!fs.existsSync(schemaPath)) continue;
@@ -31,25 +60,18 @@ for (const name of names) {
   out += (schema.description || '_no description_') + '\n\n';
 
   out += '**Required fields:**\n\n';
-  const req = schema.required || {};
-  if (Object.keys(req).length === 0) {
-    out += '_(none)_\n\n';
-  } else {
-    for (const [field, type] of Object.entries(req)) {
-      out += '- \`' + field + '\` (' + type + ')\n';
-    }
-    out += '\n';
-  }
+  const requiredFields = [];
+  const optionalFields = [];
+  collectFields(schema.required || {}, '', requiredFields, optionalFields, true);
+  collectFields(schema.optional || {}, '', requiredFields, optionalFields, false);
+  out += renderFieldList(requiredFields);
 
   out += '**Optional fields:**\n\n';
-  const opt = schema.optional || {};
-  if (Object.keys(opt).length === 0) {
-    out += '_(none)_\n\n';
-  } else {
-    for (const [field, type] of Object.entries(opt)) {
-      out += '- \`' + field + '\` (' + type + ')\n';
-    }
-    out += '\n';
+  out += renderFieldList(optionalFields);
+
+  if (schema.example) {
+    out += '**Example:**\n\n';
+    out += '\`\`\`yaml\n' + schema.example.trimEnd() + '\n\`\`\`\n\n';
   }
 }
 

@@ -1,0 +1,21 @@
+<section class="c-media-section c-media-section--{{ component.layout }}">
+{% if component.layout == "image-left" or component.layout == "image-above" -%}
+  <figure class="c-media-section__media">
+    <img src="{{ component.image.src }}" alt="{{ component.image.alt }}">
+{% if component.image.caption %}    <figcaption>{{ component.image.caption }}</figcaption>
+{% endif -%}
+  </figure>
+  <div class="c-media-section__prose">
+    {{ component.markdown | md | safe }}
+  </div>
+{%- else %}
+  <div class="c-media-section__prose">
+    {{ component.markdown | md | safe }}
+  </div>
+  <figure class="c-media-section__media">
+    <img src="{{ component.image.src }}" alt="{{ component.image.alt }}">
+{% if component.image.caption %}    <figcaption>{{ component.image.caption }}</figcaption>
+{% endif -%}
+  </figure>
+{%- endif %}
+</section>

@@ -20,6 +20,15 @@ Responsive image grid. Each image: { src (string), alt (string), caption (option
 
 _(none)_
 
+**Example:**
+
+```yaml
+type: gallery
+images:
+  - { src: /assets/images/photo.jpg, alt: Description of photo }
+  - { src: /assets/images/photo2.jpg, alt: Another photo, caption: Optional caption }
+```
+
 ## mailto-form
 
 Client-side contact form. On submit, composes a mailto: URL from field values and navigates to it. No backend.
@@ -34,6 +43,50 @@ Client-side contact form. On submit, composes a mailto: URL from field values an
 - `subject` (string)
 - `submit_label` (string)
 
+**Example:**
+
+```yaml
+type: mailto-form
+to: hello@example.com
+subject: Message from my-site  # optional
+submit_label: Send             # optional, default: Send
+fields:                        # at least one required
+  - { name: name,    label: Your name,  type: text,     required: true }
+  - { name: email,   label: Your email, type: email,    required: true }
+  - { name: message, label: Message,    type: textarea, required: true }
+```
+
+## media-section
+
+One image paired with a Markdown prose block in a constrained responsive layout.
+
+**Required fields:**
+
+- `layout` (string; one of: image-left, image-right, image-above, image-below)
+- `image` (object)
+- `image.src` (non-empty string)
+- `image.alt` (non-empty string)
+- `markdown` (string)
+
+**Optional fields:**
+
+- `image.caption` (string)
+
+**Example:**
+
+```yaml
+type: media-section
+layout: image-right
+image:
+  src: /assets/portrait.jpg
+  alt: Description of the portrait
+  caption: Optional plain-text caption
+markdown: |
+  ## Heading
+
+  Prose paired with the image.
+```
+
 ## prose
 
 Renders a Markdown body to HTML. Supports GFM: headings, paragraphs, lists, links, inline code, blockquotes, tables, fenced code blocks.
@@ -45,4 +98,15 @@ Renders a Markdown body to HTML. Supports GFM: headings, paragraphs, lists, link
 **Optional fields:**
 
 _(none)_
+
+**Example:**
+
+```yaml
+type: prose
+markdown: |
+  ## Heading
+  Body text. Supports **bold**, _italic_, `inline code`,
+  [links](https://example.com), lists, blockquotes, tables,
+  and fenced code blocks.
+```
 

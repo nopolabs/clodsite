@@ -50,6 +50,17 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local desc="$1" needle="$2" haystack="$3"
+  if echo "$haystack" | grep -qF "$needle"; then
+    echo "  ✗ $desc (did not expect: $needle)"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  ✓ $desc"
+    PASS=$((PASS + 1))
+  fi
+}
+
 # ── Isolated SITE_DIR for all script tests ────────────────────────────────────
 export SITE_DIR
 SITE_DIR=$(mktemp -d)
@@ -325,6 +336,61 @@ assert_contains "gallery permalink"               "permalink: /gallery/"  "$GAL"
 assert_contains "gallery includes prose first"    "prose/component.njk"   "$GAL"
 assert_contains "gallery includes gallery type"   "gallery/component.njk" "$GAL"
 
+cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src"
+bash scripts/render-templates.sh > /dev/null 2>&1
+assert_exit "render-templates with media-section exits 0" 0 $?
+MEDIA_INDEX=$(cat "${SITE_DIR}/src/index.njk")
+assert_contains "index includes media-section component" "media-section/component.njk" "$MEDIA_INDEX"
+
+mkdir -p "${SITE_DIR}/assets"
+printf 'fixture' > "${SITE_DIR}/assets/portrait.jpg"
+bash scripts/apply-theme.sh > /dev/null 2>&1
+MEDIA_BUNDLE=$(cat scaffold/src/css/components.css)
+assert_contains "bundle has media-section root" ".c-media-section {" "$MEDIA_BUNDLE"
+assert_contains "bundle has image-left modifier" ".c-media-section--image-left" "$MEDIA_BUNDLE"
+assert_contains "bundle has image-right modifier" ".c-media-section--image-right" "$MEDIA_BUNDLE"
+assert_contains "bundle has media query" "@media (max-width: 48rem)" "$MEDIA_BUNDLE"
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "media-section fixture builds" 0 $?
+MEDIA_HTML=$(cat "${SITE_DIR}/dist/index.html")
+assert_contains "media-section HTML has modifier" "c-media-section--image-right" "$MEDIA_HTML"
+assert_contains "media-section HTML renders markdown" "<h1>Hello</h1>" "$MEDIA_HTML"
+assert_contains "media-section HTML has figure" "<figure" "$MEDIA_HTML"
+assert_contains "media-section HTML has image src" 'src="/assets/portrait.jpg"' "$MEDIA_HTML"
+assert_contains "media-section HTML has image alt" 'alt="A portrait used by the media-section test"' "$MEDIA_HTML"
+assert_contains "media-section HTML has caption" "<figcaption>Optional caption</figcaption>" "$MEDIA_HTML"
+
+for layout in image-left image-right image-above image-below; do
+  sed "s/layout: image-right/layout: ${layout}/" \
+    scripts/test/fixtures/valid-build-plan-media-section.yaml > "${SITE_DIR}/build-plan.yaml"
+  bash scripts/render-templates.sh > /dev/null 2>&1
+  SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+  MEDIA_HTML=$(cat "${SITE_DIR}/dist/index.html")
+  assert_contains "media-section ${layout} modifier rendered" "c-media-section--${layout}" "$MEDIA_HTML"
+  LAYOUT="$layout" HTML_PATH="${SITE_DIR}/dist/index.html" node -e "
+const fs = require('fs');
+const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
+const prose = html.indexOf('c-media-section__prose');
+const media = html.indexOf('c-media-section__media');
+const imageFirst = process.env.LAYOUT === 'image-left' || process.env.LAYOUT === 'image-above';
+process.exit(imageFirst ? (media < prose ? 0 : 1) : (prose < media ? 0 : 1));
+"
+  assert_exit "media-section ${layout} DOM order is correct" 0 $?
+done
+
+cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+delete p.pages[0].components[0].image.caption;
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/render-templates.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+MEDIA_HTML=$(cat "${SITE_DIR}/dist/index.html")
+assert_not_contains "media-section omits absent caption" "<figcaption>" "$MEDIA_HTML"
+
 # ── generate-catalog-md.sh ────────────────────────────────────────────────────
 echo ""
 echo "=== generate-catalog-md.sh ==="
@@ -336,8 +402,15 @@ CATALOG=$(cat "$TMP_CATALOG")
 assert_contains "catalog lists prose"           "## prose"        "$CATALOG"
 assert_contains "catalog lists gallery"         "## gallery"      "$CATALOG"
 assert_contains "catalog lists mailto-form"     "## mailto-form"  "$CATALOG"
+assert_contains "catalog lists media-section"   "## media-section" "$CATALOG"
 assert_contains "catalog shows required field"  "markdown"        "$CATALOG"
 assert_contains "catalog shows mailto fields"   "to"              "$CATALOG"
+assert_contains "catalog shows layout enum"      "image-left, image-right, image-above, image-below" "$CATALOG"
+assert_contains "catalog shows nested image src" '`image.src` (non-empty string)' "$CATALOG"
+assert_contains "catalog shows nested image alt" '`image.alt` (non-empty string)' "$CATALOG"
+assert_contains "catalog shows optional caption" '`image.caption` (string)' "$CATALOG"
+assert_contains "catalog shows media example"    "type: media-section" "$CATALOG"
+assert_contains "catalog preserves primitive type" '`markdown` (string)' "$CATALOG"
 rm -f "$TMP_CATALOG"
 
 # ── setup.sh --init-sites ─────────────────────────────────────────────────────
@@ -444,6 +517,113 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "build_notes is reje
 
 cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component plan exits 0" 0 $?
+
+# Recursive component schema descriptors
+NESTED_COMPONENTS_DIR=$(mktemp -d)
+mkdir -p "${NESTED_COMPONENTS_DIR}/media-section"
+cat > "${NESTED_COMPONENTS_DIR}/media-section/schema.json" <<'JSON'
+{
+  "description": "Nested validation test component.",
+  "required": {
+    "layout": {
+      "type": "string",
+      "enum": ["image-left", "image-right", "image-above", "image-below"]
+    },
+    "image": {
+      "type": "object",
+      "required": {
+        "src": { "type": "string", "non_empty": true },
+        "alt": { "type": "string", "non_empty": true }
+      },
+      "optional": {
+        "caption": "string"
+      }
+    },
+    "markdown": "string"
+  },
+  "optional": {}
+}
+JSON
+
+cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
+COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "valid nested component exits 0" 0 $?
+
+for layout in image-left image-right image-above image-below; do
+  sed "s/layout: image-right/layout: ${layout}/" \
+    scripts/test/fixtures/valid-build-plan-media-section.yaml > "${SITE_DIR}/build-plan.yaml"
+  COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh > /dev/null 2>&1
+  assert_exit "layout ${layout} exits 0" 0 $?
+done
+
+sed 's/layout: image-right/layout: diagonal/' \
+  scripts/test/fixtures/valid-build-plan-media-section.yaml > "${SITE_DIR}/build-plan.yaml"
+OUTPUT=$(COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown layout exits 1" 1 $?
+assert_contains "unknown layout names full path" "pages[0].components[0].layout" "$OUTPUT"
+
+cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+delete p.pages[0].components[0].image;
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+OUTPUT=$(COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh 2>&1)
+assert_exit "missing image exits 1" 1 $?
+assert_contains "missing image names full path" "pages[0].components[0].image is required" "$OUTPUT"
+
+for field in src alt; do
+  cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
+  FIELD="$field" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+delete p.pages[0].components[0].image[process.env.FIELD];
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+  OUTPUT=$(COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh 2>&1)
+  assert_exit "missing image.${field} exits 1" 1 $?
+  assert_contains "missing image.${field} names full path" "pages[0].components[0].image.${field} is required" "$OUTPUT"
+
+  for blank in empty whitespace; do
+    cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
+    FIELD="$field" BLANK="$blank" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[0].components[0].image[process.env.FIELD] = process.env.BLANK === 'empty' ? '' : '   ';
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+    OUTPUT=$(COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh 2>&1)
+    assert_exit "${blank} image.${field} exits 1" 1 $?
+    assert_contains "${blank} image.${field} names full path" "pages[0].components[0].image.${field} must be a non-empty string" "$OUTPUT"
+  done
+done
+
+cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[0].components[0].image.alt = 42;
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+OUTPUT=$(COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh 2>&1)
+assert_exit "non-string image.alt exits 1" 1 $?
+assert_contains "non-string image.alt names full path" "pages[0].components[0].image.alt must be string" "$OUTPUT"
+
+cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
+COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "optional string image.caption exits 0" 0 $?
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[0].components[0].image.width = '20rem';
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+OUTPUT=$(COMPONENTS_DIR="$NESTED_COMPONENTS_DIR" bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown image field exits 1" 1 $?
+assert_contains "unknown image field names object path" 'pages[0].components[0].image has unknown field "width"' "$OUTPUT"
+rm -rf "$NESTED_COMPONENTS_DIR"
 
 printf '%s\n' 'slug: test
 name: Test

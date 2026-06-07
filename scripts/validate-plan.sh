@@ -63,6 +63,84 @@ function checkType(value, type) {
   return true;
 }
 
+function validateValue(value, descriptor, fieldPath) {
+  if (typeof descriptor === 'string') {
+    if (!checkType(value, descriptor))
+      errors.push(fieldPath + ' must be ' + descriptor);
+    return;
+  }
+
+  if (!descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor) ||
+      typeof descriptor.type !== 'string') {
+    errors.push('invalid schema descriptor for ' + fieldPath);
+    return;
+  }
+
+  const descriptorKeys = new Set(['type', 'enum', 'non_empty', 'required', 'optional']);
+  const unknownDescriptorKey = Object.keys(descriptor).find(key => !descriptorKeys.has(key));
+  if (unknownDescriptorKey) {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': unknown rule \"' + unknownDescriptorKey + '\"');
+    return;
+  }
+  if ('enum' in descriptor &&
+      (descriptor.type !== 'string' || !Array.isArray(descriptor.enum))) {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': enum requires type string');
+    return;
+  }
+  if ('non_empty' in descriptor &&
+      (descriptor.type !== 'string' || typeof descriptor.non_empty !== 'boolean')) {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': non_empty requires type string');
+    return;
+  }
+  if (('required' in descriptor || 'optional' in descriptor) && descriptor.type !== 'object') {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': required/optional require type object');
+    return;
+  }
+  if (descriptor.type === 'object' &&
+      (('required' in descriptor && !checkType(descriptor.required, 'object')) ||
+       ('optional' in descriptor && !checkType(descriptor.optional, 'object')))) {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': required/optional must be objects');
+    return;
+  }
+
+  if (!checkType(value, descriptor.type)) {
+    errors.push(fieldPath + ' must be ' + descriptor.type);
+    return;
+  }
+
+  if (descriptor.type === 'string') {
+    if (descriptor.non_empty === true && value.trim().length === 0)
+      errors.push(fieldPath + ' must be a non-empty string');
+    if (Array.isArray(descriptor.enum) && !descriptor.enum.includes(value))
+      errors.push(fieldPath + ' must be one of: ' + descriptor.enum.join(', '));
+  }
+
+  if (descriptor.type === 'object') {
+    const required = descriptor.required || {};
+    const optional = descriptor.optional || {};
+
+    for (const [field, nestedDescriptor] of Object.entries(required)) {
+      const nestedPath = fieldPath + '.' + field;
+      if (!(field in value)) {
+        errors.push(nestedPath + ' is required');
+      } else {
+        validateValue(value[field], nestedDescriptor, nestedPath);
+      }
+    }
+
+    for (const [field, nestedDescriptor] of Object.entries(optional)) {
+      if (field in value)
+        validateValue(value[field], nestedDescriptor, fieldPath + '.' + field);
+    }
+
+    const allowed = new Set([...Object.keys(required), ...Object.keys(optional)]);
+    for (const field of Object.keys(value)) {
+      if (!allowed.has(field))
+        errors.push(fieldPath + ' has unknown field \"' + field + '\"');
+    }
+  }
+}
+
 if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
   errors.push('pages must be a non-empty array');
 } else {
@@ -87,14 +165,18 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
           return;
         }
         const required = schema.required || {};
-        for (const [field, type] of Object.entries(required)) {
+        for (const [field, descriptor] of Object.entries(required)) {
           if (!(field in c)) {
-            errors.push(ctag + ' missing required field \"' + field + '\"');
-          } else if (!checkType(c[field], type)) {
-            errors.push(ctag + '.' + field + ' must be ' + type);
+            errors.push(ctag + '.' + field + ' is required');
+          } else {
+            validateValue(c[field], descriptor, ctag + '.' + field);
           }
         }
         const optional = schema.optional || {};
+        for (const [field, descriptor] of Object.entries(optional)) {
+          if (field in c)
+            validateValue(c[field], descriptor, ctag + '.' + field);
+        }
         const allowed = new Set(['type', ...Object.keys(required), ...Object.keys(optional)]);
         for (const key of Object.keys(c)) {
           if (!allowed.has(key)) {

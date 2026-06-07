@@ -1,0 +1,33 @@
+{
+  "description": "One image paired with a Markdown prose block in a constrained responsive layout.",
+  "required": {
+    "layout": {
+      "type": "string",
+      "enum": [
+        "image-left",
+        "image-right",
+        "image-above",
+        "image-below"
+      ]
+    },
+    "image": {
+      "type": "object",
+      "required": {
+        "src": {
+          "type": "string",
+          "non_empty": true
+        },
+        "alt": {
+          "type": "string",
+          "non_empty": true
+        }
+      },
+      "optional": {
+        "caption": "string"
+      }
+    },
+    "markdown": "string"
+  },
+  "optional": {},
+  "example": "type: media-section\nlayout: image-right\nimage:\n  src: /assets/portrait.jpg\n  alt: Description of the portrait\n  caption: Optional plain-text caption\nmarkdown: |\n  ## Heading\n\n  Prose paired with the image.\n"
+}

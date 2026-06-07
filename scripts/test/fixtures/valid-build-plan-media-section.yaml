@@ -1,0 +1,23 @@
+slug: media-section-test
+name: Media Section Test
+overview: Fixture for media-section validation and rendering.
+style: minimal
+tone: friendly
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: media-section
+        layout: image-right
+        image:
+          src: /assets/portrait.jpg
+          alt: A portrait used by the media-section test
+          caption: Optional caption
+        markdown: |
+          # Hello
+
+          This prose is paired with one image.
+nav:
+  order: [home]
+contact:
+  enabled: false
