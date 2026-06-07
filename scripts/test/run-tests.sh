@@ -182,6 +182,14 @@ BUNDLE=$(cat scaffold/src/css/components.css)
 assert_contains   "bundle has c-gallery rule"       ".c-gallery"      "$BUNDLE"
 assert_contains   "bundle has c-mailto-form rule"   ".c-mailto-form"  "$BUNDLE"
 
+# Theme navigation wraps below the shared narrow-screen breakpoint.
+for theme in minimal professional bold; do
+  THEME_CSS=$(cat "scaffold/src/css/themes/${theme}.css")
+  assert_contains "${theme} theme has narrow-screen breakpoint" "@media (max-width: 48rem)" "$THEME_CSS"
+  assert_contains "${theme} theme stacks site navigation" "flex-direction: column" "$THEME_CSS"
+  assert_contains "${theme} theme wraps navigation links" "flex-wrap: wrap" "$THEME_CSS"
+done
+
 # ── migrate-site.sh ───────────────────────────────────────────────────────────
 echo ""
 echo "=== migrate-site.sh ==="

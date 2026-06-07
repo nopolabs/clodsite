@@ -125,17 +125,16 @@ content, runs the full build pipeline, and returns the live URL. Stdio
 transport only; designed for HTTP transport in a future increment. Spec:
 `docs/superpowers/specs/2026-06-02-clodsite-mcp-server-design.md`.
 
+### Responsive navigation for narrow screens
+
+Shipped June 2026. Below the shared narrow-screen breakpoint, all three themes
+place the site name on its own row and wrap navigation links beneath it. Every
+link remains accessible without horizontal page overflow, with no JavaScript or
+menu-control state.
+
 ---
 
 ## Pending
-
-### Responsive navigation for narrow screens
-
-The minimal theme's horizontal navigation overflows the viewport at very
-narrow mobile widths. Add a responsive navigation treatment that keeps every
-link accessible without horizontal page overflow and works consistently across
-all three themes. The exact interaction pattern — wrapping, compact navigation,
-or a menu control — requires a focused design pass before implementation.
 
 ### Installable skill packaging
 

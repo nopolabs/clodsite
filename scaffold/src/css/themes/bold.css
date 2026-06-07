@@ -29,3 +29,9 @@ a { color: var(--color-accent); text-decoration: none; border-bottom: 1px solid 
 .site-footer { text-align: center; padding: 2rem; background: var(--color-surface); color: #666; font-size: 0.875rem; border-top: 2px solid var(--color-accent); }
 
 section { margin-bottom: var(--spacing-section); }
+
+@media (max-width: 48rem) {
+  .site-header { padding: 1rem; }
+  .site-nav { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
+  .nav-links { flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+}
