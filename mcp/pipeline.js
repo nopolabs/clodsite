@@ -71,6 +71,7 @@ async function deploySite(siteName, buildPlanYaml) {
     'write-site-json.sh',
     'apply-theme.sh',
     'render-templates.sh',
+    'render-functions.sh',
     'build-site.sh',
     'deploy.sh',
     'deploy-finalize.sh',

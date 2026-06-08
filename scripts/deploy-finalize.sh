@@ -33,6 +33,26 @@ fi
 sed "s|{{DEPLOY_URL}}|$PROD_URL|g; s|{{SITE_NAME}}|$SITE_NAME|g" \
   scripts/templates/NEXT-STEPS.template.md > "${SITE_DIR}/NEXT-STEPS.md"
 
+if [ -f "${SITE_DIR}/functions/api/contact.js" ]; then
+  cat >> "${SITE_DIR}/NEXT-STEPS.md" << RESEND_WARNING
+
+---
+
+## Contact form: add bot protection before going live
+
+Your site includes a \`resend-form\` contact form. The \`/api/contact\` endpoint
+is publicly accessible with no rate limiting or bot protection. Before
+promoting this site:
+
+1. Add **Cloudflare Turnstile** - run \`/domain $SITE_NAME\` first, then see
+   the Turnstile skill in Claude Code
+2. Or enable **Rate Limiting** on \`/api/contact\` in the Cloudflare dashboard
+
+Without this, anyone can automate submissions and exhaust your Resend quota,
+damaging your sender reputation.
+RESEND_WARNING
+fi
+
 echo ""
 echo "╔══════════════════════════════════════════════╗"
 echo "║  Your site is live!                          ║"

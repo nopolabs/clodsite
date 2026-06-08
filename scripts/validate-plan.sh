@@ -76,7 +76,9 @@ function validateValue(value, descriptor, fieldPath) {
     return;
   }
 
-  const descriptorKeys = new Set(['type', 'enum', 'non_empty', 'required', 'optional']);
+  const descriptorKeys = new Set([
+    'type', 'enum', 'non_empty', 'required', 'optional', 'items', 'min_items'
+  ]);
   const unknownDescriptorKey = Object.keys(descriptor).find(key => !descriptorKeys.has(key));
   if (unknownDescriptorKey) {
     errors.push('invalid schema descriptor for ' + fieldPath + ': unknown rule \"' + unknownDescriptorKey + '\"');
@@ -100,6 +102,16 @@ function validateValue(value, descriptor, fieldPath) {
       (('required' in descriptor && !checkType(descriptor.required, 'object')) ||
        ('optional' in descriptor && !checkType(descriptor.optional, 'object')))) {
     errors.push('invalid schema descriptor for ' + fieldPath + ': required/optional must be objects');
+    return;
+  }
+  if ('items' in descriptor && descriptor.type !== 'array') {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': items requires type array');
+    return;
+  }
+  if ('min_items' in descriptor &&
+      (descriptor.type !== 'array' || !Number.isInteger(descriptor.min_items) ||
+       descriptor.min_items < 0)) {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': min_items requires a non-negative integer and type array');
     return;
   }
 
@@ -137,6 +149,16 @@ function validateValue(value, descriptor, fieldPath) {
     for (const field of Object.keys(value)) {
       if (!allowed.has(field))
         errors.push(fieldPath + ' has unknown field \"' + field + '\"');
+    }
+  }
+
+  if (descriptor.type === 'array') {
+    if (typeof descriptor.min_items === 'number' && value.length < descriptor.min_items)
+      errors.push(fieldPath + ' must have at least ' + descriptor.min_items + ' item(s)');
+    if (descriptor.items) {
+      value.forEach(function(item, idx) {
+        validateValue(item, descriptor.items, fieldPath + '[' + idx + ']');
+      });
     }
   }
 }
