@@ -1,0 +1,30 @@
+slug: resend-test
+name: Resend Test
+overview: Fixture for render-functions.sh tests.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          ## Hello
+          A paragraph.
+  - id: contact
+    title: Contact
+    components:
+      - type: resend-form
+        to: hello@example.com
+        from: noreply@example.com
+        subject: Message from resend-test
+        submit_label: Send
+        success_message: Thanks, we will be in touch.
+        fields:
+          - { name: name, label: Your name, type: text, required: true }
+          - { name: email, label: Email, type: email, required: true }
+          - { name: message, label: Message, type: textarea, required: true }
+nav:
+  order: [home, contact]
+contact:
+  enabled: false

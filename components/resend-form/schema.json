@@ -1,0 +1,26 @@
+{
+  "description": "Contact form with server-side email delivery via Resend. Requires RESEND_API_KEY in .env and a Resend-verified sender address in the 'from' field.",
+  "required": {
+    "to": { "type": "string", "non_empty": true },
+    "from": { "type": "string", "non_empty": true },
+    "fields": {
+      "type": "array",
+      "min_items": 1,
+      "items": {
+        "type": "object",
+        "required": {
+          "name": { "type": "string", "non_empty": true },
+          "label": { "type": "string", "non_empty": true },
+          "type": { "type": "string", "enum": ["text", "email", "textarea"] },
+          "required": "boolean"
+        }
+      }
+    }
+  },
+  "optional": {
+    "subject": { "type": "string", "non_empty": true },
+    "submit_label": "string",
+    "success_message": "string"
+  },
+  "example": "type: resend-form\nto: hello@example.com\nfrom: noreply@example.com    # must be a Resend-verified address\nsubject: Message from my-site  # optional, default generated from site name\nsubmit_label: Send             # optional, default: Send\nsuccess_message: Thanks, we will be in touch.  # optional\nfields:                        # at least one required\n  - { name: name,    label: Your name,  type: text,     required: true }\n  - { name: email,   label: Your email, type: email,    required: true }\n  - { name: message, label: Message,    type: textarea, required: true }\n"
+}

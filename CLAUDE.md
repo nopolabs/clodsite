@@ -72,6 +72,7 @@ Render build plan to templates. Run Eleventy. Produces `$SITES_DIR/<site-name>/d
 [SCRIPT] bash scripts/write-site-json.sh
 [SCRIPT] bash scripts/apply-theme.sh
 [SCRIPT] bash scripts/render-templates.sh
+[SCRIPT] bash scripts/render-functions.sh
 [SCRIPT] bash scripts/build-site.sh
 ```
 

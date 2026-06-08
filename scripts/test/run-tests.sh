@@ -344,6 +344,24 @@ assert_contains "gallery permalink"               "permalink: /gallery/"  "$GAL"
 assert_contains "gallery includes prose first"    "prose/component.njk"   "$GAL"
 assert_contains "gallery includes gallery type"   "gallery/component.njk" "$GAL"
 
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+assert_exit "render-templates with resend-form exits 0" 0 $?
+assert_file_exists "contact page rendered" "${SITE_DIR}/src/contact.njk"
+CONTACT=$(cat "${SITE_DIR}/src/contact.njk")
+assert_contains "contact includes resend-form component" "resend-form/component.njk" "$CONTACT"
+assert_contains "contact permalink" "permalink: /contact/" "$CONTACT"
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "resend-form fixture builds" 0 $?
+CONTACT_HTML_PATH=$(find "${SITE_DIR}/dist" -name '*.html' \
+  -exec grep -l "c-resend-form__form" {} + 2>/dev/null | head -1)
+CONTACT_HTML=$(cat "$CONTACT_HTML_PATH" 2>/dev/null || true)
+assert_contains "resend-form HTML has form" "c-resend-form__form" "$CONTACT_HTML"
+assert_contains "resend-form HTML has contact endpoint" "fetch('/api/contact'" "$CONTACT_HTML"
+
 cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
 rm -rf "${SITE_DIR}/src"
 bash scripts/render-templates.sh > /dev/null 2>&1
@@ -411,6 +429,7 @@ assert_contains "catalog lists prose"           "## prose"        "$CATALOG"
 assert_contains "catalog lists gallery"         "## gallery"      "$CATALOG"
 assert_contains "catalog lists mailto-form"     "## mailto-form"  "$CATALOG"
 assert_contains "catalog lists media-section"   "## media-section" "$CATALOG"
+assert_contains "catalog lists resend-form"      "## resend-form"  "$CATALOG"
 assert_contains "catalog shows required field"  "markdown"        "$CATALOG"
 assert_contains "catalog shows mailto fields"   "to"              "$CATALOG"
 assert_contains "catalog shows layout enum"      "image-left, image-right, image-above, image-below" "$CATALOG"
@@ -525,6 +544,63 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "build_notes is reje
 
 cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component plan exits 0" 0 $?
+
+# resend-form component validation
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid resend-form plan passes" 0 $?
+
+for missing in from to; do
+  cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+  FIELD="$missing" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+delete p.pages[1].components[0][process.env.FIELD];
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+  bash scripts/validate-plan.sh > /dev/null 2>&1
+  assert_exit "resend-form missing ${missing} exits 1" 1 $?
+done
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[1].components[0].fields = [];
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "resend-form empty fields exits 1" 1 $?
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+delete p.pages[1].components[0].fields[0].label;
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "resend-form field missing label exits 1" 1 $?
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[1].components[0].fields[0].type = 'number';
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "resend-form field invalid type exits 1" 1 $?
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[1].components[0].to = '';
+p.pages[1].components[0].fields[0].name = '   ';
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "resend-form empty strings exit 1" 1 $?
 
 # Recursive component schema descriptors
 NESTED_COMPONENTS_DIR=$(mktemp -d)
@@ -696,6 +772,145 @@ cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
 cp scripts/test/fixtures/invalid-build-plan-missing-content.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan with invalid plan exits 1" 1 $?
 
+# ── render-functions.sh ───────────────────────────────────────────────────────
+echo ""
+echo "=== render-functions.sh ==="
+
+cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/functions"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "no resend-form exits 0" 0 $?
+if [ ! -d "${SITE_DIR}/functions" ]; then
+  echo "  ✓ no resend-form leaves functions/ absent"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ no resend-form unexpectedly created functions/"
+  FAIL=$((FAIL + 1))
+fi
+
+mkdir -p "${SITE_DIR}/functions/api"
+echo "stale" > "${SITE_DIR}/functions/api/contact.js"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "stale contact cleanup exits 0" 0 $?
+if [ ! -e "${SITE_DIR}/functions" ]; then
+  echo "  ✓ stale contact Function and empty parent directories removed"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ stale contact Function cleanup left empty directories"
+  FAIL=$((FAIL + 1))
+fi
+
+mkdir -p "${SITE_DIR}/functions/api"
+echo "other" > "${SITE_DIR}/functions/api/other.js"
+echo "stale" > "${SITE_DIR}/functions/api/contact.js"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_file_exists "unrelated Function survives stale cleanup" "${SITE_DIR}/functions/api/other.js"
+if [ ! -f "${SITE_DIR}/functions/api/contact.js" ]; then
+  echo "  ✓ stale contact Function removed without touching other Functions"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ stale contact Function was not removed"
+  FAIL=$((FAIL + 1))
+fi
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/functions"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "resend-form Function render exits 0" 0 $?
+assert_file_exists "functions/api/contact.js created" "${SITE_DIR}/functions/api/contact.js"
+FUNC=$(cat "${SITE_DIR}/functions/api/contact.js")
+assert_contains "generated config has to address" "hello@example.com" "$FUNC"
+assert_contains "generated config has from address" "noreply@example.com" "$FUNC"
+assert_contains "generated config has subject" "Message from resend-test" "$FUNC"
+assert_contains "generated Function has handler" "onRequestPost" "$FUNC"
+assert_contains "generated config has required metadata" '"required":true' "$FUNC"
+assert_contains "generated config has maxLength metadata" '"maxLength":10000' "$FUNC"
+assert_contains "generated Function rejects non-object JSON" "!data || typeof data !== 'object' || Array.isArray(data)" "$FUNC"
+assert_not_contains "CONFIG placeholder is replaced" "{{CONFIG}}" "$FUNC"
+cp "${SITE_DIR}/functions/api/contact.js" "${SITE_DIR}/functions/api/contact.mjs"
+if FUNCTION_URL="file://${SITE_DIR}/functions/api/contact.mjs" node --input-type=module -e "
+const { onRequestPost } = await import(process.env.FUNCTION_URL);
+const malformed = await onRequestPost({
+  env: { RESEND_API_KEY: 'test-key' },
+  request: new Request('https://example.com/api/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{',
+  }),
+});
+const malformedBody = await malformed.json();
+const nonObject = await onRequestPost({
+  env: { RESEND_API_KEY: 'test-key' },
+  request: new Request('https://example.com/api/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '[]',
+  }),
+});
+const nonObjectBody = await nonObject.json();
+process.exit(
+  malformed.status === 400 &&
+  malformedBody.error === 'Malformed JSON' &&
+  nonObject.status === 400 &&
+  nonObjectBody.error === 'Request body must be a JSON object'
+    ? 0
+    : 1
+);
+" 2>/dev/null; then
+  echo "  ✓ generated Function distinguishes malformed JSON from non-object JSON"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ generated Function does not distinguish invalid request bodies"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "${SITE_DIR}/functions/api/contact.mjs"
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.name = \"O'Brien's Site\";
+delete p.pages[1].components[0].subject;
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/render-functions.sh > /dev/null 2>&1
+FUNC=$(cat "${SITE_DIR}/functions/api/contact.js")
+assert_contains "default subject comes from plan name" "Message from O'Brien's Site" "$FUNC"
+if FUNCTION_PATH="${SITE_DIR}/functions/api/contact.js" node -e "
+const source=require('fs').readFileSync(process.env.FUNCTION_PATH,'utf8');
+const match=source.match(/const CONFIG = (.+);/);
+if (!match) process.exit(1);
+const config=JSON.parse(match[1]);
+process.exit(config.subject === \"Message from O'Brien's Site\" ? 0 : 1);
+" 2>/dev/null; then
+  echo "  ✓ generated CONFIG is valid JSON with special characters"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ generated CONFIG is invalid with special characters"
+  FAIL=$((FAIL + 1))
+fi
+
+# ── deploy-finalize.sh: resend-form warning ────────────────────────────────────
+echo ""
+echo "=== deploy-finalize.sh: resend-form warning ==="
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+mkdir -p "${SITE_DIR}/functions/api"
+echo "// stub" > "${SITE_DIR}/functions/api/contact.js"
+echo "https://abc12345.resend-test.pages.dev" > "${SITE_DIR}/.deploy-output"
+bash scripts/deploy-finalize.sh > /dev/null 2>&1
+assert_exit "finalize with resend-form exits 0" 0 $?
+NEXT_STEPS=$(cat "${SITE_DIR}/NEXT-STEPS.md")
+assert_contains "NEXT-STEPS has bot-protection warning" "bot protection" "$NEXT_STEPS"
+WARNING_SECTION=$(echo "$NEXT_STEPS" | awk '/^---/{block=""} {block=block"\n"$0} END{print block}')
+assert_contains "warning substitutes site name" "resend-test" "$WARNING_SECTION"
+assert_not_contains "warning has no SITE_NAME placeholder" "{{SITE_NAME}}" "$WARNING_SECTION"
+
+rm -f "${SITE_DIR}/functions/api/contact.js" "${SITE_DIR}/NEXT-STEPS.md"
+bash scripts/deploy-finalize.sh > /dev/null 2>&1
+NEXT_STEPS=$(cat "${SITE_DIR}/NEXT-STEPS.md")
+assert_not_contains "NEXT-STEPS omits warning without contact Function" "bot protection" "$NEXT_STEPS"
+
 # ── status.sh ─────────────────────────────────────────────────────────────────
 echo ""
 echo "=== status.sh ==="
@@ -747,6 +962,64 @@ assert_contains "non-Clodsite project listed in footer" "external-project" "$OUT
 
 rm -rf "$STATUS_SITES_DIR" "$MOCK_BIN"
 export PATH="$ORIGINAL_PATH"
+
+# ── deploy.sh (stub wrangler) ─────────────────────────────────────────────────
+echo ""
+echo "=== deploy.sh (stub wrangler) ==="
+
+DEPLOY_STUB_DIR=$(mktemp -d)
+DEPLOY_STUB_LOG="${DEPLOY_STUB_DIR}/wrangler.log"
+cat > "${DEPLOY_STUB_DIR}/wrangler" << STUB
+#!/usr/bin/env bash
+echo "cwd=\$(pwd)" >> "${DEPLOY_STUB_LOG}"
+echo "args=\$*" >> "${DEPLOY_STUB_LOG}"
+if [ "\${WRANGLER_SECRET_FAIL:-0}" = "1" ] && echo "\$*" | grep -q "secret put"; then
+  exit 1
+fi
+exit 0
+STUB
+chmod +x "${DEPLOY_STUB_DIR}/wrangler"
+DEPLOY_ORIGINAL_PATH="$PATH"
+export PATH="${DEPLOY_STUB_DIR}:${PATH}"
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+mkdir -p "${SITE_DIR}/dist" "${SITE_DIR}/functions/api"
+echo "<html></html>" > "${SITE_DIR}/dist/index.html"
+echo "// stub" > "${SITE_DIR}/functions/api/contact.js"
+
+rm -f "${DEPLOY_STUB_LOG}"
+( unset RESEND_API_KEY; SITE_DIR="${SITE_DIR}" bash scripts/deploy.sh > /dev/null 2>&1 )
+assert_exit "missing RESEND_API_KEY exits 1" 1 $?
+DEPLOY_LOG=$(cat "${DEPLOY_STUB_LOG}" 2>/dev/null || true)
+assert_not_contains "deploy not called when Resend key missing" "pages deploy" "$DEPLOY_LOG"
+
+rm -f "${DEPLOY_STUB_LOG}"
+WRANGLER_SECRET_FAIL=1 RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "secret push failure aborts deploy" 1 $?
+DEPLOY_LOG=$(cat "${DEPLOY_STUB_LOG}" 2>/dev/null || true)
+assert_contains "secret push attempted" "pages secret put" "$DEPLOY_LOG"
+assert_not_contains "deploy not called after secret failure" "pages deploy" "$DEPLOY_LOG"
+
+rm -f "${DEPLOY_STUB_LOG}"
+RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "deploy with contact Function exits 0" 0 $?
+DEPLOY_LOG=$(cat "${DEPLOY_STUB_LOG}" 2>/dev/null || true)
+assert_contains "secret push called" "pages secret put" "$DEPLOY_LOG"
+assert_contains "Pages deploy called" "pages deploy dist" "$DEPLOY_LOG"
+assert_contains "Wrangler runs from SITE_DIR" "cwd=${SITE_DIR}" "$DEPLOY_LOG"
+assert_file_exists "deploy output written inside site dir" "${SITE_DIR}/.deploy-output"
+assert_file_exists "deploy exit written inside site dir" "${SITE_DIR}/.deploy-exit"
+
+rm -f "${SITE_DIR}/functions/api/contact.js" "${DEPLOY_STUB_LOG}"
+RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "deploy without contact Function exits 0" 0 $?
+DEPLOY_LOG=$(cat "${DEPLOY_STUB_LOG}" 2>/dev/null || true)
+assert_not_contains "secret push omitted without contact Function" "pages secret put" "$DEPLOY_LOG"
+assert_contains "static Pages deploy still called" "pages deploy dist" "$DEPLOY_LOG"
+
+export PATH="$DEPLOY_ORIGINAL_PATH"
+rm -rf "$DEPLOY_STUB_DIR"
 
 # ── Results ───────────────────────────────────────────────────────────────────
 echo ""

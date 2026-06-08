@@ -1,0 +1,55 @@
+{% set successMsg = (component.success_message or "Thanks, we will be in touch.") | escape %}
+<div class="c-resend-form">
+  <form class="c-resend-form__form">
+    {% for field in component.fields %}
+    <div class="c-resend-form__field">
+      <label for="rf-{{ field.name | escape }}">{{ field.label | escape }}{% if field.required %} <span class="c-resend-form__required">*</span>{% endif %}</label>
+      {% if field.type == 'textarea' %}
+      <textarea id="rf-{{ field.name | escape }}" name="{{ field.name | escape }}"{% if field.required %} required{% endif %}></textarea>
+      {% else %}
+      <input id="rf-{{ field.name | escape }}" name="{{ field.name | escape }}" type="{{ field.type | escape }}"{% if field.required %} required{% endif %}>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <button type="submit" class="c-resend-form__submit"
+            data-label="{{ (component.submit_label or 'Send') | escape }}">{{ (component.submit_label or "Send") | escape }}</button>
+    <p class="c-resend-form__error" hidden>Something went wrong - please try again.</p>
+  </form>
+  <p class="c-resend-form__success" hidden>{{ successMsg }}</p>
+  <script>
+    (function(){
+      var wrapper = document.currentScript.closest('.c-resend-form');
+      var form = wrapper.querySelector('form');
+      var btn = form.querySelector('.c-resend-form__submit');
+      var errorEl = form.querySelector('.c-resend-form__error');
+      var successEl = wrapper.querySelector('.c-resend-form__success');
+      form.addEventListener('submit', async function(e){
+        e.preventDefault();
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        errorEl.hidden = true;
+        var data = {};
+        for (var el of form.elements) {
+          if (el.name) data[el.name] = el.value;
+        }
+        try {
+          var res = await fetch('/api/contact', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          if (res.ok) {
+            form.hidden = true;
+            successEl.hidden = false;
+          } else {
+            throw new Error();
+          }
+        } catch(err) {
+          errorEl.hidden = false;
+          btn.disabled = false;
+          btn.textContent = btn.dataset.label || 'Send';
+        }
+      });
+    })();
+  </script>
+</div>

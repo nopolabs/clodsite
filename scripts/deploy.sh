@@ -75,12 +75,35 @@ else
 fi
 echo ""
 
+# Push RESEND_API_KEY as a Pages secret when the generated contact Function is
+# present. Other future Functions do not require this secret.
+if [ -f "${SITE_DIR}/functions/api/contact.js" ]; then
+  if [ -z "${RESEND_API_KEY:-}" ]; then
+    echo "Error: RESEND_API_KEY is not set in .env but this site uses resend-form."
+    echo "Add RESEND_API_KEY=re_... to .env and redeploy."
+    exit 1
+  fi
+
+  echo "Setting RESEND_API_KEY secret for '$SITE_NAME'..."
+  if ! printf '%s' "$RESEND_API_KEY" | wrangler pages secret put RESEND_API_KEY \
+      --project-name "$SITE_NAME"; then
+    echo "Error: failed to set RESEND_API_KEY Pages secret."
+    exit 1
+  fi
+  echo ""
+  echo "Warning: your contact form has no bot protection."
+  echo "Add Turnstile before promoting this site to production."
+  echo ""
+fi
+
 echo "Deploying '$SITE_NAME' to Cloudflare Pages..."
 echo ""
 
-wrangler pages deploy "${SITE_DIR}/dist" --project-name "$SITE_NAME" \
-  > "${SITE_DIR}/.deploy-output" 2> "${SITE_DIR}/.deploy-error"
+# Wrangler discovers functions/ relative to its working directory.
+cd "${SITE_DIR}"
+wrangler pages deploy dist --project-name "$SITE_NAME" \
+  > ".deploy-output" 2> ".deploy-error"
 WRANGLER_EXIT=$?
 
-echo "$WRANGLER_EXIT" > "${SITE_DIR}/.deploy-exit"
+echo "$WRANGLER_EXIT" > ".deploy-exit"
 exit $WRANGLER_EXIT
