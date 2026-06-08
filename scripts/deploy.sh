@@ -53,6 +53,12 @@ const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml',
 console.log(plan.slug);
 ")
 
+if [ -f "${SITE_DIR}/functions/api/contact.js" ] && [ -z "${RESEND_API_KEY:-}" ]; then
+  echo "Error: RESEND_API_KEY is not set in .env but this site uses resend-form."
+  echo "Add RESEND_API_KEY=re_... to .env and redeploy."
+  exit 1
+fi
+
 # Ensure the Cloudflare Pages project exists in *this* account.
 #
 # wrangler v4 requires the project to exist before `pages deploy` — it will not
@@ -75,24 +81,21 @@ else
 fi
 echo ""
 
+# Protected forms provision or reuse their Turnstile widget, push its secret,
+# and inject the public site key and expected hostnames into built artifacts.
+if ! bash "${SCRIPT_DIR}/provision-turnstile.sh"; then
+  exit 1
+fi
+
 # Push RESEND_API_KEY as a Pages secret when the generated contact Function is
 # present. Other future Functions do not require this secret.
 if [ -f "${SITE_DIR}/functions/api/contact.js" ]; then
-  if [ -z "${RESEND_API_KEY:-}" ]; then
-    echo "Error: RESEND_API_KEY is not set in .env but this site uses resend-form."
-    echo "Add RESEND_API_KEY=re_... to .env and redeploy."
-    exit 1
-  fi
-
   echo "Setting RESEND_API_KEY secret for '$SITE_NAME'..."
   if ! printf '%s' "$RESEND_API_KEY" | wrangler pages secret put RESEND_API_KEY \
       --project-name "$SITE_NAME"; then
     echo "Error: failed to set RESEND_API_KEY Pages secret."
     exit 1
   fi
-  echo ""
-  echo "Warning: your contact form has no bot protection."
-  echo "Add Turnstile before promoting this site to production."
   echo ""
 fi
 

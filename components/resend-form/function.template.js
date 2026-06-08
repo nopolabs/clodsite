@@ -1,5 +1,5 @@
 export async function onRequestPost(context) {
-  const { RESEND_API_KEY } = context.env;
+  const { RESEND_API_KEY, TURNSTILE_SECRET_KEY } = context.env;
   if (!RESEND_API_KEY) {
     return Response.json({ ok: false, error: 'Not configured' }, { status: 500 });
   }
@@ -17,6 +17,47 @@ export async function onRequestPost(context) {
       { ok: false, error: 'Request body must be a JSON object' },
       { status: 400 },
     );
+  }
+
+  if (CONFIG.turnstile.enabled) {
+    if (!TURNSTILE_SECRET_KEY) {
+      return Response.json({ ok: false, error: 'Not configured' }, { status: 500 });
+    }
+
+    const token = String(data['cf-turnstile-response'] ?? '').trim();
+    if (!token) {
+      return Response.json({ ok: false, error: 'Verification failed' }, { status: 400 });
+    }
+
+    let verification;
+    try {
+      const verifyResponse = await fetch(
+        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            secret: TURNSTILE_SECRET_KEY,
+            response: token,
+            remoteip: context.request.headers.get('CF-Connecting-IP') || undefined,
+          }),
+        },
+      );
+      verification = await verifyResponse.json();
+    } catch {
+      return Response.json({ ok: false, error: 'Verification failed' }, { status: 400 });
+    }
+
+    const hostnames = Array.isArray(CONFIG.turnstile.hostnames)
+      ? CONFIG.turnstile.hostnames
+      : [];
+    if (
+      verification.success !== true ||
+      verification.action !== CONFIG.turnstile.action ||
+      !hostnames.includes(verification.hostname)
+    ) {
+      return Response.json({ ok: false, error: 'Verification failed' }, { status: 400 });
+    }
   }
 
   for (const field of CONFIG.fields) {
