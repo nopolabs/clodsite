@@ -10,10 +10,13 @@ export async function onRequestPost(context) {
   try {
     data = await context.request.json();
   } catch {
-    return Response.json({ ok: false, error: 'Invalid request' }, { status: 400 });
+    return Response.json({ ok: false, error: 'Malformed JSON' }, { status: 400 });
   }
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return Response.json({ ok: false, error: 'Invalid request' }, { status: 400 });
+    return Response.json(
+      { ok: false, error: 'Request body must be a JSON object' },
+      { status: 400 },
+    );
   }
 
   for (const field of CONFIG.fields) {

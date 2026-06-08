@@ -827,6 +827,43 @@ assert_contains "generated config has required metadata" '"required":true' "$FUN
 assert_contains "generated config has maxLength metadata" '"maxLength":10000' "$FUNC"
 assert_contains "generated Function rejects non-object JSON" "!data || typeof data !== 'object' || Array.isArray(data)" "$FUNC"
 assert_not_contains "CONFIG placeholder is replaced" "{{CONFIG}}" "$FUNC"
+cp "${SITE_DIR}/functions/api/contact.js" "${SITE_DIR}/functions/api/contact.mjs"
+if FUNCTION_URL="file://${SITE_DIR}/functions/api/contact.mjs" node --input-type=module -e "
+const { onRequestPost } = await import(process.env.FUNCTION_URL);
+const malformed = await onRequestPost({
+  env: { RESEND_API_KEY: 'test-key' },
+  request: new Request('https://example.com/api/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{',
+  }),
+});
+const malformedBody = await malformed.json();
+const nonObject = await onRequestPost({
+  env: { RESEND_API_KEY: 'test-key' },
+  request: new Request('https://example.com/api/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '[]',
+  }),
+});
+const nonObjectBody = await nonObject.json();
+process.exit(
+  malformed.status === 400 &&
+  malformedBody.error === 'Malformed JSON' &&
+  nonObject.status === 400 &&
+  nonObjectBody.error === 'Request body must be a JSON object'
+    ? 0
+    : 1
+);
+" 2>/dev/null; then
+  echo "  ✓ generated Function distinguishes malformed JSON from non-object JSON"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ generated Function does not distinguish invalid request bodies"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "${SITE_DIR}/functions/api/contact.mjs"
 
 cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
 node -e "
