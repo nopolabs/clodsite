@@ -472,7 +472,11 @@ assert_dir_exists "sites/.git created" "sites/.git"
 assert_file_exists "sites/.gitignore created" "sites/.gitignore"
 
 # .gitignore content is correct
-if grep -q "\*/src/" sites/.gitignore && grep -q "\*/\.deploy-\*" sites/.gitignore && ! grep -q "\*/dist/" sites/.gitignore; then
+if grep -qxF "*/src/" sites/.gitignore &&
+   grep -qxF "*/.deploy-*" sites/.gitignore &&
+   grep -qxF "*/.turnstile-*" sites/.gitignore &&
+   grep -qxF "*/.wrangler/" sites/.gitignore &&
+   ! grep -q "\*/dist/" sites/.gitignore; then
   echo "  ✓ sites/.gitignore has correct entries"
   PASS=$((PASS + 1))
 else
@@ -495,6 +499,8 @@ else
 fi
 assert_contains "existing sites/.gitignore gains Turnstile state pattern" \
   "*/.turnstile-*" "$(cat sites/.gitignore)"
+assert_contains "existing sites/.gitignore gains Wrangler state pattern" \
+  "*/.wrangler/" "$(cat sites/.gitignore)"
 
 rm -rf sites
 

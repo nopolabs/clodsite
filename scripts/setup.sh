@@ -49,11 +49,15 @@ if [ "$MODE" = "--init-sites" ]; then
   mkdir -p "$SITES_DIR"
   git -C "$SITES_DIR" init -q
   if [ ! -f "${SITES_DIR}/.gitignore" ]; then
-    printf '*/src/\n*/.deploy-*\n*/.turnstile-*\n' > "${SITES_DIR}/.gitignore"
+    printf '*/src/\n*/.deploy-*\n*/.turnstile-*\n*/.wrangler/\n' > "${SITES_DIR}/.gitignore"
     echo "✓ ${SITES_DIR}/.gitignore created."
-  elif ! grep -qxF '*/.turnstile-*' "${SITES_DIR}/.gitignore"; then
-    printf '*/.turnstile-*\n' >> "${SITES_DIR}/.gitignore"
-    echo "✓ Turnstile state added to ${SITES_DIR}/.gitignore."
+  else
+    for pattern in '*/.turnstile-*' '*/.wrangler/'; do
+      if ! grep -qxF "$pattern" "${SITES_DIR}/.gitignore"; then
+        printf '%s\n' "$pattern" >> "${SITES_DIR}/.gitignore"
+        echo "✓ ${pattern} added to ${SITES_DIR}/.gitignore."
+      fi
+    done
   fi
   echo "✓ ${SITES_DIR} initialized as a git repository."
   exit 0
