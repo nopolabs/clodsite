@@ -1,5 +1,8 @@
 {% set successMsg = (component.success_message or "Thanks, we will be in touch.") | escape %}
 <div class="c-resend-form">
+  {% if component.turnstile %}
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% endif %}
   <form class="c-resend-form__form">
     {% for field in component.fields %}
     <div class="c-resend-form__field">
@@ -11,6 +14,13 @@
       {% endif %}
     </div>
     {% endfor %}
+    {% if component.turnstile %}
+    <div class="c-resend-form__turnstile">
+      <div class="cf-turnstile"
+           data-sitekey="__CLODSITE_TURNSTILE_SITEKEY__"
+           data-action="clodsite-contact"></div>
+    </div>
+    {% endif %}
     <button type="submit" class="c-resend-form__submit"
             data-label="{{ (component.submit_label or 'Send') | escape }}">{{ (component.submit_label or "Send") | escape }}</button>
     <p class="c-resend-form__error" hidden>Something went wrong - please try again.</p>
@@ -48,6 +58,9 @@
           errorEl.hidden = false;
           btn.disabled = false;
           btn.textContent = btn.dataset.label || 'Send';
+          if (window.turnstile && typeof window.turnstile.reset === 'function') {
+            window.turnstile.reset();
+          }
         }
       });
     })();

@@ -64,6 +64,13 @@ const config = {
     required: !!field.required,
     maxLength: field.maxLength || 10000,
   })),
+  turnstile: found.turnstile
+    ? {
+        enabled: true,
+        action: 'clodsite-contact',
+        hostnames: '__CLODSITE_TURNSTILE_HOSTNAMES__',
+      }
+    : { enabled: false },
 };
 
 const source = fs.readFileSync(templatePath, 'utf8')

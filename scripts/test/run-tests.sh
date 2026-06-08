@@ -361,6 +361,24 @@ CONTACT_HTML_PATH=$(find "${SITE_DIR}/dist" -name '*.html' \
 CONTACT_HTML=$(cat "$CONTACT_HTML_PATH" 2>/dev/null || true)
 assert_contains "resend-form HTML has form" "c-resend-form__form" "$CONTACT_HTML"
 assert_contains "resend-form HTML has contact endpoint" "fetch('/api/contact'" "$CONTACT_HTML"
+assert_not_contains "unprotected resend-form omits Turnstile widget" "cf-turnstile" "$CONTACT_HTML"
+assert_not_contains "unprotected resend-form omits site-key marker" "__CLODSITE_TURNSTILE_SITEKEY__" "$CONTACT_HTML"
+
+cp scripts/test/fixtures/valid-build-plan-resend-turnstile.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "protected resend-form fixture builds" 0 $?
+PROTECTED_HTML_PATH=$(find "${SITE_DIR}/dist" -name '*.html' \
+  -exec grep -l "c-resend-form__form" {} + 2>/dev/null | head -1)
+PROTECTED_HTML=$(cat "$PROTECTED_HTML_PATH" 2>/dev/null || true)
+assert_contains "protected form loads Turnstile script" "https://challenges.cloudflare.com/turnstile/v0/api.js" "$PROTECTED_HTML"
+assert_contains "protected form renders Turnstile widget" 'class="cf-turnstile"' "$PROTECTED_HTML"
+assert_contains "protected form has site-key marker" "__CLODSITE_TURNSTILE_SITEKEY__" "$PROTECTED_HTML"
+assert_contains "protected form has stable action" 'data-action="clodsite-contact"' "$PROTECTED_HTML"
+assert_contains "protected form resets failed challenge" "window.turnstile.reset()" "$PROTECTED_HTML"
 
 cp scripts/test/fixtures/valid-build-plan-media-section.yaml "${SITE_DIR}/build-plan.yaml"
 rm -rf "${SITE_DIR}/src"
@@ -438,6 +456,7 @@ assert_contains "catalog shows nested image alt" '`image.alt` (non-empty string)
 assert_contains "catalog shows optional caption" '`image.caption` (string)' "$CATALOG"
 assert_contains "catalog shows media example"    "type: media-section" "$CATALOG"
 assert_contains "catalog preserves primitive type" '`markdown` (string)' "$CATALOG"
+assert_contains "catalog shows optional Turnstile field" '`turnstile` (boolean)' "$CATALOG"
 rm -f "$TMP_CATALOG"
 
 # ── setup.sh --init-sites ─────────────────────────────────────────────────────
@@ -474,6 +493,8 @@ else
   echo "  ✗ existing sites/.gitignore was overwritten"
   FAIL=$((FAIL + 1))
 fi
+assert_contains "existing sites/.gitignore gains Turnstile state pattern" \
+  "*/.turnstile-*" "$(cat sites/.gitignore)"
 
 rm -rf sites
 
@@ -548,6 +569,29 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component pla
 # resend-form component validation
 cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid resend-form plan passes" 0 $?
+
+cp scripts/test/fixtures/valid-build-plan-resend-turnstile.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "resend-form turnstile true passes" 0 $?
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[1].components[0].turnstile = false;
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "resend-form turnstile false passes" 0 $?
+
+for invalid_turnstile in '"yes"' '1' '{}' 'null'; do
+  cp scripts/test/fixtures/valid-build-plan-resend-turnstile.yaml "${SITE_DIR}/build-plan.yaml"
+  TURNSTILE_VALUE="$invalid_turnstile" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[1].components[0].turnstile = JSON.parse(process.env.TURNSTILE_VALUE);
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+  bash scripts/validate-plan.sh > /dev/null 2>&1
+  assert_exit "resend-form invalid turnstile ${invalid_turnstile} exits 1" 1 $?
+done
 
 for missing in from to; do
   cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
@@ -825,6 +869,7 @@ assert_contains "generated config has subject" "Message from resend-test" "$FUNC
 assert_contains "generated Function has handler" "onRequestPost" "$FUNC"
 assert_contains "generated config has required metadata" '"required":true' "$FUNC"
 assert_contains "generated config has maxLength metadata" '"maxLength":10000' "$FUNC"
+assert_contains "unprotected config disables Turnstile" '"turnstile":{"enabled":false}' "$FUNC"
 assert_contains "generated Function rejects non-object JSON" "!data || typeof data !== 'object' || Array.isArray(data)" "$FUNC"
 assert_not_contains "CONFIG placeholder is replaced" "{{CONFIG}}" "$FUNC"
 cp "${SITE_DIR}/functions/api/contact.js" "${SITE_DIR}/functions/api/contact.mjs"
@@ -861,6 +906,83 @@ process.exit(
   PASS=$((PASS + 1))
 else
   echo "  ✗ generated Function does not distinguish invalid request bodies"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "${SITE_DIR}/functions/api/contact.mjs"
+
+cp scripts/test/fixtures/valid-build-plan-resend-turnstile.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/render-functions.sh > /dev/null 2>&1
+PROTECTED_FUNC=$(cat "${SITE_DIR}/functions/api/contact.js")
+assert_contains "protected config enables Turnstile" '"turnstile":{"enabled":true' "$PROTECTED_FUNC"
+assert_contains "protected config has stable action" '"action":"clodsite-contact"' "$PROTECTED_FUNC"
+assert_contains "protected config has hostname marker" "__CLODSITE_TURNSTILE_HOSTNAMES__" "$PROTECTED_FUNC"
+cp "${SITE_DIR}/functions/api/contact.js" "${SITE_DIR}/functions/api/contact.mjs"
+FUNCTION_PATH="${SITE_DIR}/functions/api/contact.mjs" node -e "
+const fs=require('fs');
+const path=process.env.FUNCTION_PATH;
+const source=fs.readFileSync(path,'utf8')
+  .replace('\"__CLODSITE_TURNSTILE_HOSTNAMES__\"', '[\"contact.example.com\"]');
+fs.writeFileSync(path, source);
+"
+if FUNCTION_URL="file://${SITE_DIR}/functions/api/contact.mjs" node --input-type=module -e "
+const { onRequestPost } = await import(process.env.FUNCTION_URL);
+const payload = {
+  name: 'Test',
+  email: 'test@example.com',
+  message: 'Hello',
+  'cf-turnstile-response': 'token',
+};
+const makeContext = (body, env = {}) => ({
+  env: { RESEND_API_KEY: 'resend-key', TURNSTILE_SECRET_KEY: 'turnstile-key', ...env },
+  request: new Request('https://contact.example.com/api/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.1' },
+    body: JSON.stringify(body),
+  }),
+});
+let calls = [];
+globalThis.fetch = async (url, options) => {
+  calls.push({ url: String(url), options });
+  if (String(url).includes('/siteverify')) {
+    return Response.json({ success: true, action: 'clodsite-contact', hostname: 'contact.example.com' });
+  }
+  return Response.json({ id: 'email-id' });
+};
+const missingSecret = await onRequestPost(makeContext(payload, { TURNSTILE_SECRET_KEY: '' }));
+const missingToken = await onRequestPost(makeContext({ ...payload, 'cf-turnstile-response': '' }));
+calls = [];
+globalThis.fetch = async (url) => {
+  calls.push(String(url));
+  return Response.json({ success: false, action: 'clodsite-contact', hostname: 'contact.example.com' });
+};
+const rejected = await onRequestPost(makeContext(payload));
+const rejectedCalls = [...calls];
+calls = [];
+globalThis.fetch = async (url, options) => {
+  calls.push({ url: String(url), options });
+  if (String(url).includes('/siteverify')) {
+    return Response.json({ success: true, action: 'clodsite-contact', hostname: 'contact.example.com' });
+  }
+  return Response.json({ id: 'email-id' });
+};
+const accepted = await onRequestPost(makeContext(payload));
+const emailBody = JSON.parse(calls[1].options.body).text;
+process.exit(
+  missingSecret.status === 500 &&
+  missingToken.status === 400 &&
+  rejected.status === 400 &&
+  rejectedCalls.length === 1 &&
+  accepted.status === 200 &&
+  calls.length === 2 &&
+  !emailBody.includes('cf-turnstile-response')
+    ? 0
+    : 1
+);
+" 2>/dev/null; then
+  echo "  ✓ protected Function gates Resend on successful Turnstile verification"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ protected Function Turnstile enforcement failed"
   FAIL=$((FAIL + 1))
 fi
 rm -f "${SITE_DIR}/functions/api/contact.mjs"
@@ -910,6 +1032,15 @@ rm -f "${SITE_DIR}/functions/api/contact.js" "${SITE_DIR}/NEXT-STEPS.md"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1
 NEXT_STEPS=$(cat "${SITE_DIR}/NEXT-STEPS.md")
 assert_not_contains "NEXT-STEPS omits warning without contact Function" "bot protection" "$NEXT_STEPS"
+
+cp scripts/test/fixtures/valid-build-plan-resend-turnstile.yaml "${SITE_DIR}/build-plan.yaml"
+mkdir -p "${SITE_DIR}/functions/api"
+echo "// protected stub" > "${SITE_DIR}/functions/api/contact.js"
+echo "https://abc12345.resend-turnstile-test.pages.dev" > "${SITE_DIR}/.deploy-output"
+bash scripts/deploy-finalize.sh > /dev/null 2>&1
+NEXT_STEPS=$(cat "${SITE_DIR}/NEXT-STEPS.md")
+assert_contains "NEXT-STEPS confirms Turnstile protection" "Turnstile is enabled" "$NEXT_STEPS"
+assert_not_contains "protected NEXT-STEPS omits bot-protection warning" "no rate limiting or bot protection" "$NEXT_STEPS"
 
 # ── status.sh ─────────────────────────────────────────────────────────────────
 echo ""
@@ -962,6 +1093,99 @@ assert_contains "non-Clodsite project listed in footer" "external-project" "$OUT
 
 rm -rf "$STATUS_SITES_DIR" "$MOCK_BIN"
 export PATH="$ORIGINAL_PATH"
+
+# ── provision-turnstile.sh (stub Cloudflare) ─────────────────────────────────
+echo ""
+echo "=== provision-turnstile.sh (stub Cloudflare) ==="
+
+TURNSTILE_STUB_DIR=$(mktemp -d)
+TURNSTILE_STUB_LOG="${TURNSTILE_STUB_DIR}/calls.log"
+cat > "${TURNSTILE_STUB_DIR}/curl" << STUB
+#!/usr/bin/env bash
+method="GET"
+url=""
+while [ "\$#" -gt 0 ]; do
+  case "\$1" in
+    --request) method="\$2"; shift 2 ;;
+    --data|--header) shift 2 ;;
+    --fail-with-body|--silent|--show-error) shift ;;
+    *) url="\$1"; shift ;;
+  esac
+done
+echo "\${method} \${url}" >> "${TURNSTILE_STUB_LOG}"
+case "\${url}" in
+  */pages/projects/resend-turnstile-test)
+    printf '%s' '{"success":true,"result":{"subdomain":"resend-turnstile-test.pages.dev"}}'
+    ;;
+  */challenges/widgets)
+    if [ "\${method}" = "POST" ]; then
+      printf '%s' '{"success":true,"result":{"sitekey":"0x-test-sitekey","secret":"test-turnstile-secret","name":"clodsite:resend-turnstile-test:resend-form","domains":["contact.example.com","resend-turnstile-test.pages.dev"],"mode":"managed","clearance_level":"no_clearance"}}'
+    else
+      printf '%s' '{"success":true,"result":[]}'
+    fi
+    ;;
+  */challenges/widgets/0x-test-sitekey)
+    printf '%s' '{"success":true,"result":{"sitekey":"0x-test-sitekey","secret":"test-turnstile-secret","name":"clodsite:resend-turnstile-test:resend-form","domains":["contact.example.com","resend-turnstile-test.pages.dev"],"mode":"managed","clearance_level":"no_clearance"}}'
+    ;;
+  *)
+    printf '%s' '{"success":false,"errors":[{"message":"unexpected test URL"}]}'
+    exit 22
+    ;;
+esac
+STUB
+cat > "${TURNSTILE_STUB_DIR}/wrangler" << STUB
+#!/usr/bin/env bash
+secret=\$(cat)
+echo "wrangler \$* stdin-length=\${#secret}" >> "${TURNSTILE_STUB_LOG}"
+exit 0
+STUB
+chmod +x "${TURNSTILE_STUB_DIR}/curl" "${TURNSTILE_STUB_DIR}/wrangler"
+
+cp scripts/test/fixtures/valid-build-plan-resend-turnstile.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist" "${SITE_DIR}/functions" "${SITE_DIR}/.turnstile-state.json"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+bash scripts/render-functions.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+
+TURNSTILE_ORIGINAL_PATH="$PATH"
+export PATH="${TURNSTILE_STUB_DIR}:${PATH}"
+TURNSTILE_OUTPUT=$(CLOUDFLARE_API_TOKEN=test-token CLOUDFLARE_ACCOUNT_ID=test-account \
+  SITE_DIR="${SITE_DIR}" bash scripts/provision-turnstile.sh 2>&1)
+assert_exit "Turnstile provisioning exits 0" 0 $?
+assert_file_exists "Turnstile public state created" "${SITE_DIR}/.turnstile-state.json"
+TURNSTILE_STATE=$(cat "${SITE_DIR}/.turnstile-state.json")
+assert_contains "Turnstile state has public site key" "0x-test-sitekey" "$TURNSTILE_STATE"
+assert_not_contains "Turnstile state omits secret" "test-turnstile-secret" "$TURNSTILE_STATE"
+assert_not_contains "Turnstile output omits secret" "test-turnstile-secret" "$TURNSTILE_OUTPUT"
+PROVISIONED_HTML=$(find "${SITE_DIR}/dist" -name '*.html' -exec grep -l "0x-test-sitekey" {} + | head -1)
+assert_file_exists "Turnstile site key injected into HTML" "$PROVISIONED_HTML"
+PROVISIONED_FUNCTION=$(cat "${SITE_DIR}/functions/api/contact.js")
+assert_contains "Turnstile Pages hostname injected" "resend-turnstile-test.pages.dev" "$PROVISIONED_FUNCTION"
+assert_contains "Turnstile custom hostname injected" "contact.example.com" "$PROVISIONED_FUNCTION"
+assert_not_contains "Turnstile site-key marker removed" "__CLODSITE_TURNSTILE_SITEKEY__" "$(cat "$PROVISIONED_HTML")"
+assert_not_contains "Turnstile hostname marker removed" "__CLODSITE_TURNSTILE_HOSTNAMES__" "$PROVISIONED_FUNCTION"
+TURNSTILE_LOG=$(cat "${TURNSTILE_STUB_LOG}")
+assert_contains "Turnstile widget created" "POST https://api.cloudflare.com/client/v4/accounts/test-account/challenges/widgets" "$TURNSTILE_LOG"
+assert_contains "Turnstile secret pushed through Wrangler" "pages secret put TURNSTILE_SECRET_KEY" "$TURNSTILE_LOG"
+
+TURNSTILE_OUTPUT=$(CLOUDFLARE_API_TOKEN=test-token CLOUDFLARE_ACCOUNT_ID=test-account \
+  SITE_DIR="${SITE_DIR}" bash scripts/provision-turnstile.sh 2>&1)
+assert_exit "Turnstile reprovision exits 0" 0 $?
+TURNSTILE_LOG=$(cat "${TURNSTILE_STUB_LOG}")
+assert_contains "Turnstile reprovision fetches state widget" "GET https://api.cloudflare.com/client/v4/accounts/test-account/challenges/widgets/0x-test-sitekey" "$TURNSTILE_LOG"
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+: > "${TURNSTILE_STUB_LOG}"
+CLOUDFLARE_API_TOKEN=test-token CLOUDFLARE_ACCOUNT_ID=test-account \
+  SITE_DIR="${SITE_DIR}" bash scripts/provision-turnstile.sh > /dev/null 2>&1
+assert_exit "unprotected Turnstile provisioning exits 0" 0 $?
+TURNSTILE_LOG=$(cat "${TURNSTILE_STUB_LOG}")
+assert_not_contains "unprotected provisioning makes no API calls" "https://api.cloudflare.com" "$TURNSTILE_LOG"
+
+export PATH="$TURNSTILE_ORIGINAL_PATH"
+rm -rf "$TURNSTILE_STUB_DIR"
 
 # ── deploy.sh (stub wrangler) ─────────────────────────────────────────────────
 echo ""

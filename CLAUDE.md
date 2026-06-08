@@ -32,6 +32,11 @@ Type `/help` at any time to see this again.
 ### `/setup` — `[HYBRID]`
 Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previous build artifacts.
 
+The normal token requires Cloudflare Pages edit access. Sites using
+`resend-form` with `turnstile: true` also require
+`Account > Turnstile > Edit`. Builds remain offline; Turnstile resources are
+created or reused during deployment.
+
 ```
 [SCRIPT] bash scripts/clean.sh               (only if user typed `/setup clean`)
 [SCRIPT] bash scripts/check-artifacts.sh     (detect previous build in SITES_DIR)
@@ -77,11 +82,11 @@ Render build plan to templates. Run Eleventy. Produces `$SITES_DIR/<site-name>/d
 ```
 
 ### `/deploy` — `[SCRIPT]`
-Deploy to Cloudflare Pages. Produces a live URL and `$SITES_DIR/<site-name>/NEXT-STEPS.md`. Use `/deploy <site-name> local` to preview at localhost:8080 instead of deploying.
+Deploy to Cloudflare Pages. Produces a live URL and `$SITES_DIR/<site-name>/NEXT-STEPS.md`. For a `resend-form` with `turnstile: true`, deployment automatically creates or reuses a managed Turnstile widget, restricts it to the site's production hostnames, installs its secret, and injects its public site key. Use `/deploy <site-name> local` to preview at localhost:8080 instead of deploying.
 
 ```
 [SCRIPT] bash scripts/deploy.sh --local      (if `/deploy <site-name> local` — serve, no deploy)
-[SCRIPT] bash scripts/deploy.sh              (ensure Pages project exists; deploy)
+[SCRIPT] bash scripts/deploy.sh              (ensure Pages project; provision Turnstile when enabled; deploy)
 [LLM]    Interpret error if deploy fails
 [SCRIPT] bash scripts/deploy-finalize.sh     (on success — production URL, NEXT-STEPS.md)
 ```

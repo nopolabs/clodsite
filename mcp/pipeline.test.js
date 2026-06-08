@@ -9,6 +9,7 @@ test('listComponents returns catalog with all component types', () => {
   assert.ok(catalog.includes('prose'));
   assert.ok(catalog.includes('gallery'));
   assert.ok(catalog.includes('mailto-form'));
+  assert.ok(catalog.includes('resend-form'));
   // should be a brief listing, not full sub-schemas
   assert.ok(!catalog.includes('Required fields:'));
 });
@@ -94,6 +95,11 @@ test('getSchema(component_name) returns sub-schema and example', () => {
   assert.ok(form.includes('mailto-form'));
   assert.ok(form.includes('fields'));
   assert.ok(form.includes('Example:'));
+
+  const resendForm = getSchema('resend-form');
+  assert.ok(resendForm.includes('resend-form'));
+  assert.ok(resendForm.includes('turnstile'));
+  assert.ok(resendForm.includes('boolean'));
 });
 
 test('getSchema(unknown) returns helpful error with available types', () => {

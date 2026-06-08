@@ -110,3 +110,35 @@ markdown: |
   and fenced code blocks.
 ```
 
+## resend-form
+
+Contact form with server-side email delivery via Resend. Optional Turnstile protection is provisioned automatically during deployment and requires Account > Turnstile > Edit permission.
+
+**Required fields:**
+
+- `to` (non-empty string)
+- `from` (non-empty string)
+- `fields` (array)
+
+**Optional fields:**
+
+- `subject` (non-empty string)
+- `submit_label` (string)
+- `success_message` (string)
+- `turnstile` (boolean)
+
+**Example:**
+
+```yaml
+type: resend-form
+to: hello@example.com
+from: noreply@example.com    # must be a Resend-verified address
+subject: Message from my-site  # optional, default generated from site name
+submit_label: Send             # optional, default: Send
+success_message: Thanks, we will be in touch.  # optional
+turnstile: true               # optional, default: false; provisioned during deploy
+fields:                        # at least one required
+  - { name: name,    label: Your name,  type: text,     required: true }
+  - { name: email,   label: Your email, type: email,    required: true }
+  - { name: message, label: Message,    type: textarea, required: true }
+```

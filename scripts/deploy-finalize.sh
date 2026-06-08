@@ -16,6 +16,16 @@ const yaml = require('js-yaml');
 const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
 console.log(plan.slug);
 ")
+TURNSTILE_ENABLED=$(node -e "
+const yaml = require('js-yaml');
+const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
+let form = null;
+for (const page of plan.pages || []) {
+  form = (page.components || []).find((component) => component.type === 'resend-form');
+  if (form) break;
+}
+console.log(form && form.turnstile === true ? 'true' : 'false');
+")
 
 BUILD_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' "${SITE_DIR}/.deploy-output" | tail -1)
 
@@ -33,7 +43,7 @@ fi
 sed "s|{{DEPLOY_URL}}|$PROD_URL|g; s|{{SITE_NAME}}|$SITE_NAME|g" \
   scripts/templates/NEXT-STEPS.template.md > "${SITE_DIR}/NEXT-STEPS.md"
 
-if [ -f "${SITE_DIR}/functions/api/contact.js" ]; then
+if [ -f "${SITE_DIR}/functions/api/contact.js" ] && [ "$TURNSTILE_ENABLED" != "true" ]; then
   cat >> "${SITE_DIR}/NEXT-STEPS.md" << RESEND_WARNING
 
 ---
@@ -51,6 +61,17 @@ promoting this site:
 Without this, anyone can automate submissions and exhaust your Resend quota,
 damaging your sender reputation.
 RESEND_WARNING
+elif [ -f "${SITE_DIR}/functions/api/contact.js" ] && [ "$TURNSTILE_ENABLED" = "true" ]; then
+  cat >> "${SITE_DIR}/NEXT-STEPS.md" << TURNSTILE_CONFIRMATION
+
+---
+
+## Contact form protection
+
+Cloudflare Turnstile is enabled for the \`/api/contact\` endpoint. Clodsite
+created or reused the site's managed widget, restricted it to the production
+hostnames, and installed its secret in Cloudflare Pages.
+TURNSTILE_CONFIRMATION
 fi
 
 echo ""

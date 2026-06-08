@@ -37,6 +37,10 @@
   color: #c00;
 }
 
+.c-resend-form__turnstile {
+  margin-block: 1rem;
+}
+
 .c-resend-form__submit {
   align-self: flex-start;
   padding: 0.6rem 1.2rem;

@@ -10,19 +10,7 @@ deferred to keep the workflow shippable and honest.
 
 Items are ordered by proposed implementation priority.
 
-### 1. Resend-backed contact form
-
-Implement the approved `resend-form` component: a real contact form backed by
-a Cloudflare Pages Function and the Resend API. The design and implementation
-plan already exist, so this is the highest-value item that is ready to execute.
-It adds server-side delivery while preserving `mailto-form` as the zero-backend
-option.
-
-Specs:
-`docs/superpowers/specs/2026-06-02-resend-form-component-design.md` and
-`docs/superpowers/plans/2026-06-02-resend-form-component.md`.
-
-### 2. Installable skill/plugin packaging
+### 1. Installable skill/plugin packaging
 
 Clodsite currently ships as a template repo: clone it, `cd` into it, and open
 an agent there. Package Clodsite as an installable skill or plugin available
@@ -30,7 +18,7 @@ from any directory, removing the clone-and-`cd` bootstrap. Multi-site
 workspaces and configurable `SITES_DIR` have cleared the original storage and
 invocation blockers.
 
-### 3. `<head>` metadata and response headers
+### 2. `<head>` metadata and response headers
 
 Add structured `head:` configuration for metadata such as descriptions,
 canonical URLs, and social-sharing tags, plus per-path Cloudflare Pages
@@ -38,15 +26,15 @@ canonical URLs, and social-sharing tags, plus per-path Cloudflare Pages
 combined. This is the next static-site expressiveness gap and requires no
 server runtime.
 
-### 4. General Pages Functions, secrets, and Turnstile support
+### 3. General Pages Functions and secrets
 
 Generalize the function and secret pipeline beyond the specific
-`resend-form` use case. Support generated Cloudflare Pages Functions, deploy
-secrets safely, and make Turnstile-protected workflows expressible. BBPP is
-the driving example: Turnstile verification, authenticated proxying, and a
-separate rendering/email service.
+`resend-form` use case. Turnstile-protected contact forms now exercise widget
+provisioning and secret installation, but arbitrary generated Functions and
+per-component secrets are not yet expressible. BBPP remains the driving
+example: authenticated proxying and a separate rendering/email service.
 
-### 5. The `/modify` workflow
+### 4. The `/modify` workflow
 
 Add a governed change path for existing sites. The current build contract
 already supports direct, reviewable edits to `build-plan.yaml`; `/modify`
@@ -54,13 +42,13 @@ should add a deliberate delta workflow, preserve stable page IDs, validate the
 result, and rebuild only after approval. Design this against current
 build-plan-first usage rather than the legacy spec-first workflow.
 
-### 6. MCP HTTP transport
+### 5. MCP HTTP transport
 
 The MCP server currently supports stdio only. Add an authenticated HTTP
 transport so Clodsite can run as a shared or hosted deployment service while
 preserving the same `list_components` and `deploy_site` contracts.
 
-### 7. Free-form legacy interview opener
+### 6. Free-form legacy interview opener
 
 Replace the fixed ten-question `/interview` sequence with one open prompt,
 targeted follow-up questions for missing information, and a confirmation
@@ -68,7 +56,7 @@ summary before writing `site-spec.json`. Keep the fixed sequence as a fallback.
 This is lower priority because direct collaboration on `build-plan.yaml` is now
 the primary workflow and interview/spec is explicitly legacy scaffolding.
 
-### 8. Root-page routing contract
+### 7. Root-page routing contract
 
 Fix the current assumption that both the page with `id: home` and the first
 page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
@@ -78,6 +66,29 @@ current sites put `home` first.
 ---
 
 ## Completed
+
+### Resend-backed contact form
+
+Shipped June 2026. Added the `resend-form` catalog component, generated
+Cloudflare Pages Function, Resend secret deployment, server-side field
+validation, and client-side submission states. `mailto-form` remains available
+as the zero-backend option.
+
+Specs:
+`docs/superpowers/specs/2026-06-02-resend-form-component-design.md` and
+`docs/superpowers/plans/2026-06-02-resend-form-component.md`.
+
+### Turnstile protection for `resend-form`
+
+Shipped June 2026. `turnstile: true` adds a managed Cloudflare Turnstile widget
+whose site key, production hostnames, and Pages secret are provisioned
+automatically during deployment. The existing Pages Function validates
+single-use tokens, action, and hostname before calling Resend. Build plans
+contain no Cloudflare keys and local builds make no Cloudflare API calls.
+
+Specs:
+`docs/superpowers/specs/2026-06-08-resend-form-turnstile-design.md` and
+`docs/superpowers/plans/2026-06-08-resend-form-turnstile.md`.
 
 ### Multi-site workspaces
 Shipped May 2026. All commands require a `<site-name>` argument. Each site's
