@@ -16,8 +16,8 @@
 .c-mailto-form__field input,
 .c-mailto-form__field textarea {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
   font: inherit;
   font-size: 1rem;
 }
@@ -26,19 +26,19 @@
   resize: vertical;
 }
 .c-mailto-form__required {
-  color: #c00;
+  color: var(--color-error);
 }
 .c-mailto-form__submit {
   align-self: flex-start;
   padding: 0.6rem 1.2rem;
   border: none;
-  border-radius: 4px;
-  background: #222;
-  color: #fff;
+  border-radius: var(--border-radius);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
 .c-mailto-form__submit:hover {
-  background: #444;
+  filter: brightness(1.08);
 }
