@@ -38,27 +38,58 @@
   {% else %}
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   {% endif %}
-  <link rel="stylesheet" href="/css/themes/{{ site.style }}.css">
+  <link id="site-theme" rel="stylesheet" href="/css/themes/{{ site.style | escape }}.css">
+{% if site.theme_selector.enabled %}
+  <script>
+    (function () {
+      var config = {{ site.theme_selector | jsonScript | safe }};
+      var storageKey = "clodsite-theme";
+      var queryTheme = new URLSearchParams(window.location.search).get("theme");
+      var storedTheme = null;
+      try { storedTheme = window.localStorage.getItem(storageKey); } catch (_) {}
+      var theme = queryTheme !== null
+        ? (config.options.includes(queryTheme) ? queryTheme : config.default)
+        : (config.options.includes(storedTheme) ? storedTheme : config.default);
+      document.getElementById("site-theme").href = "/css/themes/" + theme + ".css";
+      window.__clodsiteTheme = { config: config, storageKey: storageKey, current: theme };
+    }());
+  </script>
+{% endif %}
   <link rel="stylesheet" href="/css/components.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  {% if site.style == "minimal" %}
+  {% if site.style == "minimal" or (site.theme_selector.enabled and "minimal" in site.theme_selector.options) %}
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  {% elif site.style == "professional" %}
+  {% endif %}
+  {% if site.style == "professional" or (site.theme_selector.enabled and "professional" in site.theme_selector.options) %}
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
-  {% elif site.style == "bold" %}
+  {% endif %}
+  {% if site.style == "bold" or (site.theme_selector.enabled and "bold" in site.theme_selector.options) %}
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
   {% endif %}
 </head>
-<body class="theme-{{ site.style }}">
+<body class="theme-{{ site.style | escape }}">
+{% if site.theme_selector.enabled %}
+  <script>
+    document.body.className = "theme-" + window.__clodsiteTheme.current;
+  </script>
+{% endif %}
   <header class="site-header">
     <nav class="site-nav">
-      <a href="/" class="site-name">{{ site.name }}</a>
+      <a href="/" class="site-name">{{ site.name | escape }}</a>
       <ul class="nav-links">
         {% for navPage in site.nav.pages %}
-          <li><a href="{{ navPage.href }}">{{ navPage.title }}</a></li>
+          <li><a href="{{ navPage.href | escape }}">{{ navPage.title | escape }}</a></li>
         {% endfor %}
       </ul>
+{% if site.theme_selector.enabled %}
+      <label class="theme-selector" hidden>
+        <span>Theme</span>
+        <select aria-label="Theme">
+{% for theme in site.theme_selector.options %}          <option value="{{ theme | escape }}">{{ theme | capitalize | escape }}</option>
+{% endfor %}        </select>
+      </label>
+{% endif %}
     </nav>
   </header>
   <main class="site-main">
@@ -66,11 +97,42 @@
   </main>
   <footer class="site-footer">
     <p>
-      &copy; {{ site.name }}
+      &copy; {{ site.name | escape }}
       {% if site.contact.enabled %}
-        &nbsp;·&nbsp; <a href="mailto:{{ site.contact.email }}">{{ site.contact.email }}</a>
+        &nbsp;·&nbsp; <a href="mailto:{{ site.contact.email | escape }}">{{ site.contact.email | escape }}</a>
       {% endif %}
     </p>
   </footer>
+{% if site.theme_selector.enabled %}
+  <script>
+    (function () {
+      var state = window.__clodsiteTheme;
+      var wrapper = document.querySelector(".theme-selector");
+      var select = wrapper.querySelector("select");
+
+      function applyTheme(theme, updateUrl) {
+        if (!state.config.options.includes(theme)) return;
+        document.getElementById("site-theme").href = "/css/themes/" + theme + ".css";
+        document.body.className = "theme-" + theme;
+        select.value = theme;
+        state.current = theme;
+        try { window.localStorage.setItem(state.storageKey, theme); } catch (_) {}
+        if (updateUrl) {
+          try {
+            var url = new URL(window.location.href);
+            url.searchParams.set("theme", theme);
+            window.history.replaceState({}, "", url);
+          } catch (_) {}
+        }
+      }
+
+      select.addEventListener("change", function () {
+        applyTheme(select.value, true);
+      });
+      applyTheme(state.current, false);
+      wrapper.hidden = false;
+    }());
+  </script>
+{% endif %}
 </body>
 </html>

@@ -1,0 +1,34 @@
+{
+  "description": "One to six linked project, resource, or next-step cards.",
+  "required": {
+    "items": {
+      "type": "array",
+      "min_items": 1,
+      "max_items": 6,
+      "items": {
+        "type": "object",
+        "required": {
+          "title": { "type": "string", "non_empty": true },
+          "description": { "type": "string", "non_empty": true },
+          "href": { "type": "string", "non_empty": true, "format": "href" }
+        },
+        "optional": {
+          "link_label": { "type": "string", "non_empty": true },
+          "image": {
+            "type": "object",
+            "required": {
+              "src": { "type": "string", "non_empty": true },
+              "alt": { "type": "string", "non_empty": true }
+            },
+            "optional": {}
+          }
+        }
+      }
+    }
+  },
+  "optional": {
+    "heading": { "type": "string", "non_empty": true },
+    "intro": { "type": "string", "non_empty": true }
+  },
+  "example": "type: resource-cards\nheading: Explore further\nitems:\n  - title: Documentation\n    description: Learn how the pieces fit together.\n    href: https://example.com/docs\n    link_label: Read the docs\n"
+}

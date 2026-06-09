@@ -29,6 +29,12 @@ function describeDescriptor(descriptor) {
   if (descriptor.non_empty === true) description = 'non-empty ' + description;
   if (Array.isArray(descriptor.enum))
     description += '; one of: ' + descriptor.enum.join(', ');
+  if (Number.isInteger(descriptor.min_items))
+    description += '; minimum ' + descriptor.min_items + ' items';
+  if (Number.isInteger(descriptor.max_items))
+    description += '; maximum ' + descriptor.max_items + ' items';
+  if (descriptor.format === 'href')
+    description += '; root-relative path, fragment, HTTPS URL, or mailto URL';
   return description;
 }
 
@@ -41,6 +47,15 @@ function collectFields(fields, prefix, requiredOut, optionalOut, isRequired) {
     if (descriptor && typeof descriptor === 'object' && descriptor.type === 'object') {
       collectFields(descriptor.required || {}, fieldPath, requiredOut, optionalOut, true);
       collectFields(descriptor.optional || {}, fieldPath, requiredOut, optionalOut, false);
+    }
+    if (descriptor && typeof descriptor === 'object' && descriptor.type === 'array' &&
+        descriptor.items && typeof descriptor.items === 'object') {
+      const itemPath = fieldPath + '[]';
+      target.push([itemPath, describeDescriptor(descriptor.items)]);
+      if (descriptor.items.type === 'object') {
+        collectFields(descriptor.items.required || {}, itemPath, requiredOut, optionalOut, true);
+        collectFields(descriptor.items.optional || {}, itemPath, requiredOut, optionalOut, false);
+      }
     }
   }
 }
@@ -75,5 +90,5 @@ for (const name of names) {
   }
 }
 
-process.stdout.write(out);
+process.stdout.write(out.trimEnd() + '\n');
 "

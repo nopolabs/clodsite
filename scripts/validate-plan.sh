@@ -29,6 +29,37 @@ const validStyles = ['minimal', 'professional', 'bold'];
 if (!validStyles.includes(plan.style))
   errors.push('style must be one of: ' + validStyles.join(', ') + ' (got: ' + plan.style + ')');
 
+if ('theme_selector' in plan) {
+  const selector = plan.theme_selector;
+  if (!isObject(selector)) {
+    errors.push('theme_selector must be an object');
+  } else {
+    const allowed = new Set(['enabled', 'options']);
+    for (const field of Object.keys(selector)) {
+      if (!allowed.has(field))
+        errors.push('theme_selector has unknown field \"' + field + '\"');
+    }
+    if (typeof selector.enabled !== 'boolean')
+      errors.push('theme_selector.enabled must be a boolean');
+    if (!Array.isArray(selector.options)) {
+      errors.push('theme_selector.options must be an array');
+    } else {
+      const seen = new Set();
+      selector.options.forEach(function(option, index) {
+        if (!validStyles.includes(option))
+          errors.push('theme_selector.options[' + index + '] must be one of: ' + validStyles.join(', '));
+        if (seen.has(option))
+          errors.push('theme_selector.options contains duplicate value: ' + option);
+        seen.add(option);
+      });
+      if (selector.enabled === true && selector.options.length < 2)
+        errors.push('theme_selector.options must contain at least two themes when enabled');
+      if (selector.enabled === true && !seen.has(plan.style))
+        errors.push('theme_selector.options must include the site style when enabled');
+    }
+  }
+}
+
 const validTones = ['professional', 'casual', 'technical', 'friendly'];
 if (!validTones.includes(plan.tone))
   errors.push('tone must be one of: ' + validTones.join(', ') + ' (got: ' + plan.tone + ')');
@@ -223,7 +254,8 @@ function validateValue(value, descriptor, fieldPath) {
   }
 
   const descriptorKeys = new Set([
-    'type', 'enum', 'non_empty', 'required', 'optional', 'items', 'min_items'
+    'type', 'enum', 'non_empty', 'required', 'optional', 'items', 'min_items',
+    'max_items', 'format'
   ]);
   const unknownDescriptorKey = Object.keys(descriptor).find(key => !descriptorKeys.has(key));
   if (unknownDescriptorKey) {
@@ -260,6 +292,22 @@ function validateValue(value, descriptor, fieldPath) {
     errors.push('invalid schema descriptor for ' + fieldPath + ': min_items requires a non-negative integer and type array');
     return;
   }
+  if ('max_items' in descriptor &&
+      (descriptor.type !== 'array' || !Number.isInteger(descriptor.max_items) ||
+       descriptor.max_items < 0)) {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': max_items requires a non-negative integer and type array');
+    return;
+  }
+  if ('min_items' in descriptor && 'max_items' in descriptor &&
+      descriptor.max_items < descriptor.min_items) {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': max_items must be greater than or equal to min_items');
+    return;
+  }
+  if ('format' in descriptor &&
+      (descriptor.type !== 'string' || descriptor.format !== 'href')) {
+    errors.push('invalid schema descriptor for ' + fieldPath + ': format must be href and requires type string');
+    return;
+  }
 
   if (!checkType(value, descriptor.type)) {
     errors.push(fieldPath + ' must be ' + descriptor.type);
@@ -271,6 +319,21 @@ function validateValue(value, descriptor, fieldPath) {
       errors.push(fieldPath + ' must be a non-empty string');
     if (Array.isArray(descriptor.enum) && !descriptor.enum.includes(value))
       errors.push(fieldPath + ' must be one of: ' + descriptor.enum.join(', '));
+    if (descriptor.format === 'href') {
+      const hasControlCharacters = /[\u0000-\u001f\u007f]/.test(value);
+      const isRootPath = /^\/(?!\/)\S*$/.test(value);
+      const isFragment = /^#[^\s#]+$/.test(value);
+      const isMailto = /^mailto:[^\s@]+@[^\s@]+$/i.test(value);
+      let isHttps = false;
+      try {
+        const parsed = new URL(value);
+        isHttps = parsed.protocol === 'https:' && parsed.hostname.length > 0;
+      } catch (_) {
+        isHttps = false;
+      }
+      if (hasControlCharacters || !(isRootPath || isFragment || isMailto || isHttps))
+        errors.push(fieldPath + ' must be a root-relative path, fragment, HTTPS URL, or mailto URL');
+    }
   }
 
   if (descriptor.type === 'object') {
@@ -301,6 +364,8 @@ function validateValue(value, descriptor, fieldPath) {
   if (descriptor.type === 'array') {
     if (typeof descriptor.min_items === 'number' && value.length < descriptor.min_items)
       errors.push(fieldPath + ' must have at least ' + descriptor.min_items + ' item(s)');
+    if (typeof descriptor.max_items === 'number' && value.length > descriptor.max_items)
+      errors.push(fieldPath + ' must have at most ' + descriptor.max_items + ' item(s)');
     if (descriptor.items) {
       value.forEach(function(item, idx) {
         validateValue(item, descriptor.items, fieldPath + '[' + idx + ']');
@@ -323,11 +388,17 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
     if (!Array.isArray(p.components) || p.components.length === 0) {
       errors.push(tag + '.components must be a non-empty array');
     } else {
+      let heroCount = 0;
       p.components.forEach(function(c, j) {
         const ctag = tag + '.components[' + j + ']';
         if (!c.type) {
           errors.push(ctag + '.type is required');
           return;
+        }
+        if (c.type === 'hero') {
+          heroCount += 1;
+          if (j !== 0)
+            errors.push(ctag + ' hero must be the first component on the page');
         }
         const schema = catalog[c.type];
         if (!schema) {
@@ -354,6 +425,8 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
           }
         }
       });
+      if (heroCount > 1)
+        errors.push(tag + ' may contain at most one hero component');
     }
   });
 }

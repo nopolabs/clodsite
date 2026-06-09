@@ -1,0 +1,45 @@
+.c-quote {
+  padding: clamp(2rem, 5vw, 4rem);
+  background: var(--color-surface-raised);
+  border-inline-start: 0.35rem solid var(--color-accent);
+  box-shadow: var(--shadow-card);
+}
+
+.c-quote--with-image {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 2rem;
+  align-items: center;
+}
+
+.c-quote__image {
+  display: block;
+  width: 8rem;
+  height: auto;
+  border-radius: 50%;
+}
+
+.c-quote blockquote p {
+  font-family: var(--font-heading);
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  line-height: 1.25;
+}
+
+.c-quote footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  color: var(--color-muted);
+}
+
+.c-quote__name {
+  color: var(--color-text);
+  font-weight: 700;
+  font-style: normal;
+}
+
+@media (max-width: 36rem) {
+  .c-quote--with-image {
+    grid-template-columns: 1fr;
+  }
+}

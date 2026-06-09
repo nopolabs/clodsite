@@ -8,6 +8,67 @@ Each component has a `type` field naming one of the entries below.
 
 ---
 
+## call-to-action
+
+A focused closing prompt with one or two actions.
+
+**Required fields:**
+
+- `heading` (non-empty string)
+- `markdown` (non-empty string)
+- `actions` (array; minimum 1 items; maximum 2 items)
+- `actions[]` (object)
+- `actions[].label` (non-empty string)
+- `actions[].href` (non-empty string; root-relative path, fragment, HTTPS URL, or mailto URL)
+
+**Optional fields:**
+
+- `actions[].style` (string; one of: primary, secondary)
+- `emphasis` (string; one of: strong, subtle)
+
+**Example:**
+
+```yaml
+type: call-to-action
+heading: Ready for the next step?
+markdown: |
+  Keep the request short and concrete.
+actions:
+  - label: Start here
+    href: /start/
+    style: primary
+emphasis: strong
+```
+
+## feature-grid
+
+A compact grid of two to six features or benefits.
+
+**Required fields:**
+
+- `items` (array; minimum 2 items; maximum 6 items)
+- `items[]` (object)
+- `items[].title` (non-empty string)
+- `items[].text` (non-empty string)
+
+**Optional fields:**
+
+- `heading` (non-empty string)
+- `intro` (non-empty string)
+
+**Example:**
+
+```yaml
+type: feature-grid
+heading: What you get
+intro: A short orientation to the group.
+items:
+  - title: Focused
+    text: Each item makes one clear point.
+  - title: Responsive
+    text: The grid adapts to smaller screens.
+```
+
 ## gallery
 
 Responsive image grid. Each image: { src (string), alt (string), caption (optional string) }.
@@ -27,6 +88,75 @@ type: gallery
 images:
   - { src: /assets/images/photo.jpg, alt: Description of photo }
   - { src: /assets/images/photo2.jpg, alt: Another photo, caption: Optional caption }
+```
+
+## hero
+
+A page-opening statement with optional eyebrow, actions, and one image.
+
+**Required fields:**
+
+- `heading` (non-empty string)
+- `markdown` (non-empty string)
+- `actions[].label` (non-empty string)
+- `actions[].href` (non-empty string; root-relative path, fragment, HTTPS URL, or mailto URL)
+- `image.src` (non-empty string)
+- `image.alt` (non-empty string)
+
+**Optional fields:**
+
+- `eyebrow` (non-empty string)
+- `actions` (array; minimum 1 items; maximum 2 items)
+- `actions[]` (object)
+- `actions[].style` (string; one of: primary, secondary)
+- `image` (object)
+- `image_position` (string; one of: left, right)
+
+**Example:**
+
+```yaml
+type: hero
+eyebrow: A small introduction
+heading: A clear promise
+markdown: |
+  Explain who this is for and why it matters.
+actions:
+  - label: Get started
+    href: /start/
+    style: primary
+image:
+  src: /assets/hero.jpg
+  alt: A useful description
+image_position: right
+```
+
+## key-facts
+
+Two to six prominent values with labels and optional supporting detail.
+
+**Required fields:**
+
+- `items` (array; minimum 2 items; maximum 6 items)
+- `items[]` (object)
+- `items[].value` (non-empty string)
+- `items[].label` (non-empty string)
+
+**Optional fields:**
+
+- `items[].detail` (non-empty string)
+- `heading` (non-empty string)
+
+**Example:**
+
+```yaml
+type: key-facts
+heading: At a glance
+items:
+  - value: 6
+    label: focused components
+    detail: A deliberately constrained catalog.
+  - value: 3
+    label: built-in themes
 ```
 
 ## mailto-form
@@ -110,6 +240,33 @@ markdown: |
   and fenced code blocks.
 ```
 
+## quote
+
+A single emphasized quotation with attribution and an optional image.
+
+**Required fields:**
+
+- `quote` (non-empty string)
+- `attribution` (object)
+- `attribution.name` (non-empty string)
+- `image.src` (non-empty string)
+- `image.alt` (non-empty string)
+
+**Optional fields:**
+
+- `attribution.role` (non-empty string)
+- `image` (object)
+
+**Example:**
+
+```yaml
+type: quote
+quote: Constraints make the important choices visible.
+attribution:
+  name: Example Person
+  role: Site builder
+```
+
 ## resend-form
 
 Contact form with server-side email delivery via Resend. Optional Turnstile protection is provisioned automatically during deployment and requires Account > Turnstile > Edit permission.
@@ -118,7 +275,12 @@ Contact form with server-side email delivery via Resend. Optional Turnstile prot
 
 - `to` (non-empty string)
 - `from` (non-empty string)
-- `fields` (array)
+- `fields` (array; minimum 1 items)
+- `fields[]` (object)
+- `fields[].name` (non-empty string)
+- `fields[].label` (non-empty string)
+- `fields[].type` (string; one of: text, email, textarea)
+- `fields[].required` (boolean)
 
 **Optional fields:**
 
@@ -141,4 +303,37 @@ fields:                        # at least one required
   - { name: name,    label: Your name,  type: text,     required: true }
   - { name: email,   label: Your email, type: email,    required: true }
   - { name: message, label: Message,    type: textarea, required: true }
+```
+
+## resource-cards
+
+One to six linked project, resource, or next-step cards.
+
+**Required fields:**
+
+- `items` (array; minimum 1 items; maximum 6 items)
+- `items[]` (object)
+- `items[].title` (non-empty string)
+- `items[].description` (non-empty string)
+- `items[].href` (non-empty string; root-relative path, fragment, HTTPS URL, or mailto URL)
+- `items[].image.src` (non-empty string)
+- `items[].image.alt` (non-empty string)
+
+**Optional fields:**
+
+- `items[].link_label` (non-empty string)
+- `items[].image` (object)
+- `heading` (non-empty string)
+- `intro` (non-empty string)
+
+**Example:**
+
+```yaml
+type: resource-cards
+heading: Explore further
+items:
+  - title: Documentation
+    description: Learn how the pieces fit together.
+    href: https://example.com/docs
+    link_label: Read the docs
 ```

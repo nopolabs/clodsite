@@ -1,0 +1,81 @@
+slug: goal-components-test
+name: Goal Components Test
+overview: Fixture exercising every goal-oriented component.
+style: bold
+tone: friendly
+theme_selector:
+  enabled: true
+  options: [minimal, professional, bold]
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: hero
+        eyebrow: Component <lookbook>
+        heading: Build around the message & next action
+        markdown: |
+          This **Markdown** introduction explains the promise.
+        actions:
+          - label: See <features>
+            href: "#features"
+            style: primary
+          - label: View source
+            href: https://github.com/nopolabs/clodsite
+            style: secondary
+        image:
+          src: /assets/hero.jpg
+          alt: A <useful> hero description
+        image_position: left
+      - type: feature-grid
+        heading: Why it works
+        intro: A small, deliberate set of benefits.
+        items:
+          - title: Reviewable
+            text: The complete contract is ordinary YAML.
+          - title: Deterministic
+            text: Valid plans compile without another inference step.
+      - type: key-facts
+        heading: At a glance
+        items:
+          - value: "6"
+            label: Focused components
+            detail: Each answers a common communication need.
+          - value: "3"
+            label: Built-in themes
+      - type: quote
+        quote: "<strong>Constraints</strong> make the important choices visible."
+        attribution:
+          name: Clodsite design principle
+          role: Project documentation
+        image:
+          src: /assets/portrait.jpg
+          alt: Portrait of the quoted person
+      - type: resource-cards
+        heading: Keep exploring
+        intro: Projects and references that continue the story.
+        items:
+          - title: Clodsite on GitHub
+            description: Source, design documents, and component catalog.
+            href: https://github.com/nopolabs/clodsite
+            link_label: View repository
+            image:
+              src: /assets/card.jpg
+              alt: Source repository preview
+          - title: Documentation
+            description: Learn how a build plan becomes a site.
+            href: /docs/
+      - type: call-to-action
+        heading: Build the next clear page
+        markdown: |
+          Start with the visitor's goal and choose only the components it needs.
+        actions:
+          - label: Start now
+            href: mailto:hello@example.com
+          - label: Review features
+            href: "#features"
+            style: secondary
+        emphasis: subtle
+nav:
+  order: [home]
+contact:
+  enabled: false

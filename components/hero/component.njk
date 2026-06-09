@@ -1,0 +1,13 @@
+<section class="c-hero{% if component.image %} c-hero--with-image c-hero--image-{{ component.image_position or 'right' }}{% endif %}">
+  <div class="c-hero__content">
+{% if component.eyebrow %}    <p class="c-hero__eyebrow">{{ component.eyebrow | escape }}</p>
+{% endif %}    <h1>{{ component.heading | escape }}</h1>
+    <div class="c-hero__prose">{{ component.markdown | md | safe }}</div>
+{% if component.actions %}    <div class="c-hero__actions">
+{% for action in component.actions %}      <a class="c-action c-action--{{ action.style or 'primary' }}" href="{{ action.href | escape }}">{{ action.label | escape }}</a>
+{% endfor %}    </div>
+{% endif %}  </div>
+{% if component.image %}  <div class="c-hero__media">
+    <img src="{{ component.image.src | escape }}" alt="{{ component.image.alt | escape }}">
+  </div>
+{% endif %}</section>

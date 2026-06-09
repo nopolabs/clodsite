@@ -1,0 +1,10 @@
+<section class="c-feature-grid">
+{% if component.heading %}  <h2>{{ component.heading | escape }}</h2>
+{% endif %}{% if component.intro %}  <p class="c-feature-grid__intro">{{ component.intro | escape }}</p>
+{% endif %}  <ul class="c-feature-grid__items">
+{% for item in component.items %}    <li class="c-feature-grid__item">
+      <h3>{{ item.title | escape }}</h3>
+      <p>{{ item.text | escape }}</p>
+    </li>
+{% endfor %}  </ul>
+</section>

@@ -2,7 +2,6 @@
   display: grid;
   gap: clamp(2rem, 5vw, 4rem);
   align-items: start;
-  margin-bottom: var(--spacing-section);
 }
 
 .c-media-section__media {

@@ -90,13 +90,15 @@ for (const page of plan.pages) {
   };
 
   let body = '';
-  for (const component of (page.components || [])) {
+  for (const [componentIndex, component] of (page.components || []).entries()) {
     if (!component.type) {
       console.error('Error: page ' + page.id + ' has a component with no type');
       process.exit(1);
     }
-    body += '{% set component = ' + JSON.stringify(component) + ' %}\n';
+    body += '<div class=\"c-component c-component--' + component.type + '\">\n';
+    body += '{% set component = pageComponents[' + componentIndex + '] %}\n';
     body += '{% include \"' + component.type + '/component.njk\" %}\n';
+    body += '</div>\n';
   }
 
   const out =
@@ -104,6 +106,7 @@ for (const page of plan.pages) {
     'layout: base.njk\n' +
     'pageTitle: ' + escapeForYaml(page.title) + '\n' +
     'pageHead: ' + JSON.stringify(pageHead) + '\n' +
+    'pageComponents: ' + JSON.stringify(page.components || []) + '\n' +
     'permalink: ' + permalink + '\n' +
     '---\n' +
     body;

@@ -1,0 +1,26 @@
+{
+  "description": "A focused closing prompt with one or two actions.",
+  "required": {
+    "heading": { "type": "string", "non_empty": true },
+    "markdown": { "type": "string", "non_empty": true },
+    "actions": {
+      "type": "array",
+      "min_items": 1,
+      "max_items": 2,
+      "items": {
+        "type": "object",
+        "required": {
+          "label": { "type": "string", "non_empty": true },
+          "href": { "type": "string", "non_empty": true, "format": "href" }
+        },
+        "optional": {
+          "style": { "type": "string", "enum": ["primary", "secondary"] }
+        }
+      }
+    }
+  },
+  "optional": {
+    "emphasis": { "type": "string", "enum": ["strong", "subtle"] }
+  },
+  "example": "type: call-to-action\nheading: Ready for the next step?\nmarkdown: |\n  Keep the request short and concrete.\nactions:\n  - label: Start here\n    href: /start/\n    style: primary\nemphasis: strong\n"
+}

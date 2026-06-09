@@ -1,0 +1,35 @@
+{
+  "description": "A page-opening statement with optional eyebrow, actions, and one image.",
+  "required": {
+    "heading": { "type": "string", "non_empty": true },
+    "markdown": { "type": "string", "non_empty": true }
+  },
+  "optional": {
+    "eyebrow": { "type": "string", "non_empty": true },
+    "actions": {
+      "type": "array",
+      "min_items": 1,
+      "max_items": 2,
+      "items": {
+        "type": "object",
+        "required": {
+          "label": { "type": "string", "non_empty": true },
+          "href": { "type": "string", "non_empty": true, "format": "href" }
+        },
+        "optional": {
+          "style": { "type": "string", "enum": ["primary", "secondary"] }
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": {
+        "src": { "type": "string", "non_empty": true },
+        "alt": { "type": "string", "non_empty": true }
+      },
+      "optional": {}
+    },
+    "image_position": { "type": "string", "enum": ["left", "right"] }
+  },
+  "example": "type: hero\neyebrow: A small introduction\nheading: A clear promise\nmarkdown: |\n  Explain who this is for and why it matters.\nactions:\n  - label: Get started\n    href: /start/\n    style: primary\nimage:\n  src: /assets/hero.jpg\n  alt: A useful description\nimage_position: right\n"
+}

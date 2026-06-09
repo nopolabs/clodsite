@@ -1,0 +1,26 @@
+{
+  "description": "A single emphasized quotation with attribution and an optional image.",
+  "required": {
+    "quote": { "type": "string", "non_empty": true },
+    "attribution": {
+      "type": "object",
+      "required": {
+        "name": { "type": "string", "non_empty": true }
+      },
+      "optional": {
+        "role": { "type": "string", "non_empty": true }
+      }
+    }
+  },
+  "optional": {
+    "image": {
+      "type": "object",
+      "required": {
+        "src": { "type": "string", "non_empty": true },
+        "alt": { "type": "string", "non_empty": true }
+      },
+      "optional": {}
+    }
+  },
+  "example": "type: quote\nquote: Constraints make the important choices visible.\nattribution:\n  name: Example Person\n  role: Site builder\n"
+}
