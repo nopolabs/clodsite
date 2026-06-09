@@ -1,0 +1,108 @@
+.c-hero {
+  display: grid;
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: center;
+  padding: clamp(2rem, 5vw, 4rem);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-card);
+}
+
+.c-hero--with-image {
+  grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
+}
+
+.c-hero--image-left .c-hero__media {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.c-hero--image-left .c-hero__content {
+  grid-column: 2;
+}
+
+.c-hero__eyebrow {
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.c-hero h1 {
+  font-size: clamp(2.5rem, 7vw, 5rem);
+}
+
+.c-hero__prose {
+  color: var(--color-muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  max-width: 42rem;
+}
+
+.c-hero__prose > :last-child {
+  margin-bottom: 0;
+}
+
+.c-hero__media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--border-radius);
+}
+
+.c-hero__actions,
+.c-call-to-action__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.c-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.1rem;
+  border: 2px solid var(--color-accent);
+  border-radius: var(--border-radius);
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.c-action--primary {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.c-action--secondary {
+  background: transparent;
+  color: var(--color-accent);
+}
+
+.c-action:hover {
+  filter: brightness(1.08);
+}
+
+.c-action:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 3px;
+}
+
+@media (max-width: 48rem) {
+  .c-hero--with-image {
+    grid-template-columns: 1fr;
+  }
+
+  .c-hero--image-left .c-hero__media,
+  .c-hero--image-left .c-hero__content {
+    grid-column: 1;
+  }
+
+  .c-hero--image-left .c-hero__media {
+    grid-row: auto;
+  }
+}

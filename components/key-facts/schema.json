@@ -1,0 +1,24 @@
+{
+  "description": "Two to six prominent values with labels and optional supporting detail.",
+  "required": {
+    "items": {
+      "type": "array",
+      "min_items": 2,
+      "max_items": 6,
+      "items": {
+        "type": "object",
+        "required": {
+          "value": { "type": "string", "non_empty": true },
+          "label": { "type": "string", "non_empty": true }
+        },
+        "optional": {
+          "detail": { "type": "string", "non_empty": true }
+        }
+      }
+    }
+  },
+  "optional": {
+    "heading": { "type": "string", "non_empty": true }
+  },
+  "example": "type: key-facts\nheading: At a glance\nitems:\n  - value: 6\n    label: focused components\n    detail: A deliberately constrained catalog.\n  - value: 3\n    label: built-in themes\n"
+}

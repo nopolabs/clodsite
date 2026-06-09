@@ -1,0 +1,9 @@
+<section class="c-call-to-action c-call-to-action--{{ component.emphasis or 'strong' }}">
+  <div class="c-call-to-action__content">
+    <h2>{{ component.heading | escape }}</h2>
+    <div class="c-call-to-action__prose">{{ component.markdown | md | safe }}</div>
+  </div>
+  <div class="c-call-to-action__actions">
+{% for action in component.actions %}    <a class="c-action c-action--{{ action.style or 'primary' }}" href="{{ action.href | escape }}">{{ action.label | escape }}</a>
+{% endfor %}  </div>
+</section>

@@ -1,0 +1,23 @@
+{
+  "description": "A compact grid of two to six features or benefits.",
+  "required": {
+    "items": {
+      "type": "array",
+      "min_items": 2,
+      "max_items": 6,
+      "items": {
+        "type": "object",
+        "required": {
+          "title": { "type": "string", "non_empty": true },
+          "text": { "type": "string", "non_empty": true }
+        },
+        "optional": {}
+      }
+    }
+  },
+  "optional": {
+    "heading": { "type": "string", "non_empty": true },
+    "intro": { "type": "string", "non_empty": true }
+  },
+  "example": "type: feature-grid\nheading: What you get\nintro: A short orientation to the group.\nitems:\n  - title: Focused\n    text: Each item makes one clear point.\n  - title: Responsive\n    text: The grid adapts to smaller screens.\n"
+}

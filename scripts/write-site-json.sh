@@ -65,6 +65,11 @@ const hasCustomFavicons = favicons.length > 0;
 const siteData = {
   name: plan.name,
   style: plan.style,
+  theme_selector: {
+    enabled: plan.theme_selector?.enabled === true,
+    options: plan.theme_selector?.enabled === true ? plan.theme_selector.options : [],
+    default: plan.style
+  },
   nav: {
     order: plan.nav.order,
     pages: navPages

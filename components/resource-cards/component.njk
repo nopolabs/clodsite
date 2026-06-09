@@ -1,0 +1,16 @@
+<section class="c-resource-cards">
+{% if component.heading %}  <h2>{{ component.heading | escape }}</h2>
+{% endif %}{% if component.intro %}  <p class="c-resource-cards__intro">{{ component.intro | escape }}</p>
+{% endif %}  <ul class="c-resource-cards__items">
+{% for item in component.items %}    <li>
+      <article class="c-resource-card">
+{% if item.image %}        <img src="{{ item.image.src | escape }}" alt="{{ item.image.alt | escape }}">
+{% endif %}        <div class="c-resource-card__body">
+          <h3>{{ item.title | escape }}</h3>
+          <p>{{ item.description | escape }}</p>
+          <a href="{{ item.href | escape }}">{{ (item.link_label or 'Learn more') | escape }}<span aria-hidden="true"> →</span></a>
+        </div>
+      </article>
+    </li>
+{% endfor %}  </ul>
+</section>

@@ -69,6 +69,35 @@ Validate a legacy spec. Write all page content. Produces `$SITES_DIR/<site-name>
 
 User reviews `$SITES_DIR/<site-name>/build-plan.yaml` before running `/build`.
 
+### Component authoring
+
+Read `components/CATALOG.md` before constructing component arrays. Use the
+catalog's constrained communication patterns rather than inventing layout
+fields or raw HTML:
+
+- `hero` opens a page and must be its first component; at most one per page.
+- `feature-grid` explains two to six features or benefits.
+- `key-facts` presents two to six scannable values.
+- `quote` renders one plain-text quotation with attribution.
+- `resource-cards` presents one to six actionable resources.
+- `call-to-action` asks for one focused next step with one or two actions.
+
+Actions accept only `label`, safe `href`, and optional
+`style: primary|secondary`. The build plan does not control columns, colors,
+alignment, spacing, or breakpoints.
+
+For a site-wide live comparison of built-in themes, opt in explicitly:
+
+```yaml
+style: bold
+theme_selector:
+  enabled: true
+  options: [minimal, professional, bold]
+```
+
+Keep ordinary customer sites fixed-theme unless the user asks for a selector.
+The canonical lookbook site is `$SITES_DIR/clodsite-demo`.
+
 ### `/build` — `[SCRIPT]`
 Render build plan to templates. Run Eleventy. Produces `$SITES_DIR/<site-name>/dist/`. All content is read from `build-plan.yaml` — no content decisions happen here.
 

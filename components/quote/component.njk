@@ -1,0 +1,12 @@
+<section class="c-quote{% if component.image %} c-quote--with-image{% endif %}">
+{% if component.image %}  <img class="c-quote__image" src="{{ component.image.src | escape }}" alt="{{ component.image.alt | escape }}">
+{% endif %}  <figure>
+    <blockquote>
+      <p>{{ component.quote | escape }}</p>
+    </blockquote>
+    <footer>
+      <cite class="c-quote__name">{{ component.attribution.name | escape }}</cite>
+{% if component.attribution.role %}      <span class="c-quote__role">{{ component.attribution.role | escape }}</span>
+{% endif %}    </footer>
+  </figure>
+</section>

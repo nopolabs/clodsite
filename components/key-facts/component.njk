@@ -1,0 +1,10 @@
+<section class="c-key-facts">
+{% if component.heading %}  <h2>{{ component.heading | escape }}</h2>
+{% endif %}  <dl class="c-key-facts__items">
+{% for item in component.items %}    <div class="c-key-facts__item">
+      <dt>{{ item.label | escape }}</dt>
+      <dd class="c-key-facts__value">{{ item.value | escape }}</dd>
+{% if item.detail %}      <dd class="c-key-facts__detail">{{ item.detail | escape }}</dd>
+{% endif %}    </div>
+{% endfor %}  </dl>
+</section>

@@ -41,7 +41,7 @@ assert_dir_exists() {
 
 assert_contains() {
   local desc="$1" needle="$2" haystack="$3"
-  if echo "$haystack" | grep -qF "$needle"; then
+  if echo "$haystack" | grep -qF -- "$needle"; then
     echo "  ✓ $desc"
     PASS=$((PASS + 1))
   else
@@ -52,7 +52,7 @@ assert_contains() {
 
 assert_not_contains() {
   local desc="$1" needle="$2" haystack="$3"
-  if echo "$haystack" | grep -qF "$needle"; then
+  if echo "$haystack" | grep -qF -- "$needle"; then
     echo "  ✗ $desc (did not expect: $needle)"
     FAIL=$((FAIL + 1))
   else
@@ -133,6 +133,16 @@ else
   echo "  ✗ site.json name not set correctly"
   FAIL=$((FAIL + 1))
 fi
+JSON=$(cat "${SITE_DIR}/src/_data/site.json")
+assert_contains "fixed-theme site disables selector" '"enabled": false' "$JSON"
+assert_contains "fixed-theme site records default theme" '"default": "minimal"' "$JSON"
+
+cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+JSON=$(cat "${SITE_DIR}/src/_data/site.json")
+assert_contains "selector state is enabled" '"enabled": true' "$JSON"
+assert_contains "selector preserves ordered options" '"minimal",' "$JSON"
+assert_contains "selector records bold default" '"default": "bold"' "$JSON"
 
 # ── write-site-json.sh: favicon discovery ─────────────────────────────────────
 echo ""
@@ -181,13 +191,21 @@ assert_file_exists "components.css written"         "scaffold/src/css/components
 BUNDLE=$(cat scaffold/src/css/components.css)
 assert_contains   "bundle has c-gallery rule"       ".c-gallery"      "$BUNDLE"
 assert_contains   "bundle has c-mailto-form rule"   ".c-mailto-form"  "$BUNDLE"
+for component in hero feature-grid key-facts quote resource-cards call-to-action; do
+  assert_contains "bundle has c-${component} rule" ".c-${component}" "$BUNDLE"
+done
 
 # Theme navigation wraps below the shared narrow-screen breakpoint.
 for theme in minimal professional bold; do
   THEME_CSS=$(cat "scaffold/src/css/themes/${theme}.css")
+  for token in color-muted color-border color-on-accent color-surface-raised shadow-card; do
+    assert_contains "${theme} defines --${token}" "--${token}:" "$THEME_CSS"
+  done
   assert_contains "${theme} theme has narrow-screen breakpoint" "@media (max-width: 48rem)" "$THEME_CSS"
   assert_contains "${theme} theme stacks site navigation" "flex-direction: column" "$THEME_CSS"
   assert_contains "${theme} theme wraps navigation links" "flex-wrap: wrap" "$THEME_CSS"
+  assert_contains "${theme} spaces adjacent component wrappers" ".site-main > .c-component + .c-component" "$THEME_CSS"
+  assert_not_contains "${theme} does not globally space all sections" "section { margin-bottom:" "$THEME_CSS"
 done
 
 # ── migrate-site.sh ───────────────────────────────────────────────────────────
@@ -338,11 +356,13 @@ INDEX=$(cat "${SITE_DIR}/src/index.njk")
 assert_contains "index has front matter"          "permalink: /"          "$INDEX"
 assert_contains "index sets pageTitle"            "pageTitle: Home"       "$INDEX"
 assert_contains "index includes prose component"  "prose/component.njk"   "$INDEX"
+assert_contains "index wraps prose component"     'class="c-component c-component--prose"' "$INDEX"
 
 GAL=$(cat "${SITE_DIR}/src/gallery.njk")
 assert_contains "gallery permalink"               "permalink: /gallery/"  "$GAL"
 assert_contains "gallery includes prose first"    "prose/component.njk"   "$GAL"
 assert_contains "gallery includes gallery type"   "gallery/component.njk" "$GAL"
+assert_contains "gallery wraps gallery component" 'class="c-component c-component--gallery"' "$GAL"
 
 cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"
 rm -rf "${SITE_DIR}/src"
@@ -548,6 +568,45 @@ SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
 MEDIA_HTML=$(cat "${SITE_DIR}/dist/index.html")
 assert_not_contains "media-section omits absent caption" "<figcaption>" "$MEDIA_HTML"
 
+# Goal-oriented components and theme selector rendering
+cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist"
+mkdir -p "${SITE_DIR}/assets"
+for image in hero portrait card; do printf 'fixture' > "${SITE_DIR}/assets/${image}.jpg"; done
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "goal-components fixture builds" 0 $?
+GOAL_HTML=$(cat "${SITE_DIR}/dist/index.html")
+for component in hero feature-grid key-facts quote resource-cards call-to-action; do
+  assert_contains "HTML renders c-${component}" "c-${component}" "$GOAL_HTML"
+  assert_contains "HTML wraps ${component}" "c-component--${component}" "$GOAL_HTML"
+done
+assert_contains "hero renders semantic h1" '<h1>Build around the message &amp; next action</h1>' "$GOAL_HTML"
+assert_contains "hero Markdown renders" '<strong>Markdown</strong>' "$GOAL_HTML"
+assert_contains "hero primary action renders" 'c-action c-action--primary' "$GOAL_HTML"
+assert_contains "hero secondary action renders" 'c-action c-action--secondary' "$GOAL_HTML"
+assert_contains "hero text precedes image in DOM" 'c-hero__content' "$GOAL_HTML"
+assert_contains "feature grid uses a list" 'c-feature-grid__items' "$GOAL_HTML"
+assert_contains "key facts uses definition list" '<dl class="c-key-facts__items">' "$GOAL_HTML"
+assert_contains "quote uses blockquote" '<blockquote>' "$GOAL_HTML"
+assert_contains "quote uses footer" '<footer>' "$GOAL_HTML"
+assert_contains "quote uses cite" '<cite class="c-quote__name">' "$GOAL_HTML"
+assert_not_contains "quote does not interpret HTML" '<strong>Constraints</strong>' "$GOAL_HTML"
+assert_contains "quote escapes plain text" '&lt;strong&gt;Constraints&lt;/strong&gt;' "$GOAL_HTML"
+assert_contains "resource card uses article" '<article class="c-resource-card">' "$GOAL_HTML"
+assert_contains "resource card default label renders" 'Learn more' "$GOAL_HTML"
+assert_contains "CTA subtle modifier renders" 'c-call-to-action--subtle' "$GOAL_HTML"
+assert_contains "theme link has stable ID" 'id="site-theme"' "$GOAL_HTML"
+assert_contains "theme selector is labeled" 'aria-label="Theme"' "$GOAL_HTML"
+assert_contains "theme selector starts hidden" 'class="theme-selector" hidden' "$GOAL_HTML"
+assert_contains "theme script uses structured allowlist" '"options":["minimal","professional","bold"]' "$GOAL_HTML"
+assert_contains "theme script updates URL without reload" 'history.replaceState' "$GOAL_HTML"
+assert_contains "all configured theme fonts load" 'family=Inter' "$GOAL_HTML"
+assert_contains "professional font loads" 'family=Merriweather' "$GOAL_HTML"
+assert_contains "bold font loads" 'family=Space+Grotesk' "$GOAL_HTML"
+
 # ── generate-catalog-md.sh ────────────────────────────────────────────────────
 echo ""
 echo "=== generate-catalog-md.sh ==="
@@ -570,6 +629,14 @@ assert_contains "catalog shows optional caption" '`image.caption` (string)' "$CA
 assert_contains "catalog shows media example"    "type: media-section" "$CATALOG"
 assert_contains "catalog preserves primitive type" '`markdown` (string)' "$CATALOG"
 assert_contains "catalog shows optional Turnstile field" '`turnstile` (boolean)' "$CATALOG"
+for component in hero feature-grid key-facts quote resource-cards call-to-action; do
+  assert_contains "catalog lists ${component}" "## ${component}" "$CATALOG"
+done
+assert_contains "catalog shows array item path" '`items[]`' "$CATALOG"
+assert_contains "catalog shows nested item title" '`items[].title`' "$CATALOG"
+assert_contains "catalog shows nested action href" '`actions[].href`' "$CATALOG"
+assert_contains "catalog shows maximum item count" 'maximum 6 items' "$CATALOG"
+assert_contains "catalog shows href format" 'HTTPS URL, or mailto URL' "$CATALOG"
 rm -f "$TMP_CATALOG"
 
 # ── setup.sh --init-sites ─────────────────────────────────────────────────────
@@ -687,6 +754,89 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "build_notes is reje
 
 cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component plan exits 0" 0 $?
+
+cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid goal-components plan exits 0" 0 $?
+
+for mutation in too-many-actions too-many-features unsafe-href hero-not-first second-hero; do
+  cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
+  MUTATION="$mutation" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+const components=p.pages[0].components;
+switch (process.env.MUTATION) {
+  case 'too-many-actions': components[0].actions.push({label:'Third', href:'/third/'}); break;
+  case 'too-many-features': while (components[1].items.length < 7) components[1].items.push({title:'More', text:'More detail'}); break;
+  case 'unsafe-href': components[4].items[0].href='javascript:alert(1)'; break;
+  case 'hero-not-first': components.unshift(components.splice(1, 1)[0]); break;
+  case 'second-hero': components.push(JSON.parse(JSON.stringify(components[0]))); break;
+}
+fs.writeFileSync(file, yaml.dump(p));
+"
+  OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+  assert_exit "goal mutation ${mutation} exits 1" 1 $?
+done
+
+for href in /path/ '#fragment' https://example.com mailto:hello@example.com; do
+  cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
+  HREF="$href" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.pages[0].components[0].actions[0].href=process.env.HREF;
+fs.writeFileSync(file, yaml.dump(p));
+"
+  bash scripts/validate-plan.sh > /dev/null 2>&1
+  assert_exit "href ${href} passes" 0 $?
+done
+
+for href in relative/path //example.com http://example.com https:// javascript:alert data:text/plain,x; do
+  cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
+  HREF="$href" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.pages[0].components[0].actions[0].href=process.env.HREF;
+fs.writeFileSync(file, yaml.dump(p));
+"
+  OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+  assert_exit "unsafe href ${href} exits 1" 1 $?
+  assert_contains "unsafe href names full field path" "pages[0].components[0].actions[0].href" "$OUTPUT"
+done
+
+for mutation in missing-default duplicate unknown one-item non-array non-boolean unknown-field non-object; do
+  cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
+  MUTATION="$mutation" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+switch (process.env.MUTATION) {
+  case 'missing-default': p.theme_selector.options=['minimal','professional']; break;
+  case 'duplicate': p.theme_selector.options=['bold','bold']; break;
+  case 'unknown': p.theme_selector.options=['bold','future']; break;
+  case 'one-item': p.theme_selector.options=['bold']; break;
+  case 'non-array': p.theme_selector.options='bold'; break;
+  case 'non-boolean': p.theme_selector.enabled='yes'; break;
+  case 'unknown-field': p.theme_selector.label='Theme'; break;
+  case 'non-object': p.theme_selector=true; break;
+}
+fs.writeFileSync(file, yaml.dump(p));
+"
+  bash scripts/validate-plan.sh > /dev/null 2>&1
+  assert_exit "theme-selector mutation ${mutation} exits 1" 1 $?
+done
+
+cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.theme_selector={enabled:false, options:[]};
+fs.writeFileSync(file, yaml.dump(p));
+"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "disabled selector accepts empty options" 0 $?
 
 # Metadata and response-header validation
 cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"

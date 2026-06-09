@@ -23,6 +23,36 @@ Describe ──[AI + customer]──▶ build-plan.yaml ──[SCRIPT]──▶ 
 
 A given `build-plan.yaml` always produces the same site. The build and deploy pipeline does not care how the plan was produced.
 
+### Component catalog
+
+Pages are assembled from a constrained catalog rather than arbitrary layout
+instructions. Foundational components cover prose, galleries, media sections,
+and contact forms. Goal-oriented components add common communication patterns:
+
+- `hero`
+- `feature-grid`
+- `key-facts`
+- `quote`
+- `resource-cards`
+- `call-to-action`
+
+The generated [`components/CATALOG.md`](components/CATALOG.md) is the complete
+authoring contract, including required fields, nested objects, item limits,
+safe links, and examples.
+
+Sites normally use one of the `minimal`, `professional`, or `bold` themes. A
+site may optionally enable a live selector for two or more built-in themes:
+
+```yaml
+style: bold
+theme_selector:
+  enabled: true
+  options: [minimal, professional, bold]
+```
+
+The selector changes the whole site, persists the visitor's choice, and
+supports shareable `?theme=<name>` preview URLs.
+
 ---
 
 ## Getting Started

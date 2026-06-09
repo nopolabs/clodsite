@@ -1,0 +1,38 @@
+.c-feature-grid__intro,
+.c-resource-cards__intro {
+  color: var(--color-muted);
+  max-width: 46rem;
+}
+
+.c-feature-grid__items,
+.c-resource-cards__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1.25rem;
+  margin-top: 2rem;
+  padding: 0;
+  list-style: none;
+}
+
+.c-feature-grid__item {
+  padding: 1.5rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-card);
+}
+
+.c-feature-grid__item h3 {
+  color: var(--color-accent);
+}
+
+.c-feature-grid__item > :last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 48rem) {
+  .c-feature-grid__items,
+  .c-resource-cards__items {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
