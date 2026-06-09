@@ -44,6 +44,152 @@ if (typeof plan.custom_domain === 'string' && plan.custom_domain.trim() !== '') 
     errors.push('custom_domain must be a hostname only, e.g. www.example.com');
 }
 
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validateNonEmptyString(value, fieldPath) {
+  if (typeof value !== 'string') {
+    errors.push(fieldPath + ' must be a string');
+    return false;
+  }
+  if (value.trim().length === 0) {
+    errors.push(fieldPath + ' must be a non-empty string');
+    return false;
+  }
+  return true;
+}
+
+function validateHead(head, fieldPath) {
+  if (!isObject(head)) {
+    errors.push(fieldPath + ' must be an object');
+    return;
+  }
+
+  const allowed = new Set(['description', 'image']);
+  for (const field of Object.keys(head)) {
+    if (!allowed.has(field))
+      errors.push(fieldPath + ' has unknown field \"' + field + '\"');
+  }
+
+  if ('description' in head)
+    validateNonEmptyString(head.description, fieldPath + '.description');
+
+  if ('image' in head) {
+    const imagePath = fieldPath + '.image';
+    if (!isObject(head.image)) {
+      errors.push(imagePath + ' must be an object');
+      return;
+    }
+
+    const imageAllowed = new Set(['src', 'alt']);
+    for (const field of Object.keys(head.image)) {
+      if (!imageAllowed.has(field))
+        errors.push(imagePath + ' has unknown field \"' + field + '\"');
+    }
+
+    for (const field of ['src', 'alt']) {
+      if (!(field in head.image)) {
+        errors.push(imagePath + '.' + field + ' is required');
+      } else {
+        validateNonEmptyString(head.image[field], imagePath + '.' + field);
+      }
+    }
+
+    if (typeof head.image.src === 'string' && head.image.src.trim().length > 0) {
+      const src = head.image.src.trim();
+      let validAbsoluteUrl = false;
+      if (/^https:\/\//i.test(src)) {
+        try {
+          const parsed = new URL(src);
+          validAbsoluteUrl = parsed.protocol === 'https:' && parsed.hostname.length > 0;
+        } catch (_) {
+          validAbsoluteUrl = false;
+        }
+      }
+      if (!(src.startsWith('/') && !src.startsWith('//')) && !validAbsoluteUrl)
+        errors.push(imagePath + '.src must be a site-root path or absolute https:// URL');
+    }
+  }
+}
+
+if ('head' in plan)
+  validateHead(plan.head, 'head');
+
+if ('headers' in plan) {
+  if (!Array.isArray(plan.headers) || plan.headers.length === 0) {
+    errors.push('headers must be a non-empty array');
+  } else {
+    if (plan.headers.length > 100)
+      errors.push('headers must contain at most 100 rules');
+
+    const seenPaths = new Set();
+    plan.headers.forEach(function(rule, i) {
+      const tag = 'headers[' + i + ']';
+      if (!isObject(rule)) {
+        errors.push(tag + ' must be an object');
+        return;
+      }
+
+      const allowed = new Set(['path', 'values']);
+      for (const field of Object.keys(rule)) {
+        if (!allowed.has(field))
+          errors.push(tag + ' has unknown field \"' + field + '\"');
+      }
+
+      if (!('path' in rule)) {
+        errors.push(tag + '.path is required');
+      } else if (validateNonEmptyString(rule.path, tag + '.path')) {
+        const headerPath = rule.path.trim();
+        let validAbsoluteUrl = false;
+        if (/^https:\/\//i.test(headerPath)) {
+          try {
+            const parsed = new URL(headerPath);
+            validAbsoluteUrl = parsed.protocol === 'https:' && parsed.hostname.length > 0;
+          } catch (_) {
+            validAbsoluteUrl = false;
+          }
+        }
+        if (!(headerPath.startsWith('/') || validAbsoluteUrl))
+          errors.push(tag + '.path must begin with / or https://');
+        if (/[\r\n]/.test(rule.path))
+          errors.push(tag + '.path must be a single-line string');
+        if (headerPath.length > 2000)
+          errors.push(tag + '.path produces a line longer than 2000 characters');
+        if (seenPaths.has(headerPath))
+          errors.push(tag + '.path duplicates an earlier header path: ' + headerPath);
+        seenPaths.add(headerPath);
+      }
+
+      if (!('values' in rule)) {
+        errors.push(tag + '.values is required');
+      } else if (!isObject(rule.values) || Object.keys(rule.values).length === 0) {
+        errors.push(tag + '.values must be a non-empty object');
+      } else {
+        const seenNames = new Set();
+        for (const [name, value] of Object.entries(rule.values)) {
+          const valuePath = tag + '.values.' + name;
+          const normalizedName = name.toLowerCase();
+          if (seenNames.has(normalizedName))
+            errors.push(tag + '.values has duplicate header name \"' + name + '\"');
+          seenNames.add(normalizedName);
+
+          if (name.startsWith('!'))
+            errors.push(valuePath + ' uses unsupported header-removal syntax');
+          if (!/^[!#$%&'*+\-.^_\x60|~0-9A-Za-z]+$/.test(name))
+            errors.push(valuePath + ' has an invalid header name');
+          if (validateNonEmptyString(value, valuePath)) {
+            if (/[\r\n]/.test(value))
+              errors.push(valuePath + ' must be a single-line string');
+            if (('  ' + name + ': ' + value).length > 2000)
+              errors.push(valuePath + ' produces a line longer than 2000 characters');
+          }
+        }
+      }
+    });
+  }
+}
+
 const catalog = {};
 if (fs.existsSync('$COMPONENTS_DIR')) {
   for (const name of fs.readdirSync('$COMPONENTS_DIR')) {
@@ -170,6 +316,8 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
     const tag = 'pages[' + i + ']';
     if (!p.id)    errors.push(tag + '.id is required');
     if (!p.title) errors.push(tag + '.title is required');
+    if ('head' in p)
+      validateHead(p.head, tag + '.head');
     if ('content' in p)
       errors.push(tag + '.content is no longer supported — use components: [{ type: prose, markdown: ... }]');
     if (!Array.isArray(p.components) || p.components.length === 0) {

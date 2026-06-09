@@ -1,0 +1,49 @@
+slug: metadata-test
+name: Metadata Test
+overview: Default overview for metadata fallback.
+style: minimal
+tone: professional
+custom_domain: example.com
+head:
+  description: Default site description.
+  image:
+    src: /assets/share.png
+    alt: Default social sharing image
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          # Home
+  - id: about
+    title: About & "Details"
+    head:
+      description: Page description with an ampersand & quotation "marks".
+      image:
+        src: https://cdn.example.com/about.png
+        alt: About page illustration
+    components:
+      - type: prose
+        markdown: |
+          # About
+  - id: plain
+    title: Plain
+    head:
+      description: Plain page without an image override.
+    components:
+      - type: prose
+        markdown: |
+          # Plain
+nav:
+  order: [home, about, plain]
+contact:
+  enabled: false
+headers:
+  - path: /*
+    values:
+      X-Content-Type-Options: nosniff
+      Referrer-Policy: strict-origin-when-cross-origin
+  - path: /assets/*
+    values:
+      Cache-Control: public, max-age=86400

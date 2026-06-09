@@ -140,10 +140,11 @@ The LLM handles: collecting user input through the chat, reading source material
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
 | `$SITES_DIR/<site-name>/site-spec.json` | `/interview <site-name>` | Optional legacy discovery artifact |
-| `$SITES_DIR/<site-name>/build-plan.yaml` | AI agent or `/plan <site-name>` | Contract for the build: display name, slug, style, content, pages, nav, contact, optional custom domain, and typed component arrays |
+| `$SITES_DIR/<site-name>/build-plan.yaml` | AI agent or `/plan <site-name>` | Contract for the build: display name, slug, style, content, metadata, response headers, pages, nav, contact, optional custom domain, and typed component arrays |
 | `$SITES_DIR/<site-name>/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (gitignored) |
 | `$SITES_DIR/<site-name>/src/*.njk` | `/build <site-name>` (via `render-templates.sh`) | Page templates with content (gitignored) |
 | `$SITES_DIR/<site-name>/dist/` | `/build <site-name>` | Built static site |
+| `$SITES_DIR/<site-name>/dist/_headers` | `/build <site-name>` (via `render-headers.sh`) | Optional Cloudflare Pages static response-header rules |
 | `$SITES_DIR/<site-name>/NEXT-STEPS.md` | `/deploy <site-name>` | Post-deploy ops guide |
 
 ---

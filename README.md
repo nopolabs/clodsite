@@ -10,7 +10,10 @@ Clodsite works the same way. An AI agent collaborates with you however you prefe
 
 ## The Build Plan
 
-Everything flows through `$SITES_DIR/<name>/build-plan.yaml`. It is the contract: site name, slug, pages, navigation, tone, visual style, contact settings, optional custom domain, and typed page components with their final content.
+Everything flows through `$SITES_DIR/<name>/build-plan.yaml`. It is the
+contract: site name, slug, pages, navigation, tone, visual style, metadata,
+response headers, contact settings, optional custom domain, and typed page
+components with their final content.
 
 Everything before `build-plan.yaml` is collaboration and inference. The customer and AI agent can get there through a guided interview, a pasted brief, direct YAML editing, or any other workflow that produces a valid plan. Everything after `build-plan.yaml` is deterministic compilation and deployment.
 
@@ -92,6 +95,12 @@ Every step is labeled with its execution type:
 ```
 
 The inference boundary is `build-plan.yaml`. Before it, the customer and AI agent decide. After it, scripts execute.
+
+The compiler can generate page descriptions, canonical URLs, Open Graph and
+Twitter Card tags, generic `WebSite`/`WebPage` JSON-LD, and Cloudflare Pages
+`_headers`. Site-level metadata provides defaults; individual pages can
+override their description or sharing image. Canonical URLs are derived from
+`custom_domain`, keeping public URLs out of generated templates.
 
 ---
 

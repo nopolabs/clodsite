@@ -344,6 +344,119 @@ assert_contains "gallery permalink"               "permalink: /gallery/"  "$GAL"
 assert_contains "gallery includes prose first"    "prose/component.njk"   "$GAL"
 assert_contains "gallery includes gallery type"   "gallery/component.njk" "$GAL"
 
+cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src"
+RENDER_METADATA_OUTPUT=$(bash scripts/render-templates.sh 2>&1)
+assert_exit "render-templates with metadata exits 0" 0 $?
+META_HOME_TEMPLATE=$(cat "${SITE_DIR}/src/index.njk")
+META_ABOUT_TEMPLATE=$(cat "${SITE_DIR}/src/about.njk")
+assert_contains "home template has default description" '"description":"Default site description."' "$META_HOME_TEMPLATE"
+assert_contains "home template has canonical root" '"canonical_url":"https://example.com/"' "$META_HOME_TEMPLATE"
+assert_contains "home template resolves site image" '"image_url":"https://example.com/assets/share.png"' "$META_HOME_TEMPLATE"
+assert_contains "page template has description override" 'Page description with an ampersand & quotation' "$META_ABOUT_TEMPLATE"
+assert_contains "page template preserves absolute image" '"image_url":"https://cdn.example.com/about.png"' "$META_ABOUT_TEMPLATE"
+assert_contains "page template has canonical permalink" '"canonical_url":"https://example.com/about/"' "$META_ABOUT_TEMPLATE"
+assert_not_contains "metadata render has no unresolved-image warning" "social image tags omitted" "$RENDER_METADATA_OUTPUT"
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.custom_domain = '';
+fs.writeFileSync(file, yaml.dump(p));
+"
+rm -rf "${SITE_DIR}/src"
+RENDER_NO_DOMAIN_OUTPUT=$(bash scripts/render-templates.sh 2>&1)
+META_NO_DOMAIN=$(cat "${SITE_DIR}/src/index.njk")
+assert_contains "missing domain warns for root-relative image" "social image tags omitted" "$RENDER_NO_DOMAIN_OUTPUT"
+assert_contains "missing domain omits canonical value" '"canonical_url":""' "$META_NO_DOMAIN"
+assert_contains "missing domain omits unresolved image URL" '"image_url":""' "$META_NO_DOMAIN"
+assert_contains "missing domain omits structured data" '"structured_data":null' "$META_NO_DOMAIN"
+
+cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "metadata fixture builds" 0 $?
+META_HOME_HTML=$(cat "${SITE_DIR}/dist/index.html")
+META_ABOUT_HTML=$(cat "${SITE_DIR}/dist/about/index.html")
+assert_contains "HTML has description meta" '<meta name="description" content="Default site description.">' "$META_HOME_HTML"
+assert_contains "HTML has canonical link" '<link rel="canonical" href="https://example.com/">' "$META_HOME_HTML"
+assert_contains "HTML has Open Graph image" '<meta property="og:image" content="https://example.com/assets/share.png">' "$META_HOME_HTML"
+assert_contains "HTML has large Twitter card" '<meta name="twitter:card" content="summary_large_image">' "$META_HOME_HTML"
+assert_contains "HTML has JSON-LD script" '<script type="application/ld+json">' "$META_HOME_HTML"
+assert_contains "JSON-LD has WebSite node" '"@type":"WebSite"' "$META_HOME_HTML"
+assert_contains "JSON-LD has WebPage node" '"@type":"WebPage"' "$META_HOME_HTML"
+assert_contains "metadata attributes escape ampersand" 'About &amp; &quot;Details&quot; | Metadata Test' "$META_ABOUT_HTML"
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.head.description = 'Unsafe </script><script>alert(1)</script>';
+fs.writeFileSync(file, yaml.dump(p));
+"
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+META_UNSAFE_HTML=$(cat "${SITE_DIR}/dist/index.html")
+assert_not_contains "JSON-LD blocks script termination" '</script><script>alert(1)</script>' "$META_UNSAFE_HTML"
+assert_contains "JSON-LD escapes less-than characters" '\u003c/script>' "$META_UNSAFE_HTML"
+
+# ── render-headers.sh ─────────────────────────────────────────────────────────
+echo ""
+echo "=== render-headers.sh ==="
+
+cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/render-headers.sh > /dev/null 2>&1
+assert_exit "render-headers exits 0" 0 $?
+assert_file_exists "dist/_headers created" "${SITE_DIR}/dist/_headers"
+HEADERS_OUTPUT=$(cat "${SITE_DIR}/dist/_headers")
+assert_contains "_headers has global path" "/*" "$HEADERS_OUTPUT"
+assert_contains "_headers has content-type option" "  X-Content-Type-Options: nosniff" "$HEADERS_OUTPUT"
+assert_contains "_headers has asset path" "/assets/*" "$HEADERS_OUTPUT"
+assert_contains "_headers preserves cache value" "  Cache-Control: public, max-age=86400" "$HEADERS_OUTPUT"
+if [ "$(tail -c 1 "${SITE_DIR}/dist/_headers" | od -An -t u1 | tr -d ' ')" = "10" ]; then
+  echo "  ✓ _headers ends with a newline"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ _headers does not end with a newline"
+  FAIL=$((FAIL + 1))
+fi
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+const dollar=String.fromCharCode(36);
+p.headers.push({path: '/literal/*', values: {'X-Literal': dollar + 'HOME ' + dollar + '(not-executed)'}});
+fs.writeFileSync(file, yaml.dump(p));
+"
+bash scripts/render-headers.sh > /dev/null 2>&1
+HEADERS_OUTPUT=$(cat "${SITE_DIR}/dist/_headers")
+assert_contains "_headers preserves shell-sensitive values literally" '  X-Literal: $HOME $(not-executed)' "$HEADERS_OUTPUT"
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+delete p.headers;
+fs.writeFileSync(file, yaml.dump(p));
+"
+bash scripts/render-headers.sh > /dev/null 2>&1
+assert_exit "render-headers without rules exits 0" 0 $?
+if [ ! -f "${SITE_DIR}/dist/_headers" ]; then
+  echo "  ✓ stale dist/_headers removed"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ stale dist/_headers remains"
+  FAIL=$((FAIL + 1))
+fi
+
 cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
 rm -rf "${SITE_DIR}/src"
 bash scripts/write-site-json.sh > /dev/null 2>&1
@@ -574,6 +687,56 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "build_notes is reje
 
 cp scripts/test/fixtures/valid-build-plan-components.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component plan exits 0" 0 $?
+
+# Metadata and response-header validation
+cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid metadata and headers pass" 0 $?
+
+for mutation in empty-description bad-image-src empty-https-image missing-image-alt unknown-head-field page-head-not-object; do
+  cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"
+  MUTATION="$mutation" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+switch (process.env.MUTATION) {
+  case 'empty-description': p.head.description = '   '; break;
+  case 'bad-image-src': p.head.image.src = 'assets/share.png'; break;
+  case 'empty-https-image': p.head.image.src = 'https://'; break;
+  case 'missing-image-alt': delete p.head.image.alt; break;
+  case 'unknown-head-field': p.head.keywords = ['one']; break;
+  case 'page-head-not-object': p.pages[1].head = 'bad'; break;
+}
+fs.writeFileSync(file, yaml.dump(p));
+"
+  bash scripts/validate-plan.sh > /dev/null 2>&1
+  assert_exit "metadata mutation ${mutation} exits 1" 1 $?
+done
+
+for mutation in empty-headers duplicate-path bad-path empty-https-path long-path empty-values bad-name newline-value removal-syntax too-many long-line unknown-field; do
+  cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"
+  MUTATION="$mutation" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+switch (process.env.MUTATION) {
+  case 'empty-headers': p.headers = []; break;
+  case 'duplicate-path': p.headers.push({ path: '/*', values: { 'X-Test': 'yes' } }); break;
+  case 'bad-path': p.headers[0].path = 'assets/*'; break;
+  case 'empty-https-path': p.headers[0].path = 'https://'; break;
+  case 'long-path': p.headers[0].path = '/' + 'x'.repeat(2000); break;
+  case 'empty-values': p.headers[0].values = {}; break;
+  case 'bad-name': p.headers[0].values['Bad Header'] = 'value'; break;
+  case 'newline-value': p.headers[0].values['X-Test'] = 'one\\ntwo'; break;
+  case 'removal-syntax': p.headers[0].values['! X-Test'] = 'ignored'; break;
+  case 'too-many': p.headers = Array.from({length: 101}, (_, i) => ({path: '/p' + i, values: {'X-Test': 'yes'}})); break;
+  case 'long-line': p.headers[0].values['X-Test'] = 'x'.repeat(2000); break;
+  case 'unknown-field': p.headers[0].comment = 'nope'; break;
+}
+fs.writeFileSync(file, yaml.dump(p));
+"
+  bash scripts/validate-plan.sh > /dev/null 2>&1
+  assert_exit "header mutation ${mutation} exits 1" 1 $?
+done
 
 # resend-form component validation
 cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"

@@ -29,6 +29,10 @@ module.exports = function(eleventyConfig) {
   const componentsDir = path.join(repoRoot, 'components');
 
   eleventyConfig.addFilter('md',       (str) => md.render(str || ''));
+  eleventyConfig.addFilter('jsonScript', (value) => JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029'));
   // mdInline is reserved for future components that need inline markdown
   // (e.g. captions with bold/italics). Not used by v1 catalog (prose, gallery, mailto-form).
 

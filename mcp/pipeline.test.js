@@ -2,7 +2,14 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { listComponents, extractUrl, stripAnsi, deploySite, getSchema } = require('./pipeline.js');
+const {
+  BUILD_SCRIPTS,
+  listComponents,
+  extractUrl,
+  stripAnsi,
+  deploySite,
+  getSchema,
+} = require('./pipeline.js');
 
 test('listComponents returns catalog with all component types', () => {
   const catalog = listComponents();
@@ -64,9 +71,11 @@ test('getSchema() returns top-level build-plan.yaml reference', () => {
   assert.ok(schema.includes('style:'));
   assert.ok(schema.includes('tone:'));
   assert.ok(schema.includes('custom_domain:'));
+  assert.ok(schema.includes('head:'));
   assert.ok(schema.includes('pages:'));
   assert.ok(schema.includes('nav:'));
   assert.ok(schema.includes('contact:'));
+  assert.ok(schema.includes('headers:'));
   // Valid enum values documented
   assert.ok(schema.includes('minimal'));
   assert.ok(schema.includes('professional'));
@@ -78,6 +87,12 @@ test('getSchema() returns top-level build-plan.yaml reference', () => {
   assert.ok(schema.includes('get_schema'));
   // Should NOT embed full component sub-schemas inline
   assert.ok(!schema.includes('type: prose\n'));
+});
+
+test('deploy pipeline renders headers after build and before deploy', () => {
+  assert.ok(BUILD_SCRIPTS.includes('render-headers.sh'));
+  assert.ok(BUILD_SCRIPTS.indexOf('build-site.sh') < BUILD_SCRIPTS.indexOf('render-headers.sh'));
+  assert.ok(BUILD_SCRIPTS.indexOf('render-headers.sh') < BUILD_SCRIPTS.indexOf('deploy.sh'));
 });
 
 test('getSchema(component_name) returns sub-schema and example', () => {

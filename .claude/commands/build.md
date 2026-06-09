@@ -62,3 +62,14 @@ SITE_NAME=<site-name> bash scripts/build-site.sh
 ```
 
 If it exits with an error, show the error output clearly. Common causes: malformed Nunjucks syntax in a generated template, missing layout reference, or empty `$SITES_DIR/<site-name>/dist/`. Fix the template(s) and re-run this script.
+
+---
+
+**[SCRIPT]** Render Cloudflare Pages response headers:
+
+```bash
+SITE_NAME=<site-name> bash scripts/render-headers.sh
+```
+
+This writes `$SITES_DIR/<site-name>/dist/_headers` when the build plan contains
+response-header rules, or removes a stale generated file when it does not.

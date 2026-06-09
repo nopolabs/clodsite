@@ -55,9 +55,15 @@ overview: >-
 style: <value of site.style from spec>
 tone: <value of site.tone from spec>
 custom_domain: <optional hostname only, e.g. www.example.com, or "">
+head: <optional site-wide metadata defaults>
+  description: <concise default search and sharing description>
+  image: <optional social sharing image>
+    src: <site-root path or absolute https:// URL>
+    alt: <accessible image description>
 pages:
   - id: <page id>
     title: <page title>
+    head: <optional page-specific description and/or image overrides>
     components:
       - type: <component name from components/CATALOG.md>
         # ... required and optional fields per the component's schema
@@ -67,6 +73,10 @@ nav:
 contact:
   enabled: <true or false from spec>
   email: <email address — omit this key if contact.enabled is false>
+headers: <optional Cloudflare Pages static response-header rules>
+  - path: /*
+    values:
+      X-Content-Type-Options: nosniff
 ```
 
 Do not include a `name` field — the display name is injected automatically by `finalize-plan.sh` after this step.
@@ -90,6 +100,11 @@ multiple components in order. Components stack vertically.
   inside a `prose` component's `markdown` field. Match the site tone.
 - Component fields use the appropriate YAML type (string, array, object) per
   the component's schema.
+
+Use `head.description` for concise search and sharing copy. Add page-level
+descriptions when pages have distinct purposes. Root-relative sharing images
+become absolute when `custom_domain` is configured. Do not invent response
+headers: include `headers` only when the site has an explicit policy.
 
 Write the complete YAML to `$SITES_DIR/<site-name>/build-plan.yaml`. No extra commentary in the file.
 

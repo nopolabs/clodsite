@@ -5,6 +5,17 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
+const BUILD_SCRIPTS = [
+  'validate-plan.sh',
+  'write-site-json.sh',
+  'apply-theme.sh',
+  'render-templates.sh',
+  'render-functions.sh',
+  'build-site.sh',
+  'render-headers.sh',
+  'deploy.sh',
+  'deploy-finalize.sh',
+];
 
 function readEnvValue(name) {
   if (process.env[name]) return process.env[name];
@@ -66,20 +77,9 @@ async function deploySite(siteName, buildPlanYaml) {
   fs.mkdirSync(siteDir, { recursive: true });
   fs.writeFileSync(path.join(siteDir, 'build-plan.yaml'), buildPlanYaml, 'utf8');
 
-  const scripts = [
-    'validate-plan.sh',
-    'write-site-json.sh',
-    'apply-theme.sh',
-    'render-templates.sh',
-    'render-functions.sh',
-    'build-site.sh',
-    'deploy.sh',
-    'deploy-finalize.sh',
-  ];
-
   const env = { ...process.env, SITES_DIR: sitesDir, SITE_DIR: siteDir };
 
-  for (const script of scripts) {
+  for (const script of BUILD_SCRIPTS) {
     const scriptPath = path.join(ROOT, 'scripts', script);
     const result = await runScript(scriptPath, env);
     if (!result.ok) {
@@ -148,9 +148,17 @@ style: minimal             # minimal | professional | bold
 tone: professional         # professional | casual | technical | friendly
 custom_domain: ""          # optional hostname only; e.g. www.example.com
 
+head:                       # optional site-wide metadata defaults
+  description: A concise page description.
+  image:
+    src: /assets/share.png  # root-relative path or absolute https:// URL
+    alt: Description of the sharing image
+
 pages:
   - id: home               # unique identifier; the page with id "home" maps to /
     title: Home            # shown in browser tab and nav
+    head:                   # optional page-level metadata overrides
+      description: A page-specific description.
     components:            # list of component objects stacked vertically on the page
       - type: <component-type>
         # Available types: ${available}
@@ -164,7 +172,12 @@ nav:
 contact:
   enabled: true            # whether to show contact info in footer
   email: hello@example.com # footer contact email (used for mailto: link)
+
+headers:                    # optional Cloudflare Pages static response headers
+  - path: /*
+    values:
+      X-Content-Type-Options: nosniff
 `;
 }
 
-module.exports = { listComponents, getSchema, stripAnsi, extractUrl, deploySite };
+module.exports = { BUILD_SCRIPTS, listComponents, getSchema, stripAnsi, extractUrl, deploySite };
