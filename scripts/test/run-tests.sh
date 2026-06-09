@@ -191,6 +191,7 @@ assert_file_exists "components.css written"         "scaffold/src/css/components
 BUNDLE=$(cat scaffold/src/css/components.css)
 assert_contains   "bundle has c-gallery rule"       ".c-gallery"      "$BUNDLE"
 assert_contains   "bundle has c-mailto-form rule"   ".c-mailto-form"  "$BUNDLE"
+assert_contains   "prose spaces content after code blocks" ".c-prose pre + *" "$BUNDLE"
 for component in hero feature-grid key-facts quote resource-cards call-to-action; do
   assert_contains "bundle has c-${component} rule" ".c-${component}" "$BUNDLE"
 done
