@@ -6,3 +6,7 @@
   max-width: 100%;
   overflow-x: auto;
 }
+
+.c-prose pre + * {
+  margin-block-start: 1.5rem;
+}
