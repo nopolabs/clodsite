@@ -476,6 +476,7 @@ if grep -qxF "*/src/" sites/.gitignore &&
    grep -qxF "*/.deploy-*" sites/.gitignore &&
    grep -qxF "*/.turnstile-*" sites/.gitignore &&
    grep -qxF "*/.wrangler/" sites/.gitignore &&
+   grep -qxF "*.swp" sites/.gitignore &&
    ! grep -q "\*/dist/" sites/.gitignore; then
   echo "  ✓ sites/.gitignore has correct entries"
   PASS=$((PASS + 1))
@@ -501,6 +502,8 @@ assert_contains "existing sites/.gitignore gains Turnstile state pattern" \
   "*/.turnstile-*" "$(cat sites/.gitignore)"
 assert_contains "existing sites/.gitignore gains Wrangler state pattern" \
   "*/.wrangler/" "$(cat sites/.gitignore)"
+assert_contains "existing sites/.gitignore gains editor swap-file pattern" \
+  "*.swp" "$(cat sites/.gitignore)"
 
 rm -rf sites
 
