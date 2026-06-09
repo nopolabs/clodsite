@@ -1,7 +1,7 @@
 # Goal-Oriented Informational Components — Design
 
 **Date:** 2026-06-09
-**Status:** Implemented (deployment pending)
+**Status:** Implemented
 **Related roadmap entry:** "Goal-oriented informational components"
 **Product test:** `demo.clodsite.com`
 
