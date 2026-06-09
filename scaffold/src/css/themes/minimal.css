@@ -35,7 +35,7 @@ a { color: var(--color-accent); text-decoration: underline; }
 .theme-selector select:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
 
 .site-main { max-width: 64rem; margin: 0 auto; padding: var(--spacing-section) 2rem; }
-.site-footer { text-align: center; padding: 2rem; color: #888; font-size: 0.875rem; border-top: 1px solid var(--color-surface); }
+.site-footer { text-align: center; padding: 2rem; color: var(--color-muted); font-size: 0.875rem; border-top: 1px solid var(--color-surface); }
 
 .site-main > .c-component + .c-component { margin-block-start: var(--spacing-section); }
 
