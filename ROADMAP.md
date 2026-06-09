@@ -2,7 +2,10 @@
 
 Clodsite v1 is intentionally scoped: a static content site, 1–5 pages, three
 visual styles, deployed to Cloudflare Pages. Items below were deliberately
-deferred to keep the workflow shippable and honest.
+deferred to keep the workflow shippable and honest. The near-term product focus
+is making Clodsite better at building targeted informational websites: sites
+that are discoverable, communicate a clear message, and improve through a
+deliberate review cycle.
 
 ---
 
@@ -10,7 +13,48 @@ deferred to keep the workflow shippable and honest.
 
 Items are ordered by proposed implementation priority.
 
-### 1. Installable skill/plugin packaging
+### 1. Metadata, sharing, and response headers
+
+Add structured `head:` configuration for page descriptions, canonical URLs,
+Open Graph and social-sharing metadata, share images, and appropriate structured
+data. Add per-path Cloudflare Pages `_headers` output and define how headers
+contributed by multiple components are combined. Informational sites need to be
+discoverable in search, legible to crawlers, and intentional when shared.
+
+### 2. Goal-oriented informational components
+
+Expand the constrained component catalog with common communication patterns:
+hero sections, calls to action, feature or benefit cards, key facts, quotations
+or testimonials, buttons, and project or resource cards. These components
+should create visual hierarchy and guide visitors toward a clear next action
+without turning `build-plan.yaml` into a general-purpose layout language.
+
+### 3. Governed preview-and-revise workflow
+
+Add a first-class workflow for previewing an existing site, collecting targeted
+feedback, proposing a reviewable `build-plan.yaml` diff, and rebuilding only
+after approval. Feedback may come from conversation, screenshots, or concrete
+goals such as making the purpose clearer or the primary action more prominent.
+This evolves the planned `/modify` command around current build-plan-first
+usage, preserves stable page IDs, and keeps revision governed rather than
+silently regenerating the site.
+
+### 4. Generated not-found page
+
+Generate a top-level `404.html` for every site, with useful navigation back to
+known content. This disables Cloudflare Pages' implicit single-page-application
+fallback, so unknown URLs return an honest `404` response instead of serving
+the home page with `200`.
+
+### 5. Explicit redirects
+
+Add optional redirect declarations to `build-plan.yaml` and generate a
+Cloudflare Pages `_redirects` file. Support intentional permanent redirects for
+renamed or retired pages, while leaving genuinely unknown paths to the generated
+404 page. Validate sources, destinations, status codes, duplicates, and
+conflicts with generated page routes.
+
+### 6. Installable skill/plugin packaging
 
 Clodsite currently ships as a template repo: clone it, `cd` into it, and open
 an agent there. Package Clodsite as an installable skill or plugin available
@@ -18,15 +62,7 @@ from any directory, removing the clone-and-`cd` bootstrap. Multi-site
 workspaces and configurable `SITES_DIR` have cleared the original storage and
 invocation blockers.
 
-### 2. `<head>` metadata and response headers
-
-Add structured `head:` configuration for metadata such as descriptions,
-canonical URLs, and social-sharing tags, plus per-path Cloudflare Pages
-`_headers` output. Resolve how headers contributed by multiple components are
-combined. This is the next static-site expressiveness gap and requires no
-server runtime.
-
-### 3. General Pages Functions and secrets
+### 7. General Pages Functions and secrets
 
 Generalize the function and secret pipeline beyond the specific
 `resend-form` use case. Turnstile-protected contact forms now exercise widget
@@ -34,21 +70,13 @@ provisioning and secret installation, but arbitrary generated Functions and
 per-component secrets are not yet expressible. BBPP remains the driving
 example: authenticated proxying and a separate rendering/email service.
 
-### 4. The `/modify` workflow
-
-Add a governed change path for existing sites. The current build contract
-already supports direct, reviewable edits to `build-plan.yaml`; `/modify`
-should add a deliberate delta workflow, preserve stable page IDs, validate the
-result, and rebuild only after approval. Design this against current
-build-plan-first usage rather than the legacy spec-first workflow.
-
-### 5. MCP HTTP transport
+### 8. MCP HTTP transport
 
 The MCP server currently supports stdio only. Add an authenticated HTTP
 transport so Clodsite can run as a shared or hosted deployment service while
 preserving the same `list_components` and `deploy_site` contracts.
 
-### 6. Free-form legacy interview opener
+### 9. Free-form legacy interview opener
 
 Replace the fixed ten-question `/interview` sequence with one open prompt,
 targeted follow-up questions for missing information, and a confirmation
@@ -56,7 +84,7 @@ summary before writing `site-spec.json`. Keep the fixed sequence as a fallback.
 This is lower priority because direct collaboration on `build-plan.yaml` is now
 the primary workflow and interview/spec is explicitly legacy scaffolding.
 
-### 7. Root-page routing contract
+### 10. Root-page routing contract
 
 Fix the current assumption that both the page with `id: home` and the first
 page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
