@@ -14,14 +14,6 @@ And stop.
 
 ---
 
-**[SCRIPT]** Check for a v1 `site/` directory and auto-migrate if found:
-
-```bash
-bash scripts/migrate-site.sh
-```
-
----
-
 **[LLM]** Read `$SITES_DIR/<site-name>/build-plan.yaml` and build a destruction summary:
 
 - **Pages project:** `<slug>`

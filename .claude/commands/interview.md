@@ -12,16 +12,6 @@ The site name must be a valid slug: lowercase letters, numbers, and hyphens only
 
 ---
 
-**[SCRIPT]** Check for a v1 `site/` directory and auto-migrate if found:
-
-```bash
-bash scripts/migrate-site.sh
-```
-
-If it prints a migration message, tell the user what happened.
-
----
-
 **[SCRIPT]** Confirm the site doesn't already exist:
 
 ```bash

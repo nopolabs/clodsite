@@ -209,33 +209,6 @@ for theme in minimal professional bold; do
   assert_not_contains "${theme} does not globally space all sections" "section { margin-bottom:" "$THEME_CSS"
 done
 
-# ── migrate-site.sh ───────────────────────────────────────────────────────────
-echo ""
-echo "=== migrate-site.sh ==="
-
-# No site/ present → exits 0 silently
-bash scripts/migrate-site.sh > /dev/null 2>&1; assert_exit "no site/ present → exits 0" 0 $?
-
-# Happy path: site/ with valid spec → migrates to sites/nopo-labs/
-mkdir -p site
-cp scripts/test/fixtures/valid-spec.json site/site-spec.json
-bash scripts/migrate-site.sh > /dev/null 2>&1; assert_exit "valid site/ migrates successfully" 0 $?
-assert_dir_exists "sites/nopo-labs/ created" "sites/nopo-labs"
-if [ ! -d "site" ]; then
-  echo "  ✓ site/ removed after migration"
-  PASS=$((PASS + 1))
-else
-  echo "  ✗ site/ still exists after migration"
-  FAIL=$((FAIL + 1))
-fi
-
-# Destination already exists → exits 1
-mkdir -p site
-cp scripts/test/fixtures/valid-spec.json site/site-spec.json
-# sites/nopo-labs/ still exists from the migration above
-bash scripts/migrate-site.sh > /dev/null 2>&1; assert_exit "dest exists → exits 1" 1 $?
-rm -rf site sites  # clean up migration test artifacts
-
 # ── domain.sh ─────────────────────────────────────────────────────────────────
 echo ""
 echo "=== domain.sh ==="
