@@ -119,6 +119,30 @@ bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "missing field exits
 cp scripts/test/fixtures/invalid-bad-enum.json "${SITE_DIR}/site-spec.json"
 bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "bad enum exits 1" 1 $?
 
+# ── write-spec.sh ─────────────────────────────────────────────────────────────
+echo ""
+echo "=== write-spec.sh ==="
+
+# Missing spec → exits 1
+rm -f "${SITE_DIR}/site-spec.json"
+bash scripts/write-spec.sh > /dev/null 2>&1; assert_exit "missing spec exits 1" 1 $?
+
+# Invalid JSON → exits 1
+echo '{ not json' > "${SITE_DIR}/site-spec.json"
+bash scripts/write-spec.sh > /dev/null 2>&1; assert_exit "invalid JSON exits 1" 1 $?
+
+# Valid spec → exits 0 and is pretty-printed in place
+tr -d '\n ' < scripts/test/fixtures/valid-spec.json > "${SITE_DIR}/site-spec.json"  # minify first
+bash scripts/write-spec.sh > /dev/null 2>&1; assert_exit "valid spec exits 0" 0 $?
+SPEC_LINES=$(wc -l < "${SITE_DIR}/site-spec.json")
+if [ "$SPEC_LINES" -gt 1 ]; then
+  echo "  ✓ spec pretty-printed in place"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ spec not pretty-printed (still ${SPEC_LINES} line)"
+  FAIL=$((FAIL + 1))
+fi
+
 # ── write-site-json.sh ────────────────────────────────────────────────────────
 echo ""
 echo "=== write-site-json.sh ==="
@@ -1541,6 +1565,24 @@ assert_contains "static Pages deploy still called" "pages deploy dist" "$DEPLOY_
 
 export PATH="$DEPLOY_ORIGINAL_PATH"
 rm -rf "$DEPLOY_STUB_DIR"
+
+# ── JS unit tests (scripts/lib/*.test.mjs) ────────────────────────────────────
+echo ""
+echo "=== JS unit tests (node --test scripts/lib/*.test.mjs) ==="
+NODE_TEST_OUTPUT=$(node --test scripts/lib/*.test.mjs 2>&1)
+NODE_TEST_EXIT=$?
+# node --test prints "# pass N" (tap reporter) or "ℹ pass N" (spec reporter)
+NODE_PASS=$(printf '%s\n' "$NODE_TEST_OUTPUT" | sed -n -e 's/^# pass \([0-9][0-9]*\).*/\1/p' -e 's/^ℹ pass \([0-9][0-9]*\).*/\1/p' | head -1)
+NODE_FAIL=$(printf '%s\n' "$NODE_TEST_OUTPUT" | sed -n -e 's/^# fail \([0-9][0-9]*\).*/\1/p' -e 's/^ℹ fail \([0-9][0-9]*\).*/\1/p' | head -1)
+if [ "$NODE_TEST_EXIT" -eq 0 ] && [ -n "$NODE_PASS" ]; then
+  echo "  ✓ ${NODE_PASS} unit tests passed"
+  PASS=$((PASS + NODE_PASS))
+else
+  echo "  ✗ node --test failed (exit $NODE_TEST_EXIT):"
+  printf '%s\n' "$NODE_TEST_OUTPUT" | tail -25
+  PASS=$((PASS + ${NODE_PASS:-0}))
+  FAIL=$((FAIL + ${NODE_FAIL:-1}))
+fi
 
 # ── Results ───────────────────────────────────────────────────────────────────
 echo ""
