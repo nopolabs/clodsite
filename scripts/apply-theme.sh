@@ -11,7 +11,8 @@ if [ ! -f "${SITE_DIR}/build-plan.yaml" ]; then
   exit 1
 fi
 
-STYLE=$(node -e "const yaml=require('js-yaml'); const s=yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml','utf8')); console.log(s.style)")
+STYLE=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+  "${SITE_DIR}/build-plan.yaml" style)
 THEME_FILE="scaffold/src/css/themes/${STYLE}.css"
 
 if [ ! -f "$THEME_FILE" ]; then

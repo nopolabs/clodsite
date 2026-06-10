@@ -47,11 +47,8 @@ if [ ! -d "${SITE_DIR}/dist" ] || [ -z "$(ls -A "${SITE_DIR}/dist" 2>/dev/null)"
   exit 1
 fi
 
-SITE_NAME=$(node -e "
-const yaml = require('js-yaml');
-const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
-console.log(plan.slug);
-")
+SITE_NAME=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+  "${SITE_DIR}/build-plan.yaml" slug)
 
 if [ -f "${SITE_DIR}/functions/api/contact.js" ] && [ -z "${RESEND_API_KEY:-}" ]; then
   echo "Error: RESEND_API_KEY is not set in .env but this site uses resend-form."

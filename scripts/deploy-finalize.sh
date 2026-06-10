@@ -11,21 +11,10 @@ if [ ! -f "${SITE_DIR}/.deploy-output" ]; then
   exit 1
 fi
 
-SITE_NAME=$(node -e "
-const yaml = require('js-yaml');
-const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
-console.log(plan.slug);
-")
-TURNSTILE_ENABLED=$(node -e "
-const yaml = require('js-yaml');
-const plan = yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml', 'utf8'));
-let form = null;
-for (const page of plan.pages || []) {
-  form = (page.components || []).find((component) => component.type === 'resend-form');
-  if (form) break;
-}
-console.log(form && form.turnstile === true ? 'true' : 'false');
-")
+PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+  "${SITE_DIR}/build-plan.yaml" slug resend-turnstile)
+SITE_NAME=$(echo "$PLAN_VALUES" | sed -n '1p')
+TURNSTILE_ENABLED=$(echo "$PLAN_VALUES" | sed -n '2p')
 
 BUILD_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' "${SITE_DIR}/.deploy-output" | tail -1)
 

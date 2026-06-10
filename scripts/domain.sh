@@ -13,26 +13,11 @@ if [ ! -f "$PLAN" ]; then
 fi
 
 # Parse build-plan.yaml before loading credentials so missing domain config fails fast.
-PLAN_PARSE=$(node -e "
-const yaml = require('js-yaml');
-const fs = require('fs');
-const plan = yaml.load(fs.readFileSync('$PLAN', 'utf8'));
-if (!plan.slug) {
-  process.stderr.write('Error: slug not set in build-plan.yaml.\n');
-  process.exit(1);
+PLAN_PARSE=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+  "$PLAN" slug required-custom-domain 2>&1) || {
+  echo "$PLAN_PARSE" >&2
+  exit 1
 }
-const hostname = String(plan.custom_domain || '').trim();
-if (!hostname) {
-  process.stderr.write('Error: custom_domain not set in build-plan.yaml.\n');
-  process.exit(1);
-}
-if (/^https?:\/\//i.test(hostname) || hostname.includes('/')) {
-  process.stderr.write('Error: custom_domain must be a hostname only, e.g. www.example.com.\n');
-  process.exit(1);
-}
-console.log(plan.slug);
-console.log(hostname);
-" 2>&1) || { echo "$PLAN_PARSE" >&2; exit 1; }
 
 PROJECT_SLUG=$(echo "$PLAN_PARSE" | sed -n '1p')
 HOSTNAME=$(echo "$PLAN_PARSE" | sed -n '2p')

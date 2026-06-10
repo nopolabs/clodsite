@@ -4,6 +4,7 @@
   "private": true,
   "description": "Script dependencies for Clodsite build pipeline",
   "scripts": {
+    "test:lib": "node --test scripts/lib/*.test.mjs",
     "test:mcp": "node --test mcp/pipeline.test.js"
   },
   "dependencies": {
