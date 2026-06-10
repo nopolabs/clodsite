@@ -13,14 +13,7 @@ if [ ! -f "site/site-spec.json" ]; then
   exit 0
 fi
 
-SLUG=$(node -e "
-const spec = JSON.parse(require('fs').readFileSync('site/site-spec.json', 'utf8'));
-const slug = spec.site.name
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+\$/g, '');
-console.log(slug);
-")
+SLUG=$(node "${SCRIPT_DIR}/lib/spec-slug.mjs" "site/site-spec.json")
 
 DEST="${SITES_DIR}/${SLUG}"
 
