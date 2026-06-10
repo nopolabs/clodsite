@@ -18,33 +18,11 @@ if [ ! -f "$PLAN" ]; then
   exit 1
 fi
 
-PLAN_JSON=$(PLAN="$PLAN" node <<'NODE'
-const fs = require('fs');
-const yaml = require('js-yaml');
-const plan = yaml.load(fs.readFileSync(process.env.PLAN, 'utf8'));
-let form = null;
-for (const page of plan.pages || []) {
-  form = (page.components || []).find((component) => component.type === 'resend-form');
-  if (form) break;
-}
-process.stdout.write(JSON.stringify({
-  enabled: form && form.turnstile === true,
-  slug: plan.slug || '',
-  customDomain: plan.custom_domain || '',
-}));
-NODE
-)
-
-TURNSTILE_ENABLED=$(PLAN_JSON="$PLAN_JSON" node -e "
-process.stdout.write(JSON.parse(process.env.PLAN_JSON).enabled ? 'true' : 'false');
-")
-SITE_NAME=$(PLAN_JSON="$PLAN_JSON" node -e "
-process.stdout.write(JSON.parse(process.env.PLAN_JSON).slug);
-")
-CUSTOM_DOMAIN=$(PLAN_JSON="$PLAN_JSON" node -e "
-process.stdout.write(JSON.parse(process.env.PLAN_JSON).customDomain);
-")
-unset PLAN_JSON
+PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+  "$PLAN" resend-turnstile slug custom-domain)
+TURNSTILE_ENABLED=$(echo "$PLAN_VALUES" | sed -n '1p')
+SITE_NAME=$(echo "$PLAN_VALUES" | sed -n '2p')
+CUSTOM_DOMAIN=$(echo "$PLAN_VALUES" | sed -n '3p')
 
 if [ "$TURNSTILE_ENABLED" != "true" ]; then
   exit 0

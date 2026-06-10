@@ -272,6 +272,7 @@ bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "missing .deploy-o
 
 # Valid .deploy-output → exits 0, writes NEXT-STEPS.md
 cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
+cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with output exits 0" 0 $?
 assert_file_exists "NEXT-STEPS.md created" "${SITE_DIR}/NEXT-STEPS.md"
