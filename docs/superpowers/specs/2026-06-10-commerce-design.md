@@ -187,26 +187,55 @@ Two routes, rendered by `render-functions.sh` from function templates (the
   client can name products and quantities — never prices or provider
   identifiers.
 - `POST /api/webhook` — verifies the Stripe signature, then runs an order
-  **state machine** in KV keyed by the Stripe session ID:
+  **state machine** in KV keyed by the Stripe session ID. hmc's worker
+  deliberately simplified this away ("we have the customer's money; a human
+  sorts out fulfillment errors") — reasonable for launching one low-volume
+  store, but clodsite would be turning that shortcut into reusable
+  infrastructure, so v1 does it properly. The KV record is a JSON object,
+  not a bare flag:
 
   ```
-  ORDERS[session_id] ∈ { pending, completed, failed }
-
-  completed        → 200, done (true duplicate)
-  absent | failed  → write pending, call createOrder
-  pending          → a prior attempt died mid-flight; call createOrder again
-  createOrder ok   → write completed, 200
-  createOrder err  → write failed, return 5xx so Stripe retries
+  ORDERS[session_id] = {
+    state: "processing" | "completed" | "failed",
+    attempts,                 // count across all webhook deliveries
+    updated_at,               // ISO timestamp of the last transition
+    last_error: { at, message, provider_detail }   // present after any failure
+  }
   ```
 
-  A paid order is marked `completed` only after fulfillment succeeds —
-  Stripe's retry schedule is the recovery mechanism for transient provider
-  failures, never silenced by an eagerly-set flag. Because KV reads are
-  eventually consistent, this state machine is best-effort dedup only; the
-  **authoritative** duplicate guard is the provider idempotency key (§7):
-  `createOrder` always receives the session ID and providers must dedupe on
-  it. Orders stuck in `failed` after Stripe exhausts retries surface in the
-  Stripe dashboard as webhook failures — v1's operational backstop.
+  Transitions on each webhook delivery:
+
+  ```
+  completed               → 200, done (true duplicate)
+  absent                  → write processing, call createOrder
+  failed                  → write processing (attempts+1, history kept), retry createOrder
+  processing, stale       → a prior attempt died mid-flight (crashed isolate);
+                            treat as failed: write processing, retry createOrder
+  processing, fresh       → another delivery is likely mid-flight; return 5xx
+                            WITHOUT calling createOrder — Stripe retries later
+  createOrder succeeds    → write completed, 200
+  createOrder fails       → write failed + error details, return 5xx so Stripe retries
+  ```
+
+  "Stale" = `updated_at` older than a threshold comfortably above any
+  possible fulfillment call (~10 minutes; webhook invocations live for
+  seconds). Rules this encodes:
+
+  - A paid order is marked `completed` **only after fulfillment succeeds**.
+  - `failed` is always retryable — Stripe's retry schedule (hours to days)
+    is the automated recovery mechanism, never silenced by an eager flag.
+  - Failure details (`last_error`, `attempts`) are stored for operator
+    diagnosis: when Stripe exhausts retries, the webhook failure shows in
+    the Stripe dashboard and the KV record says exactly what went wrong and
+    how many times. Human intervention remains the final tier — the hmc
+    property, preserved, but now with automated recovery in front of it
+    and diagnostics behind it.
+
+  Because KV reads are eventually consistent, the state machine is
+  best-effort dedup only; the **authoritative** duplicate guard is the
+  provider idempotency key (§7): `createOrder` always receives the Stripe
+  session ID and providers must dedupe on it, so even a double-fired
+  fulfillment call cannot create a duplicate order.
 
 Deploy pipeline additions, all following the Turnstile provision-or-reuse
 pattern:
@@ -342,7 +371,7 @@ scripts/lib/validate-plan.mjs                commerce block + catalog component 
 | 7 | Variant UI capped at two dimensions | Data model is N-dimensional; UI generality deferred until a site needs it |
 | 8 | All money is integer minor currency units (`price_minor`) | One representation everywhere; kills the decimal-string-to-Stripe unit bug (§8) |
 | 9 | Client sends only (slug, optionValues, qty); server resolves prices and refs | Prices and provider identifiers are never client-controlled (§6) |
-| 10 | Order completion recorded only after fulfillment succeeds; provider idempotency key is authoritative | Eagerly-set flags + async fulfillment permanently lose paid orders on provider failure — a live hmc bug this design fixes (§6, §7) |
+| 10 | Order state machine: `completed` only after fulfillment succeeds; failures stored with diagnostics and retried; provider idempotency key is authoritative | hmc deliberately simplified to "flag early, human fixes fulfillment" — fine for one low-volume store, wrong for reusable infrastructure. Automated recovery first, human intervention preserved as the final tier (§6, §7) |
 
 ---
 
