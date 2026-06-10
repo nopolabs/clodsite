@@ -68,9 +68,10 @@ commerce:
   enabled: true
   provider: printful        # selects the fulfillment provider module
   currency: usd
-  checkout: stripe          # the only v1 value; field exists so absence = lookbook mode
+  checkout: stripe          # the only v1 value
+  preview: true             # optional: cart works, checkout button disabled
   shipping:
-    flat_rate: "5.00"       # passed to Stripe Checkout; see Decisions
+    flat_rate_minor: 500    # integer minor units ($5.00); passed to Stripe Checkout
 ```
 
 Like `theme_selector`, this is plan-level configuration that affects the
@@ -78,10 +79,16 @@ layout chrome (cart badge + drawer) and the deploy pipeline (secrets,
 provisioning). When `commerce:` is absent, nothing commerce-related renders or
 deploys — zero cost to non-store sites.
 
-`checkout:` omitted (or `commerce:` entirely absent with a `catalog`
-component present) is **lookbook mode**: products display, no cart, no buy
-buttons. This is a useful intermediate product and the natural Phase 2
-milestone.
+Three activation states, each a shippable milestone:
+
+| State | Plan | Renders |
+|---|---|---|
+| Lookbook | no `checkout:` (or no `commerce:` at all) | products only — no cart, no buy buttons |
+| Preview | `checkout: stripe` + `preview: true` | full cart chrome; checkout button disabled with "Coming soon" (hmc's `preview` flag, promoted into the plan) |
+| Live | `checkout: stripe` | everything |
+
+Cart chrome is injected whenever `checkout:` is present, independent of
+`preview` — preview only disables the final button.
 
 ### 3. `catalog` component (page-level)
 
@@ -161,18 +168,45 @@ Mechanics port from hmc unchanged:
 - A build-time catalog set (every valid `slug:opt1:opt2` string) is embedded
   in the layout; on page load, cart items not in the set are silently purged.
   This prevents stale carts from breaking checkout after product changes.
-- No server-side cart. Checkout receives the cart as a JSON payload.
+- No server-side cart. The checkout payload is
+  `{ items: [{ slug, optionValues, qty }] }` — **nothing else**. Prices and
+  fulfillment refs never come from the client (§6); cached display prices in
+  localStorage are cosmetic.
 
 ### 6. Checkout: Pages Function, Stripe-only
 
 Two routes, rendered by `render-functions.sh` from function templates (the
 `resend-form` pattern):
 
-- `POST /api/checkout` — validates cart items against the built-in catalog
-  data, creates a Stripe Checkout session (flat shipping, address collection
-  on), returns `{ url }`.
-- `POST /api/webhook` — verifies the Stripe signature, checks/sets the
-  session ID in KV (idempotency), calls the provider's `createOrder`.
+- `POST /api/checkout` — receives `{ items: [{ slug, optionValues, qty }] }`
+  and resolves everything else **server-side** against catalog data embedded
+  in the function at render time: each (slug, optionValues) → canonical
+  variant, `fulfillment_ref`, and `price_minor`. Unknown combinations → 400.
+  Creates the Stripe Checkout session (flat shipping, address collection on)
+  with the resolved line items in session metadata, returns `{ url }`. The
+  client can name products and quantities — never prices or provider
+  identifiers.
+- `POST /api/webhook` — verifies the Stripe signature, then runs an order
+  **state machine** in KV keyed by the Stripe session ID:
+
+  ```
+  ORDERS[session_id] ∈ { pending, completed, failed }
+
+  completed        → 200, done (true duplicate)
+  absent | failed  → write pending, call createOrder
+  pending          → a prior attempt died mid-flight; call createOrder again
+  createOrder ok   → write completed, 200
+  createOrder err  → write failed, return 5xx so Stripe retries
+  ```
+
+  A paid order is marked `completed` only after fulfillment succeeds —
+  Stripe's retry schedule is the recovery mechanism for transient provider
+  failures, never silenced by an eagerly-set flag. Because KV reads are
+  eventually consistent, this state machine is best-effort dedup only; the
+  **authoritative** duplicate guard is the provider idempotency key (§7):
+  `createOrder` always receives the session ID and providers must dedupe on
+  it. Orders stuck in `failed` after Stripe exhausts retries surface in the
+  Stripe dashboard as webhook failures — v1's operational backstop.
 
 Deploy pipeline additions, all following the Turnstile provision-or-reuse
 pattern:
@@ -200,18 +234,29 @@ export async function syncCatalog(config, env)
 
 // order time (deployed Pages Function) — scripts/lib/commerce/providers/<name>/order.mjs
 export async function createOrder(order, env)
-// order = { lineItems: [{ fulfillment_ref, qty }], shipping, email }
+// order = { idempotency_key,            // Stripe session ID — providers MUST dedupe on it
+//           lineItems: [{ fulfillment_ref, qty }], shipping, email }
 // → { provider_order_id }
 ```
+
+`idempotency_key` is the authoritative duplicate guard (the KV state machine
+in §6 is best-effort): Printful sets it as the order `external_id` and treats
+an existing order with that ID as success; manual passes it as the Resend
+`Idempotency-Key` header.
 
 Everything between those moments — display, cart, Stripe session, signature
 verification, idempotency — is provider-agnostic.
 
 Key properties:
 
-- **`fulfillment_ref` is opaque.** For Printful it's the variant ID. Nothing
-  outside the provider's two modules interprets it; it round-trips from
-  `catalog.json` through the cart and Stripe metadata to `createOrder`.
+- **`fulfillment_ref` is opaque and never leaves the server.** For Printful
+  it's the variant ID. Nothing outside the provider's two modules interprets
+  it, and it is never client-controlled: the browser sends only
+  (slug, optionValues, qty); the checkout function resolves the ref from its
+  embedded catalog data and writes it into Stripe session metadata
+  server-side; the webhook reads it back from Stripe. The full path —
+  catalog.json → checkout function → Stripe → webhook → `createOrder` — is
+  server-to-server end to end.
 - **A provider is two files** because its halves run in different worlds:
   `sync.mjs` runs locally under Node; `order.mjs` is bundled into the webhook
   function template at render time and runs on Cloudflare. This bundling step
@@ -220,7 +265,7 @@ Key properties:
 
 ```
 { products: [{
-    slug, name, description, price, active,
+    slug, name, description, price_minor, active,
     images: { main, gallery: [...] },          // local commerce/assets/ paths
     options: [{ name: "Color", values: [{ value: "White", hex: "#FFFFFF" }] },
               { name: "Size",  values: [{ value: "M" }] }],
@@ -248,8 +293,18 @@ provider (Shopify fulfillment, digital downloads) slots in later.
 `validate-plan.mjs` grows commerce rules: `commerce.provider` must name a
 known provider, `checkout: stripe` is the only accepted value, a `catalog`
 component requires `commerce/catalog.json` to exist and validate, plan
-product filters must reference catalog slugs. The catalog component's
-`schema.json` validates the normalized product shape including size guides.
+product filters must reference catalog slugs, and all money fields
+(`price_minor`, `flat_rate_minor`) must be non-negative integers. The catalog
+component's `schema.json` validates the normalized product shape including
+size guides.
+
+**Money is integer minor currency units everywhere** — plan, catalog,
+checkout function, provider interface (`price_minor: 2000` is $20.00 USD).
+hmc's three coexisting representations (`20`, `"20.00"`, `2000`) are exactly
+the bug class this kills: a decimal string reaching Stripe's
+integer-cents API silently sells a $20 shirt for 20 cents. Conversion to
+display strings happens once, at template render time, using the currency's
+exponent; no other layer formats or parses money.
 
 Provider sync modules are pure `.mjs` with fixture-based `*.test.mjs` beside
 them (the established convention — `run-tests.sh` picks the glob up
@@ -285,6 +340,9 @@ scripts/lib/validate-plan.mjs                commerce block + catalog component 
 | 5 | Size guides ship in Phase 2 with the display component | Customer-requested on hmc; display-only feature with no checkout dependency |
 | 6 | Stripe-only payments, no payment abstraction | One abstraction at a time; the seam stays visible |
 | 7 | Variant UI capped at two dimensions | Data model is N-dimensional; UI generality deferred until a site needs it |
+| 8 | All money is integer minor currency units (`price_minor`) | One representation everywhere; kills the decimal-string-to-Stripe unit bug (§8) |
+| 9 | Client sends only (slug, optionValues, qty); server resolves prices and refs | Prices and provider identifiers are never client-controlled (§6) |
+| 10 | Order completion recorded only after fulfillment succeeds; provider idempotency key is authoritative | Eagerly-set flags + async fulfillment permanently lose paid orders on provider failure — a live hmc bug this design fixes (§6, §7) |
 
 ---
 
@@ -297,7 +355,8 @@ account (the `manual` provider carries the pipeline end-to-end first).
 2. **`catalog` component, display-only** — lookbook mode, hand-written
    `catalog.json`, size guides included. No `commerce:` block needed.
 3. **`commerce:` block + cart chrome** — localStorage cart, purge set,
-   checkout button hidden (hmc `preview`-flag style).
+   deployed with `preview: true` (checkout button disabled; §2 activation
+   table) since the checkout function doesn't exist until Phase 4.
 4. **Checkout + provisioning** — Stripe end-to-end with the `manual`
    provider; `provision-kv.sh`, `provision-stripe-webhook.sh`, secret pushes.
 5. **`printful` provider + `commerce-sync.sh`** — sync, normalization, image
