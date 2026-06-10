@@ -10,14 +10,6 @@ And stop.
 
 ---
 
-**[SCRIPT]** Check for a v1 `site/` directory and auto-migrate if found:
-
-```bash
-bash scripts/migrate-site.sh
-```
-
----
-
 **If the user typed `/deploy <site-name> local`:**
 
 **[SCRIPT]** Build and serve locally:
