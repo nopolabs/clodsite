@@ -13,17 +13,11 @@ if [ ! -f "$SPEC" ]; then
   exit 1
 fi
 
-# Validate it's parseable JSON
-if ! node -e "JSON.parse(require('fs').readFileSync('$SPEC', 'utf8'))" 2>/dev/null; then
+# Validate it's parseable JSON, then pretty-print in place for human readability
+if ! node "${SCRIPT_DIR}/lib/write-spec.mjs" "$SPEC" 2>/dev/null; then
   echo "Error: $SPEC is not valid JSON. Check Claude's output."
   exit 1
 fi
-
-# Pretty-print in place for human readability
-node -e "
-const spec = JSON.parse(require('fs').readFileSync('$SPEC', 'utf8'));
-require('fs').writeFileSync('$SPEC', JSON.stringify(spec, null, 2) + '\n');
-"
 
 echo "✓ Spec written to ${SITE_DIR}/site-spec.json"
 echo ""

@@ -19,15 +19,6 @@ if [ ! -f "$PLAN" ]; then
   exit 1
 fi
 
-node -e "
-const yaml = require('js-yaml');
-const spec = JSON.parse(require('fs').readFileSync('$SPEC', 'utf8'));
-const plan = yaml.load(require('fs').readFileSync('$PLAN', 'utf8'));
-
-plan.name = spec.site.name;
-
-require('fs').writeFileSync('$PLAN', yaml.dump(plan, { lineWidth: -1, noRefs: true }));
-console.log('✓ Injected name: ' + plan.name);
-"
+node "${SCRIPT_DIR}/lib/finalize-plan.mjs" "$SPEC" "$PLAN"
 
 bash scripts/validate-plan.sh

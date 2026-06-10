@@ -13,36 +13,7 @@ deliberate review cycle.
 
 Items are ordered by proposed implementation priority.
 
-### 1. Extract embedded JavaScript from bash scripts ("extract, don't rewrite")
-
-Several scripts embed large JavaScript programs inside `node -e "..."` strings
-— `validate-plan.sh` is 451 lines of which ~430 are JS trapped in one
-double-quoted bash string. Embedded JS forces `\"` escaping, rules out template
-literals (bash eats backticks), interpolates bash variables directly into JS
-source (a quoting/injection hazard), and is invisible to every tool: shellcheck
-can't parse it, ESLint can't lint it, Prettier can't format it, and it can't be
-unit-tested without spawning bash.
-
-The fix is extraction, not a rewrite. Move embedded programs into real files
-under `scripts/lib/*.mjs` and have the bash wrappers call
-`node scripts/lib/<name>.mjs "$ARG"` — arguments arrive safely via
-`process.argv`, the JS becomes lintable and testable, and the bash entry
-points, CLI contract, and `[SCRIPT]` architecture story stay identical.
-
-- **Extract** (data/logic heavy): `validate-plan`, `write-site-json`,
-  `generate-catalog-md`, `finalize-plan`, `write-spec`, `validate-spec`,
-  `migrate-plan-to-components`, `migrate-site`.
-- **Leave alone** (pure CLI orchestration — bash is the right tool):
-  `build-deploy`, `build-site`, `clean`, `setup`, `status`,
-  `render-functions`, `render-headers`.
-- **Case-by-case hybrids** (`domain`, `teardown`, `provision-turnstile`,
-  `deploy-finalize`): these interleave curl/wrangler with many small node
-  parsers — `provision-turnstile` spawns node 12 times and is the best
-  candidate for a fuller JS conversion, since native `fetch` would replace
-  the curl-then-parse dance entirely. Convert opportunistically when next
-  touched.
-
-### 2. Governed preview-and-revise workflow
+### 1. Governed preview-and-revise workflow
 
 Add a first-class workflow for previewing an existing site, collecting targeted
 feedback, proposing a reviewable `build-plan.yaml` diff, and rebuilding only
@@ -52,14 +23,14 @@ This evolves the planned `/modify` command around current build-plan-first
 usage, preserves stable page IDs, and keeps revision governed rather than
 silently regenerating the site.
 
-### 3. Generated not-found page
+### 2. Generated not-found page
 
 Generate a top-level `404.html` for every site, with useful navigation back to
 known content. This disables Cloudflare Pages' implicit single-page-application
 fallback, so unknown URLs return an honest `404` response instead of serving
 the home page with `200`.
 
-### 4. Explicit redirects
+### 3. Explicit redirects
 
 Add optional redirect declarations to `build-plan.yaml` and generate a
 Cloudflare Pages `_redirects` file. Support intentional permanent redirects for
@@ -67,7 +38,7 @@ renamed or retired pages, while leaving genuinely unknown paths to the generated
 404 page. Validate sources, destinations, status codes, duplicates, and
 conflicts with generated page routes.
 
-### 5. Installable skill/plugin packaging
+### 4. Installable skill/plugin packaging
 
 Clodsite currently ships as a template repo: clone it, `cd` into it, and open
 an agent there. Package Clodsite as an installable skill or plugin available
@@ -75,7 +46,7 @@ from any directory, removing the clone-and-`cd` bootstrap. Multi-site
 workspaces and configurable `SITES_DIR` have cleared the original storage and
 invocation blockers.
 
-### 6. General Pages Functions and secrets
+### 5. General Pages Functions and secrets
 
 Generalize the function and secret pipeline beyond the specific
 `resend-form` use case. Turnstile-protected contact forms now exercise widget
@@ -83,13 +54,13 @@ provisioning and secret installation, but arbitrary generated Functions and
 per-component secrets are not yet expressible. BBPP remains the driving
 example: authenticated proxying and a separate rendering/email service.
 
-### 7. MCP HTTP transport
+### 6. MCP HTTP transport
 
 The MCP server currently supports stdio only. Add an authenticated HTTP
 transport so Clodsite can run as a shared or hosted deployment service while
 preserving the same `list_components` and `deploy_site` contracts.
 
-### 8. Free-form legacy interview opener
+### 7. Free-form legacy interview opener
 
 Replace the fixed ten-question `/interview` sequence with one open prompt,
 targeted follow-up questions for missing information, and a confirmation
@@ -97,7 +68,7 @@ summary before writing `site-spec.json`. Keep the fixed sequence as a fallback.
 This is lower priority because direct collaboration on `build-plan.yaml` is now
 the primary workflow and interview/spec is explicitly legacy scaffolding.
 
-### 9. Root-page routing contract
+### 8. Root-page routing contract
 
 Fix the current assumption that both the page with `id: home` and the first
 page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
@@ -107,6 +78,20 @@ current sites put `home` first.
 ---
 
 ## Completed
+
+### Extracted embedded JavaScript from bash scripts ("extract, don't rewrite")
+
+Shipped June 2026. Eight scripts that embedded JavaScript programs inside
+`node -e "..."` strings now call real ESM modules under `scripts/lib/*.mjs`,
+with arguments passed safely via `process.argv` instead of bash interpolation
+into JS source. The bash entry points, CLI contract, and `[SCRIPT]`
+architecture story are unchanged; the extracted JS is now visible to linters,
+formatters, and unit tests. Extracted: `validate-plan`, `write-site-json`,
+`generate-catalog-md`, `finalize-plan`, `write-spec`, `validate-spec`,
+`migrate-plan-to-components`, `migrate-site` (as `spec-slug.mjs`). Pure-bash
+orchestration scripts were left alone; the hybrid scripts (`domain`,
+`teardown`, `provision-turnstile`, `deploy-finalize`) remain
+convert-when-next-touched.
 
 ### Goal-oriented informational components
 
