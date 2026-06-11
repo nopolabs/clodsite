@@ -401,43 +401,66 @@ real personalization, the real store — and only then the real domain.
    `unset` plus a repo `.env` that happens to lack real keys; the first real
    `STRIPE_SECRET_KEY`/`PRINTFUL_API_KEY` written to `.env` silently inverts
    them. Isolate the test harness from the developer `.env` *before* any
-   real keys exist.
-7. **clodsite-demo goes commercial** — first contact with production Stripe,
-   Resend, and the provisioning scripts (everything to date has run against
-   stubs). Manual provider, one $1 product: buy a treat for Anchovy the cat —
-   he'll send you a picture (eventually, when he gets around to it). This
-   phase also streamlines **Stripe test mode**: users must be able to
-   exercise a store safely and confidently before going live, so easy
-   test-mode setup is an adoption requirement, not a nicety.
+   real keys exist. Tests run with a temporary controlled `.env` and explicit
+   environment, never the repository's developer credentials. Acceptance:
+   the suite produces identical results when the developer `.env` is absent,
+   empty, or populated with every production secret.
+7. **clodsite-demo goes commercial** — first contact with the real Stripe and
+   Resend APIs and the provisioning scripts (everything to date has run
+   against stubs). Manual provider, one $1 product: buy a treat for Anchovy —
+   he'll send you a picture (eventually, when he gets around to it). Progress
+   through explicit gates: provision with Stripe test-mode keys; complete a
+   test checkout and manual fulfillment; exercise a failed webhook delivery
+   and successful retry; then switch to live keys for one deliberate $1
+   purchase. Test-mode setup and mode visibility must be easy and unambiguous:
+   users need to exercise a store safely and confidently before going live.
 8. **bbpp commerce design** — a design doc (like this one) for
    bigbeautifulpeaceprize.com's certificate commerce. Two sales points: the
    prize *awarder* may opt to send a physical certificate, and the prize
    *recipient's* notification email offers a printed copy of their prize.
    Both require **personalization** — an order references a specific
    certificate/recipient, which the v1 checkout payload
-   (`{ slug, optionValues, qty }`) cannot carry. Settle the channel (e.g.
-   Stripe Checkout custom fields → session metadata → provider order) and
-   the fulfillment split (manual vs a Printful print product) before
-   building.
+   (`{ slug, optionValues, qty }`) cannot carry. Trusted certificate and
+   recipient context travels as a server-issued opaque `personalization_id`,
+   resolved server-side at checkout and fulfillment; certificate details and
+   recipient PII do not travel through the browser or Stripe metadata. Stripe
+   Checkout custom fields are reserved for information genuinely supplied by
+   the buyer. Settle that boundary and the fulfillment split (manual vs a
+   Printful print product) before building.
 9. **bbpp port + certificate commerce** — port the live site
-   (github.com/nopolabs/bbpp) to clodsite, then implement the Phase 8
-   design. A live but low-stakes sandbox for ironing out real ecommerce
-   flows end to end before touching hmc.
+   (github.com/nopolabs/bbpp) to clodsite as two acceptance gates. First,
+   deploy the non-commerce port and verify behavioral parity with the existing
+   site. Only then implement and activate the Phase 8 certificate-commerce
+   design. This is a live but low-stakes sandbox for ironing out real
+   ecommerce flows end to end before touching hmc.
 10. **next-gen.hmc-cycling.org** — parallel build mirroring hmc-cycling.org
     with the `printful` provider against the real store, on its own Pages
-    project and subdomain with its own Stripe webhook endpoint; the live
-    site and its Worker are untouched. Soak behind `preview: true`, then one
-    deliberate live purchase.
+    project and subdomain with its own Stripe webhook endpoint. The live
+    storefront remains untouched, but its Worker first receives a narrow
+    ownership guard: legacy sessions with no marker continue down the old
+    path, while sessions explicitly marked for next-gen are ignored. Every
+    new next-gen Stripe Checkout session carries a server-set
+    `commerce_instance_id`, and its webhook accepts only that value. This
+    prevents two simultaneously registered endpoints from fulfilling the same
+    purchase. Soak behind `preview: true`, then make one deliberate live
+    purchase through next-gen and verify payment, retry state, and Printful
+    order.
 11. **Cutover** — repoint hmc-cycling.org via `/domain` to the soaked
-    next-gen project, disconnect the old Pages git-integration build,
-    decommission the standalone Worker and its Stripe webhook endpoint.
-    Reversible by pointing the domain back.
+    next-gen project and disconnect the old Pages git-integration build. Keep
+    the old Pages project, standalone Worker, and webhook endpoint intact but
+    dormant for a rollback window at least as long as the configured webhook
+    retry horizon. Rollback means pointing the domain back and restoring the
+    old checkout route; decommissioning the old stack is a separate cleanup
+    after the window closes and the new order path has been reconciled.
 
 Cutover cautions (Phase 11): the next-gen project provisions its own webhook
-endpoint at its Pages Function path during Phase 10, so cutover deletes the
-old Worker's endpoint rather than migrating it — there is no signing-secret
-handoff. hmc loses push-to-deploy (deploys become `/build` + `/deploy`), an
-accepted workflow change.
+endpoint at its Pages Function path during Phase 10; there is no signing-secret
+handoff. During the rollback window, both endpoints remain registered and
+`commerce_instance_id` is the routing guard. Before decommissioning, confirm
+that no old-system sessions remain unfulfilled or retrying, remove the old
+webhook endpoint, then remove the Worker and old Pages project. hmc loses
+push-to-deploy (deploys become `/build` + `/deploy`), an accepted workflow
+change.
 
 ---
 
