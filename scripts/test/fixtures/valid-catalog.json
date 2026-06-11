@@ -61,7 +61,8 @@
       "description": "A cap with the logo.",
       "price_minor": 1500,
       "active": true,
-      "images": { "main": "commerce/assets/logo-cap.png" }
+      "images": { "main": "commerce/assets/logo-cap.png" },
+      "variants": [{ "optionValues": {}, "fulfillment_ref": "5500110" }]
     },
     {
       "slug": "retired-tee",

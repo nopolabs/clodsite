@@ -4,6 +4,8 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import { readCatalog } from './validate-catalog.mjs';
+import { buildCatalogSet } from './resolve-catalog.mjs';
 
 const [siteDir] = process.argv.slice(2);
 if (!siteDir) {
@@ -53,6 +55,21 @@ if (fs.existsSync(favDir) && fs.statSync(favDir).isDirectory()) {
 }
 const hasCustomFavicons = favicons.length > 0;
 
+// Cart chrome (spec §2, §5): injected whenever checkout is configured and
+// commerce isn't disabled. catalog_set is the build-time purge set the cart
+// validates stored items against; validate-plan has already guaranteed the
+// catalog exists and is valid when checkout is enabled.
+const commerce = plan.commerce;
+const cartEnabled = !!(commerce && commerce.enabled === true && commerce.checkout === 'stripe');
+const commerceData = cartEnabled
+  ? {
+      cart_enabled: true,
+      preview: commerce.preview === true,
+      currency: commerce.currency,
+      catalog_set: buildCatalogSet(readCatalog(path.join(siteDir, 'commerce', 'catalog.json')))
+    }
+  : { cart_enabled: false };
+
 const siteData = {
   name: plan.name,
   style: plan.style,
@@ -69,7 +86,8 @@ const siteData = {
     ? { enabled: true, email: contact.email }
     : { enabled: false },
   favicons,
-  has_custom_favicons: hasCustomFavicons
+  has_custom_favicons: hasCustomFavicons,
+  commerce: commerceData
 };
 
 fs.mkdirSync(path.join(siteDir, 'src', '_data'), { recursive: true });

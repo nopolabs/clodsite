@@ -3,7 +3,9 @@
    variants and fulfillment refs never reach the page. #}
 <div class="c-catalog">
   {% for product in component.products %}
-  <article class="c-catalog__product" data-slug="{{ product.slug | escape }}">
+  <article class="c-catalog__product" data-slug="{{ product.slug | escape }}"
+           data-name="{{ product.name | escape }}" data-price-minor="{{ product.price_minor }}"
+           data-image="{{ product.images.main | escape }}">
     <figure class="c-catalog__media">
       <img class="c-catalog__image" src="{{ product.images.main | escape }}" alt="{{ product.name | escape }}" loading="lazy">
       {% if product.images.gallery and product.images.gallery.length > 0 %}
@@ -24,7 +26,7 @@
       <p class="c-catalog__price">{{ product.price_display | escape }}</p>
       <p class="c-catalog__description">{{ product.description | escape }}</p>
       {% for option in product.options %}
-      <div class="c-catalog__option">
+      <div class="c-catalog__option" data-option-name="{{ option.name | escape }}">
         <span class="c-catalog__option-name" id="catalog-{{ product.slug | escape }}-opt-{{ loop.index0 }}">{{ option.name | escape }}</span>
         {% if loop.index0 == 0 and option.has_swatches %}
         <div class="c-catalog__swatches" role="group" aria-labelledby="catalog-{{ product.slug | escape }}-opt-{{ loop.index0 }}">
@@ -43,6 +45,12 @@
         {% endif %}
       </div>
       {% endfor %}
+      {% if site.commerce.cart_enabled %}
+      <div class="c-catalog__add">
+        <button type="button" class="c-catalog__add-button">Add to cart</button>
+        <span class="c-catalog__add-flash" role="status" hidden>Unavailable</span>
+      </div>
+      {% endif %}
       {% if product.size_guide %}
       <button type="button" class="c-catalog__size-guide-open">Size guide</button>
       <dialog class="c-catalog__size-guide" aria-label="{{ product.name | escape }} size guide">
@@ -116,6 +124,38 @@
           for (var swatch of swatches) {
             swatch.addEventListener('click', function (e) {
               for (var s of swatches) s.setAttribute('aria-pressed', String(s === e.currentTarget));
+            });
+          }
+          var addButton = card.querySelector('.c-catalog__add-button');
+          if (addButton) {
+            var flash = card.querySelector('.c-catalog__add-flash');
+            var flashTimer = null;
+            addButton.addEventListener('click', function () {
+              // Collect selections in DOM order — the declared option order,
+              // matching the catalog set keys the cart validates against.
+              var optionValues = {};
+              for (var wrapper of card.querySelectorAll('.c-catalog__option')) {
+                var select = wrapper.querySelector('.c-catalog__select');
+                var pressed = wrapper.querySelector('.c-catalog__swatch[aria-pressed="true"]');
+                optionValues[wrapper.dataset.optionName] =
+                  select ? select.value : pressed.getAttribute('aria-label');
+              }
+              var cart = window.__clodsiteCart;
+              if (!cart || !cart.sells(card.dataset.slug, optionValues)) {
+                flash.hidden = false;
+                clearTimeout(flashTimer);
+                flashTimer = setTimeout(function () { flash.hidden = true; }, 2000);
+                return;
+              }
+              document.dispatchEvent(new CustomEvent('clodsite:cart:add', {
+                detail: {
+                  slug: card.dataset.slug,
+                  name: card.dataset.name,
+                  price_minor: parseInt(card.dataset.priceMinor, 10),
+                  image: card.dataset.image,
+                  optionValues: optionValues
+                }
+              }));
             });
           }
           var openBtn = card.querySelector('.c-catalog__size-guide-open');

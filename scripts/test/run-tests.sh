@@ -1622,7 +1622,7 @@ assert_contains "asset paths are rooted" '"/commerce/assets/crow-tee-white-front
 assert_contains "active products resolve by default" '"slug":"logo-cap"' "$CATALOG_HOME"
 assert_not_contains "inactive products are dropped" "retired-tee" "$CATALOG_HOME"
 assert_not_contains "fulfillment refs never reach the page" "fulfillment_ref" "$CATALOG_HOME"
-assert_not_contains "raw minor units never reach the page" "price_minor" "$CATALOG_HOME"
+assert_contains "cart cached price reaches the page" '"price_minor":2000' "$CATALOG_HOME"
 assert_contains "filtered page keeps the filtered product" '"slug":"crow-tee"' "$CATALOG_TEES"
 assert_not_contains "filtered page drops other products" "logo-cap" "$CATALOG_TEES"
 
@@ -1659,6 +1659,122 @@ assert_contains "HTML has size-guide measurement" '25.5' "$CATALOG_HTML"
 assert_not_contains "HTML never carries fulfillment refs" "4938291" "$CATALOG_HTML"
 assert_contains "catalog CSS is aggregated" ".c-catalog" "$(cat scaffold/src/css/components.css)"
 assert_file_exists "commerce assets copied into dist" "${SITE_DIR}/dist/commerce/assets/crow-tee-white-front.png"
+rm -rf "${SITE_DIR}/commerce"
+
+# ── commerce cart (commerce: block + cart chrome) ─────────────────────────────
+echo ""
+echo "=== commerce cart ==="
+
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist" "${SITE_DIR}/commerce"
+cp scripts/test/fixtures/valid-build-plan-commerce.yaml "${SITE_DIR}/build-plan.yaml"
+
+# checkout enabled without commerce/catalog.json → exits 1, even when no page
+# uses a catalog component (checkout alone requires the catalog)
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.pages[0].components = p.pages[0].components.filter(c => c.type !== 'catalog');
+fs.writeFileSync(file, yaml.dump(p));
+"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "checkout without catalog.json exits 1" 1 $?
+assert_contains "checkout names the catalog requirement" "commerce.checkout requires" "$COMMERCE_OUTPUT"
+cp scripts/test/fixtures/valid-build-plan-commerce.yaml "${SITE_DIR}/build-plan.yaml"
+
+# valid commerce plan + catalog → exits 0
+mkdir -p "${SITE_DIR}/commerce/assets"
+cp scripts/test/fixtures/valid-catalog.json "${SITE_DIR}/commerce/catalog.json"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "commerce plan with valid catalog exits 0" 0 $?
+
+# commerce block field validation
+commerce_plan_mutation() {
+  cp scripts/test/fixtures/valid-build-plan-commerce.yaml "${SITE_DIR}/build-plan.yaml"
+  node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+$1
+fs.writeFileSync(file, yaml.dump(p));
+"
+}
+commerce_plan_mutation "p.commerce.provider='shopify';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown provider exits 1" 1 $?
+assert_contains "unknown provider is rejected" "commerce.provider must be one of" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "p.commerce.checkout='paypal';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "non-stripe checkout exits 1" 1 $?
+assert_contains "non-stripe checkout is rejected" "commerce.checkout must be stripe" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "delete p.commerce.checkout;"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "preview without checkout exits 1" 1 $?
+assert_contains "preview requires checkout" "commerce.preview requires commerce.checkout" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "p.commerce.surcharge_minor=100;"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown commerce field exits 1" 1 $?
+assert_contains "unknown commerce field is rejected" 'commerce has unknown field "surcharge_minor"' "$COMMERCE_OUTPUT"
+
+# checkout enabled + active product without variants → exits 1
+cp scripts/test/fixtures/valid-build-plan-commerce.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs');
+const file='${SITE_DIR}/commerce/catalog.json';
+const c=JSON.parse(fs.readFileSync(file,'utf8'));
+delete c.products[1].variants;
+fs.writeFileSync(file, JSON.stringify(c));
+"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "active product without variants exits 1 under checkout" 1 $?
+assert_contains "variantless product is named" '"logo-cap" is active with checkout enabled but has no variants' "$COMMERCE_OUTPUT"
+cp scripts/test/fixtures/valid-catalog.json "${SITE_DIR}/commerce/catalog.json"
+
+# write-site-json emits the cart config + catalog purge set
+rm -rf "${SITE_DIR}/src"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+assert_exit "write-site-json with commerce exits 0" 0 $?
+COMMERCE_SITE_JSON=$(cat "${SITE_DIR}/src/_data/site.json")
+assert_contains "site.json enables the cart" '"cart_enabled": true' "$COMMERCE_SITE_JSON"
+assert_contains "site.json carries preview" '"preview": true' "$COMMERCE_SITE_JSON"
+assert_contains "site.json carries the currency" '"currency": "usd"' "$COMMERCE_SITE_JSON"
+assert_contains "catalog set keys variants in option order" '"crow-tee:White:S"' "$COMMERCE_SITE_JSON"
+assert_contains "catalog set keys simple products as bare slugs" '"logo-cap"' "$COMMERCE_SITE_JSON"
+assert_not_contains "catalog set drops inactive products" "retired-tee" "$COMMERCE_SITE_JSON"
+assert_not_contains "site.json never carries fulfillment refs" "4938291" "$COMMERCE_SITE_JSON"
+
+# full build: cart chrome + add-to-cart wiring in dist
+printf 'png' > "${SITE_DIR}/commerce/assets/crow-tee-white-front.png"
+rm -rf "${SITE_DIR}/dist"
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "commerce fixture builds" 0 $?
+COMMERCE_HTML=$(cat "${SITE_DIR}/dist/index.html")
+assert_contains "HTML has the cart toggle" 'class="cart-toggle"' "$COMMERCE_HTML"
+assert_contains "HTML has the cart drawer" 'id="cart-drawer"' "$COMMERCE_HTML"
+assert_contains "HTML links the cart stylesheet" '/css/cart.css' "$COMMERCE_HTML"
+assert_contains "HTML embeds the catalog purge set" 'crow-tee:White:S' "$COMMERCE_HTML"
+assert_contains "HTML has the add-to-cart button" 'class="c-catalog__add-button"' "$COMMERCE_HTML"
+assert_contains "HTML carries option names for cart keys" 'data-option-name="Color"' "$COMMERCE_HTML"
+assert_contains "HTML shows the preview note" 'Checkout is coming soon.' "$COMMERCE_HTML"
+assert_not_contains "HTML never carries fulfillment refs" "4938291" "$COMMERCE_HTML"
+assert_file_exists "cart stylesheet copied into dist" "${SITE_DIR}/dist/css/cart.css"
+
+# lookbook plan (no commerce block) keeps the cart chrome out
+cp scripts/test/fixtures/valid-build-plan-catalog.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+LOOKBOOK_SITE_JSON=$(cat "${SITE_DIR}/src/_data/site.json")
+assert_contains "lookbook site.json disables the cart" '"cart_enabled": false' "$LOOKBOOK_SITE_JSON"
+bash scripts/render-templates.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "lookbook fixture still builds" 0 $?
+LOOKBOOK_HTML=$(cat "${SITE_DIR}/dist/index.html")
+assert_not_contains "lookbook HTML has no cart toggle" "cart-toggle" "$LOOKBOOK_HTML"
+assert_not_contains "lookbook HTML has no add-to-cart button" 'class="c-catalog__add-button"' "$LOOKBOOK_HTML"
 rm -rf "${SITE_DIR}/commerce"
 
 # ── JS unit tests (scripts/lib/*.test.mjs) ────────────────────────────────────

@@ -1,0 +1,26 @@
+slug: commerce-test
+name: Commerce Test
+overview: Fixture for the commerce block and cart chrome (preview checkout).
+style: minimal
+tone: professional
+commerce:
+  enabled: true
+  provider: printful
+  currency: usd
+  checkout: stripe
+  preview: true
+  shipping:
+    flat_rate_minor: 500
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          ## Shop
+          Our small catalog.
+      - type: catalog
+nav:
+  order: [home]
+contact:
+  enabled: false
