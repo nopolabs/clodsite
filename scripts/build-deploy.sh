@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Usage: bash scripts/build-deploy.sh <site-name>
-# Runs the full build+deploy pipeline without LLM involvement.
+# Usage: bash scripts/build-deploy.sh <site-name> ["why this deploy"]
+# Runs the full build+deploy pipeline without LLM involvement. The optional
+# second argument becomes the sites-repo commit subject:
+#   deploy: <site-name> — why this deploy
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SITE_NAME="${1:-}"
+DEPLOY_MESSAGE="${2:-}"
 
 if [ -z "$SITE_NAME" ]; then
-  echo "Usage: bash scripts/build-deploy.sh <site-name>"
+  echo "Usage: bash scripts/build-deploy.sh <site-name> [\"why this deploy\"]"
   exit 1
 fi
 
-export SITE_NAME
+export SITE_NAME DEPLOY_MESSAGE
 
 echo "==> validate"
 SITE_NAME="$SITE_NAME" bash "${SCRIPT_DIR}/validate-plan.sh"

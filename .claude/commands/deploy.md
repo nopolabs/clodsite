@@ -2,7 +2,7 @@ Deploy the built Clodsite site to Cloudflare Pages, or preview it locally.
 
 ---
 
-**Get site name.** Look at what the user typed after `/deploy`. Examples: `/deploy acme-corp` or `/deploy acme-corp local`. Extract the site name (first word after `/deploy` that isn't `local`). If no site name was provided:
+**Get site name.** Look at what the user typed after `/deploy`. Examples: `/deploy acme-corp`, `/deploy acme-corp local`, or `/deploy acme-corp "switch to live keys"`. Extract the site name (first word after `/deploy` that isn't `local`) and an optional deploy message (any remaining quoted or trailing text). If no site name was provided:
 
 > "Please provide a site name: `/deploy <site-name>` — e.g., `/deploy acme-corp`"
 
@@ -55,7 +55,9 @@ Do not attempt to re-run deploy automatically. Print the fix suggestion and stop
 **[SCRIPT]** Finalize the deployment:
 
 ```bash
-SITE_NAME=<site-name> bash scripts/deploy-finalize.sh
+SITE_NAME=<site-name> DEPLOY_MESSAGE="<message>" bash scripts/deploy-finalize.sh
 ```
 
 This parses the live URL from the deploy output, generates `$SITES_DIR/<site-name>/NEXT-STEPS.md`, optionally commits the deployed site inside the `SITES_DIR` git repo, and prints the production URL. It does not write back to `site-spec.json`; `build-plan.yaml` remains the build contract.
+
+`DEPLOY_MESSAGE` becomes the sites-repo commit subject: `deploy: <site-name> — <message>` (URLs and Stripe mode are recorded in the commit body). If the user supplied a message after `/deploy <site-name>`, use it verbatim. Otherwise **write one yourself**: a short phrase saying why this deploy is happening — e.g. `"first deploy"`, `"new gallery page"`, `"switch to Stripe live keys"`. You usually know the reason; a history of bare `deploy: <site-name>` lines helps no one.
