@@ -30,7 +30,34 @@ advances "General Pages Functions and secrets" below (per-component secrets,
 `provision-kv`, `provision-stripe-webhook`). Design:
 `docs/superpowers/specs/2026-06-10-commerce-design.md`.
 
-### 2. Governed preview-and-revise workflow
+### 2. Schema-driven validation for agent-native workflows
+
+Migrate the imperative configuration validation logic in `validate-plan.mjs`
+to a declarative JSON Schema standard. This structural shift aligns the
+codebase with the core thesis of Clodsite as a deterministic compiler,
+optimizing the workflow for autonomous AI agents and programmatic toolchains.
+
+Key objectives:
+
+* **Declare the contract:** standardize the `build-plan.yaml` structural
+  syntax into a strict JSON Schema, explicitly codifying required nodes, data
+  types, component types, and the commerce primitives now landing.
+* **Streamline the toolchain:** replace hand-written JavaScript validation
+  logic in the repository scripts with a lightweight, schema-compliant
+  validator library (e.g., `ajv`), reducing codebase maintenance overhead.
+* **Enable agent-native safety:** provide a machine-readable schema that
+  external AI agents (Claude Code, Cursor, local LLMs via MCP) can ingest
+  natively to guarantee syntactically valid YAML output before generation
+  begins.
+* **Enhance human DX:** expose the schema to standard IDE language servers
+  for instant inline autocomplete, documentation tooltips, and real-time
+  linting when writing plans by hand.
+
+Cross-file checks that JSON Schema cannot express (nav/page cross-references,
+catalog slug resolution, filesystem existence) remain as a thin imperative
+layer on top of the schema.
+
+### 3. Governed preview-and-revise workflow
 
 Add a first-class workflow for previewing an existing site, collecting targeted
 feedback, proposing a reviewable `build-plan.yaml` diff, and rebuilding only
@@ -40,14 +67,14 @@ This evolves the planned `/modify` command around current build-plan-first
 usage, preserves stable page IDs, and keeps revision governed rather than
 silently regenerating the site.
 
-### 3. Generated not-found page
+### 4. Generated not-found page
 
 Generate a top-level `404.html` for every site, with useful navigation back to
 known content. This disables Cloudflare Pages' implicit single-page-application
 fallback, so unknown URLs return an honest `404` response instead of serving
 the home page with `200`.
 
-### 4. Explicit redirects
+### 5. Explicit redirects
 
 Add optional redirect declarations to `build-plan.yaml` and generate a
 Cloudflare Pages `_redirects` file. Support intentional permanent redirects for
@@ -55,7 +82,7 @@ renamed or retired pages, while leaving genuinely unknown paths to the generated
 404 page. Validate sources, destinations, status codes, duplicates, and
 conflicts with generated page routes.
 
-### 5. Installable skill/plugin packaging
+### 6. Installable skill/plugin packaging
 
 Clodsite currently ships as a template repo: clone it, `cd` into it, and open
 an agent there. Package Clodsite as an installable skill or plugin available
@@ -63,7 +90,7 @@ from any directory, removing the clone-and-`cd` bootstrap. Multi-site
 workspaces and configurable `SITES_DIR` have cleared the original storage and
 invocation blockers.
 
-### 6. General Pages Functions and secrets
+### 7. General Pages Functions and secrets
 
 Generalize the function and secret pipeline beyond the specific
 `resend-form` use case. Turnstile-protected contact forms now exercise widget
@@ -71,13 +98,13 @@ provisioning and secret installation, but arbitrary generated Functions and
 per-component secrets are not yet expressible. BBPP remains the driving
 example: authenticated proxying and a separate rendering/email service.
 
-### 7. MCP HTTP transport
+### 8. MCP HTTP transport
 
 The MCP server currently supports stdio only. Add an authenticated HTTP
 transport so Clodsite can run as a shared or hosted deployment service while
 preserving the same `list_components` and `deploy_site` contracts.
 
-### 8. Free-form legacy interview opener
+### 9. Free-form legacy interview opener
 
 Replace the fixed ten-question `/interview` sequence with one open prompt,
 targeted follow-up questions for missing information, and a confirmation
@@ -85,7 +112,7 @@ summary before writing `site-spec.json`. Keep the fixed sequence as a fallback.
 This is lower priority because direct collaboration on `build-plan.yaml` is now
 the primary workflow and interview/spec is explicitly legacy scaffolding.
 
-### 9. Root-page routing contract
+### 10. Root-page routing contract
 
 Fix the current assumption that both the page with `id: home` and the first
 page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
