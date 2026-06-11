@@ -1988,8 +1988,15 @@ case "\${url}" in
   *api.stripe.com/v1/webhook_endpoints/we_test1)
     printf '%s\n200' '{"id":"we_test1","url":"https://commerce-live-test.pages.dev/api/webhook"}'
     ;;
+  *api.stripe.com/v1/webhook_endpoints/we_orphan1)
+    printf '%s\n200' '{"id":"we_orphan1","deleted":true}'
+    ;;
   *api.stripe.com/v1/webhook_endpoints\?*)
-    printf '%s\n200' '{"object":"list","data":[]}'
+    if [ -f "${CHECKOUT_STUB_DIR}/webhook-list.json" ]; then
+      printf '%s\n200' "\$(cat "${CHECKOUT_STUB_DIR}/webhook-list.json")"
+    else
+      printf '%s\n200' '{"object":"list","data":[]}'
+    fi
     ;;
   *api.stripe.com/v1/webhook_endpoints)
     printf '%s\n200' '{"id":"we_test1","secret":"whsec_test_secret_xyz"}'
@@ -2028,14 +2035,27 @@ assert_exit "missing STRIPE_SECRET_KEY exits 1" 1 $?
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}" 2>/dev/null || true)
 assert_not_contains "deploy not called when Stripe key missing" "pages deploy" "$CHECKOUT_LOG"
 
-( unset RESEND_API_KEY; STRIPE_SECRET_KEY=sk_test SITE_DIR="${SITE_DIR}" \
+( unset RESEND_API_KEY; STRIPE_SECRET_KEY=sk_test_123 SITE_DIR="${SITE_DIR}" \
   bash scripts/deploy.sh > /dev/null 2>&1 )
 assert_exit "manual provider without RESEND_API_KEY exits 1" 1 $?
 
+# An unrecognized key prefix is ambiguous about which mode would deploy —
+# refuse before provisioning anything.
 : > "${CHECKOUT_STUB_LOG}"
-STRIPE_SECRET_KEY=sk_test RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
-  bash scripts/deploy.sh > /dev/null 2>&1
+COMMERCE_OUTPUT=$(STRIPE_SECRET_KEY=sk_oops RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1)
+assert_exit "unrecognized Stripe key prefix exits 1" 1 $?
+assert_contains "key prefix expectation is named" "sk_test_/sk_live_ or rk_test_/rk_live_" "$COMMERCE_OUTPUT"
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}" 2>/dev/null || true)
+assert_not_contains "deploy not called for unrecognized key" "pages deploy" "$CHECKOUT_LOG"
+
+: > "${CHECKOUT_STUB_LOG}"
+COMMERCE_OUTPUT=$(STRIPE_SECRET_KEY=sk_test_123 RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1)
 assert_exit "live commerce deploy exits 0" 0 $?
+assert_contains "test mode announced at deploy" "Stripe mode: TEST — no real money can move." "$COMMERCE_OUTPUT"
+assert_contains "test mode names the test card" "4242 4242 4242 4242" "$COMMERCE_OUTPUT"
+assert_contains "provisioning confirms the mode" "(test mode)" "$COMMERCE_OUTPUT"
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
 CHECKOUT_POST_LINES=$(grep '^POST' "${CHECKOUT_STUB_LOG}" || true)
 CHECKOUT_PATCH_LINES=$(grep '^PATCH' "${CHECKOUT_STUB_LOG}" || true)
@@ -2049,11 +2069,12 @@ assert_contains "Pages deploy called" "pages deploy dist" "$CHECKOUT_LOG"
 assert_file_exists "Stripe webhook state recorded" "${SITE_DIR}/.stripe-webhook-state.json"
 CHECKOUT_STATE=$(cat "${SITE_DIR}/.stripe-webhook-state.json")
 assert_contains "webhook state records the endpoint id" "we_test1" "$CHECKOUT_STATE"
+assert_contains "webhook state records the Stripe mode" '"mode": "test"' "$CHECKOUT_STATE"
 assert_not_contains "webhook state NEVER records the signing secret" "whsec_test_secret_xyz" "$CHECKOUT_STATE"
 
 # second deploy reuses the endpoint without re-pushing the signing secret
 : > "${CHECKOUT_STUB_LOG}"
-STRIPE_SECRET_KEY=sk_test RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+STRIPE_SECRET_KEY=sk_test_123 RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
   bash scripts/deploy.sh > /dev/null 2>&1
 assert_exit "live commerce redeploy exits 0" 0 $?
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
@@ -2061,17 +2082,76 @@ assert_contains "redeploy fetches the recorded endpoint" "GET https://api.stripe
 assert_not_contains "redeploy creates no new endpoint" "POST https://api.stripe.com/v1/webhook_endpoints" "$CHECKOUT_LOG"
 assert_not_contains "redeploy never re-pushes the signing secret" "pages secret put STRIPE_WEBHOOK_SECRET" "$CHECKOUT_LOG"
 
+# finalize after a test-mode deploy records the mode and the safe-testing path
+echo "https://abc12345.commerce-live-test.pages.dev" > "${SITE_DIR}/.deploy-output"
+COMMERCE_OUTPUT=$(SITE_DIR="${SITE_DIR}" bash scripts/deploy-finalize.sh 2>&1)
+assert_exit "test-mode finalize exits 0" 0 $?
+assert_contains "finalize announces test mode" "Stripe mode: TEST" "$COMMERCE_OUTPUT"
+NEXT_STEPS=$(cat "${SITE_DIR}/NEXT-STEPS.md")
+assert_contains "NEXT-STEPS records test mode" "Your store is in Stripe TEST mode" "$NEXT_STEPS"
+assert_contains "NEXT-STEPS names the test card" "4242 4242 4242 4242" "$NEXT_STEPS"
+assert_contains "NEXT-STEPS explains going live" "sk_live_" "$NEXT_STEPS"
+
+# switching the key to live mode is announced and provisions a fresh
+# live-mode endpoint (endpoints and signing secrets are mode-scoped)
+: > "${CHECKOUT_STUB_LOG}"
+COMMERCE_OUTPUT=$(STRIPE_SECRET_KEY=sk_live_456 RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1)
+assert_exit "test→live mode-switch deploy exits 0" 0 $?
+assert_contains "live mode announced at deploy" "Stripe mode: LIVE — real cards will be charged." "$COMMERCE_OUTPUT"
+assert_contains "mode switch is explained" "Stripe mode changed: test → live" "$COMMERCE_OUTPUT"
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_not_contains "switch never fetches the old-mode endpoint" "GET https://api.stripe.com/v1/webhook_endpoints/we_test1" "$CHECKOUT_LOG"
+assert_contains "switch creates a fresh endpoint" "POST https://api.stripe.com/v1/webhook_endpoints" "$CHECKOUT_LOG"
+assert_contains "switch pushes the fresh signing secret" "pages secret put STRIPE_WEBHOOK_SECRET" "$CHECKOUT_LOG"
+CHECKOUT_STATE=$(cat "${SITE_DIR}/.stripe-webhook-state.json")
+assert_contains "state mode updated to live" '"mode": "live"' "$CHECKOUT_STATE"
+
+# finalize after the live deploy records live mode
+echo "https://abc12345.commerce-live-test.pages.dev" > "${SITE_DIR}/.deploy-output"
+COMMERCE_OUTPUT=$(SITE_DIR="${SITE_DIR}" bash scripts/deploy-finalize.sh 2>&1)
+assert_contains "finalize announces live mode" "Stripe mode: LIVE" "$COMMERCE_OUTPUT"
+NEXT_STEPS=$(cat "${SITE_DIR}/NEXT-STEPS.md")
+assert_contains "NEXT-STEPS records live mode" "Your store is in Stripe LIVE mode" "$NEXT_STEPS"
+assert_not_contains "NEXT-STEPS live drops the test-mode section" "Your store is in Stripe TEST mode" "$NEXT_STEPS"
+
+# switching back to test finds the abandoned clodsite endpoint for this URL
+# (its secret is unrecoverable) and replaces it — mode round trips must work
+printf '%s' '{"object":"list","data":[{"id":"we_orphan1","url":"https://commerce-live-test.pages.dev/api/webhook","description":"clodsite:commerce-live-test"}]}' \
+  > "${CHECKOUT_STUB_DIR}/webhook-list.json"
+: > "${CHECKOUT_STUB_LOG}"
+COMMERCE_OUTPUT=$(STRIPE_SECRET_KEY=sk_test_123 RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1)
+assert_exit "live→test round trip exits 0" 0 $?
+assert_contains "clodsite orphan replacement is explained" "Replacing the previous clodsite test-mode endpoint 'we_orphan1'" "$COMMERCE_OUTPUT"
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_contains "clodsite orphan endpoint deleted" "DELETE https://api.stripe.com/v1/webhook_endpoints/we_orphan1" "$CHECKOUT_LOG"
+assert_contains "round trip creates a fresh endpoint" "POST https://api.stripe.com/v1/webhook_endpoints" "$CHECKOUT_LOG"
+
+# an orphan endpoint clodsite did not create is never touched
+rm -f "${SITE_DIR}/.stripe-webhook-state.json"
+printf '%s' '{"object":"list","data":[{"id":"we_orphan1","url":"https://commerce-live-test.pages.dev/api/webhook","description":"hand-made in the dashboard"}]}' \
+  > "${CHECKOUT_STUB_DIR}/webhook-list.json"
+: > "${CHECKOUT_STUB_LOG}"
+COMMERCE_OUTPUT=$(STRIPE_SECRET_KEY=sk_test_123 RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1)
+assert_exit "foreign orphan endpoint exits 1" 1 $?
+assert_contains "foreign orphan is named" "not created by clodsite" "$COMMERCE_OUTPUT"
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_not_contains "foreign orphan is never deleted" "DELETE https://api.stripe.com/v1/webhook_endpoints" "$CHECKOUT_LOG"
+rm -f "${CHECKOUT_STUB_DIR}/webhook-list.json"
+
 # printful live variant: re-render with the printful provider, then deploy
 commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]};"
 bash scripts/render-functions.sh > /dev/null 2>&1
 assert_exit "printful re-render for deploy exits 0" 0 $?
 
-( unset PRINTFUL_API_KEY; STRIPE_SECRET_KEY=sk_test SITE_DIR="${SITE_DIR}" \
+( unset PRINTFUL_API_KEY; STRIPE_SECRET_KEY=sk_test_123 SITE_DIR="${SITE_DIR}" \
   bash scripts/deploy.sh > /dev/null 2>&1 )
 assert_exit "printful provider without PRINTFUL_API_KEY exits 1" 1 $?
 
 : > "${CHECKOUT_STUB_LOG}"
-STRIPE_SECRET_KEY=sk_test PRINTFUL_API_KEY=pf_test SITE_DIR="${SITE_DIR}" \
+STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test SITE_DIR="${SITE_DIR}" \
   bash scripts/deploy.sh > /dev/null 2>&1
 assert_exit "live printful deploy exits 0" 0 $?
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")

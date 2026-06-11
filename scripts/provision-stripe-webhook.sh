@@ -32,6 +32,15 @@ if [ -z "${STRIPE_SECRET_KEY:-}" ]; then
   exit 1
 fi
 
+# Endpoints and their signing secrets are scoped to one Stripe mode, so the
+# state file records which mode it belongs to.
+STRIPE_MODE=$(clodsite_stripe_mode)
+if [ -z "$STRIPE_MODE" ]; then
+  echo "Error: STRIPE_SECRET_KEY does not look like a Stripe secret key"
+  echo "(expected an sk_test_/sk_live_ or rk_test_/rk_live_ prefix)."
+  exit 1
+fi
+
 PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" "$PLAN" slug custom-domain)
 SITE_NAME=$(echo "$PLAN_VALUES" | sed -n '1p')
 CUSTOM_DOMAIN=$(echo "$PLAN_VALUES" | sed -n '2p')
@@ -114,6 +123,7 @@ try {
 }
 
 ENDPOINT_ID=""
+STATE_MODE=""
 if [ -f "$STATE" ]; then
   ENDPOINT_ID=$(STATE="$STATE" node -e "
 try {
@@ -121,6 +131,23 @@ try {
   process.stdout.write(state.endpoint_id || '');
 } catch {}
 ")
+  STATE_MODE=$(STATE="$STATE" node -e "
+try {
+  const state=JSON.parse(require('fs').readFileSync(process.env.STATE,'utf8'));
+  process.stdout.write(state.mode || '');
+} catch {}
+")
+fi
+
+# A key-mode switch (test <-> live) makes the recorded endpoint unreachable:
+# endpoints live in one mode's workspace and the current key opens the other.
+# Don't bother fetching it — announce the switch and provision fresh.
+if [ -n "$ENDPOINT_ID" ] && [ -n "$STATE_MODE" ] && [ "$STATE_MODE" != "$STRIPE_MODE" ]; then
+  echo "Stripe mode changed: ${STATE_MODE} → ${STRIPE_MODE}."
+  echo "Webhook endpoints are mode-scoped, so a new ${STRIPE_MODE}-mode endpoint will be"
+  echo "created. The ${STATE_MODE}-mode endpoint '${ENDPOINT_ID}' stays in your Stripe"
+  echo "${STATE_MODE} workspace and is reprovisioned when you switch back."
+  ENDPOINT_ID=""
 fi
 
 CREATE_ENDPOINT="false"
@@ -154,23 +181,40 @@ fi
 
 if [ "$CREATE_ENDPOINT" = "true" ]; then
   # An endpoint for this URL without local state is unrecoverable: Stripe
-  # returns the signing secret only at creation time.
+  # returns the signing secret only at creation time. When the orphan carries
+  # our own "clodsite:<slug>" description it is ours — typically the previous
+  # endpoint for this mode, left behind by a test <-> live round trip — and
+  # its secret is unusable anyway (Pages holds only the most recent one), so
+  # it is replaced. Anything else gets a hard stop.
   LIST_RESPONSE=$(stripe_request GET "${STRIPE_API_BASE}/webhook_endpoints?limit=100")
-  ORPHAN_ID=$(RESPONSE="$LIST_RESPONSE" WEBHOOK_URL="$WEBHOOK_URL" node -e "
+  ORPHAN=$(RESPONSE="$LIST_RESPONSE" WEBHOOK_URL="$WEBHOOK_URL" SITE_NAME="$SITE_NAME" node -e "
 const response=JSON.parse(process.env.RESPONSE);
 const match=(response.data || []).find((endpoint) => endpoint.url === process.env.WEBHOOK_URL);
-process.stdout.write(match ? match.id : '');
+if (match) {
+  const ours = match.description === 'clodsite:' + process.env.SITE_NAME;
+  process.stdout.write(match.id + ' ' + (ours ? 'ours' : 'foreign'));
+}
 ")
   unset LIST_RESPONSE
-  if [ -n "$ORPHAN_ID" ]; then
-    echo "Error: Stripe already has a webhook endpoint '${ORPHAN_ID}' for ${WEBHOOK_URL},"
-    echo "but ${STATE} does not record it. Its signing secret cannot be recovered."
-    echo "Either restore the state file from a backup, or delete the endpoint in the"
-    echo "Stripe dashboard (Developers > Webhooks) and deploy again to create a fresh one."
-    exit 1
+  if [ -n "$ORPHAN" ]; then
+    ORPHAN_ID="${ORPHAN% *}"
+    if [ "${ORPHAN#* }" = "ours" ]; then
+      echo "Replacing the previous clodsite ${STRIPE_MODE}-mode endpoint '${ORPHAN_ID}' for"
+      echo "${WEBHOOK_URL} (its signing secret from an earlier deploy cannot be recovered)..."
+      if ! stripe_request DELETE "${STRIPE_API_BASE}/webhook_endpoints/${ORPHAN_ID}" > /dev/null; then
+        exit 1
+      fi
+    else
+      echo "Error: Stripe already has a webhook endpoint '${ORPHAN_ID}' for ${WEBHOOK_URL},"
+      echo "but it was not created by clodsite and ${STATE} does not record it."
+      echo "Its signing secret cannot be recovered. Either restore the state file from a"
+      echo "backup, or delete the endpoint in the Stripe dashboard (Developers > Webhooks)"
+      echo "and deploy again to create a fresh one."
+      exit 1
+    fi
   fi
 
-  echo "Creating Stripe webhook endpoint for ${WEBHOOK_URL}..."
+  echo "Creating Stripe webhook endpoint for ${WEBHOOK_URL} (${STRIPE_MODE} mode)..."
   CREATE_RESPONSE=$(stripe_request POST "${STRIPE_API_BASE}/webhook_endpoints" \
     "url=${WEBHOOK_URL}&enabled_events[]=checkout.session.completed&description=clodsite:${SITE_NAME}")
   ENDPOINT_ID=$(RESPONSE="$CREATE_RESPONSE" node -e "
@@ -198,12 +242,13 @@ process.stdout.write(JSON.parse(process.env.RESPONSE).secret || '');
   unset WEBHOOK_SIGNING_SECRET
 fi
 
-ENDPOINT_ID="$ENDPOINT_ID" WEBHOOK_URL="$WEBHOOK_URL" STATE="$STATE" node <<'NODE'
+ENDPOINT_ID="$ENDPOINT_ID" WEBHOOK_URL="$WEBHOOK_URL" STRIPE_MODE="$STRIPE_MODE" STATE="$STATE" node <<'NODE'
 const fs = require('fs');
 fs.writeFileSync(process.env.STATE, JSON.stringify({
   endpoint_id: process.env.ENDPOINT_ID,
   url: process.env.WEBHOOK_URL,
+  mode: process.env.STRIPE_MODE,
 }, null, 2) + '\n');
 NODE
 
-echo "✓ Stripe webhook provisioned at ${WEBHOOK_URL}."
+echo "✓ Stripe webhook provisioned at ${WEBHOOK_URL} (${STRIPE_MODE} mode)."

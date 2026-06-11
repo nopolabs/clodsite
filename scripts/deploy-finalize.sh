@@ -32,6 +32,55 @@ fi
 sed "s|{{DEPLOY_URL}}|$PROD_URL|g; s|{{SITE_NAME}}|$SITE_NAME|g" \
   scripts/templates/NEXT-STEPS.template.md > "${SITE_DIR}/NEXT-STEPS.md"
 
+# Live commerce: record which Stripe mode this deploy runs in and how to move
+# between modes. The state file is written by provision-stripe-webhook.sh and
+# holds nothing secret.
+STRIPE_MODE=""
+if [ -f "${SITE_DIR}/.stripe-webhook-state.json" ]; then
+  STRIPE_MODE=$(STATE="${SITE_DIR}/.stripe-webhook-state.json" node -e "
+try {
+  const state=JSON.parse(require('fs').readFileSync(process.env.STATE,'utf8'));
+  process.stdout.write(state.mode || '');
+} catch {}
+")
+fi
+
+if [ "$STRIPE_MODE" = "test" ]; then
+  cat >> "${SITE_DIR}/NEXT-STEPS.md" << TEST_MODE
+
+---
+
+## Your store is in Stripe TEST mode
+
+No real money can move. Exercise the full purchase flow safely:
+
+1. Open the live site, add a product to the cart, and check out.
+2. Pay with Stripe's test card: **4242 4242 4242 4242**, any future expiry,
+   any CVC, any postal code. More test cards (declines, 3-D Secure):
+   https://docs.stripe.com/testing
+3. Confirm the order arrived (manual fulfillment: check the order email).
+
+When you are ready to go live:
+
+1. Replace \`STRIPE_SECRET_KEY\` in \`.env\` with your live key (\`sk_live_...\`).
+2. Run \`/deploy $SITE_NAME\` again. Clodsite detects the mode change and
+   provisions a fresh live-mode webhook endpoint automatically.
+3. Make one real purchase to verify, then refund it from the Stripe dashboard.
+TEST_MODE
+elif [ "$STRIPE_MODE" = "live" ]; then
+  cat >> "${SITE_DIR}/NEXT-STEPS.md" << LIVE_MODE
+
+---
+
+## Your store is in Stripe LIVE mode
+
+Real cards are charged. To rehearse changes safely, switch back to test mode:
+put your test key (\`sk_test_...\`) in \`.env\` and run \`/deploy $SITE_NAME\` —
+Clodsite provisions a test-mode webhook endpoint and swaps the secrets, and
+the same steps in reverse return you to live.
+LIVE_MODE
+fi
+
 if [ -f "${SITE_DIR}/functions/api/contact.js" ] && [ "$TURNSTILE_ENABLED" != "true" ]; then
   cat >> "${SITE_DIR}/NEXT-STEPS.md" << RESEND_WARNING
 
@@ -72,6 +121,13 @@ echo "╚═══════════════════════�
 echo ""
 if [ -n "$BUILD_URL" ] && [ "$BUILD_URL" != "$PROD_URL" ]; then
   echo "This build's snapshot URL: $BUILD_URL"
+  echo ""
+fi
+if [ "$STRIPE_MODE" = "test" ]; then
+  echo "Stripe mode: TEST — checkout accepts test cards only; no real money moves."
+  echo ""
+elif [ "$STRIPE_MODE" = "live" ]; then
+  echo "Stripe mode: LIVE — real cards will be charged."
   echo ""
 fi
 echo "See ${SITE_DIR}/NEXT-STEPS.md for next steps."
