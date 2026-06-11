@@ -61,6 +61,66 @@ assert_not_contains() {
   fi
 }
 
+install_controlled_test_env() {
+  local root="$1"
+  local controlled_env="$2"
+
+  rm -f "${root}/.env"
+  ln -s "$controlled_env" "${root}/.env"
+
+  # A developer may invoke the suite from a shell that already exported real
+  # credentials. Missing-key tests must not inherit those values.
+  unset CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
+  unset RESEND_API_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET
+  unset PRINTFUL_API_KEY TURNSTILE_SECRET_KEY
+}
+
+# ── Test environment isolation contract ──────────────────────────────────────
+echo "=== test environment isolation ==="
+
+for scenario in absent empty populated; do
+  ENV_SCENARIO_ROOT=$(mktemp -d)
+  ENV_SCENARIO_CONTROLLED=$(mktemp)
+  printf '%s\n' \
+    'CLOUDFLARE_API_TOKEN=test-token' \
+    'CLOUDFLARE_ACCOUNT_ID=test-account' > "$ENV_SCENARIO_CONTROLLED"
+
+  if [ "$scenario" = "empty" ]; then
+    : > "${ENV_SCENARIO_ROOT}/.env"
+  elif [ "$scenario" = "populated" ]; then
+    printf '%s\n' \
+      'CLOUDFLARE_API_TOKEN=production-token' \
+      'CLOUDFLARE_ACCOUNT_ID=production-account' \
+      'RESEND_API_KEY=re_production' \
+      'STRIPE_SECRET_KEY=sk_live_production' \
+      'PRINTFUL_API_KEY=pf_production' > "${ENV_SCENARIO_ROOT}/.env"
+  fi
+
+  if (
+    export CLOUDFLARE_API_TOKEN=exported-production-token
+    export CLOUDFLARE_ACCOUNT_ID=exported-production-account
+    export RESEND_API_KEY=re_exported
+    export STRIPE_SECRET_KEY=sk_live_exported
+    export PRINTFUL_API_KEY=pf_exported
+    install_controlled_test_env "$ENV_SCENARIO_ROOT" "$ENV_SCENARIO_CONTROLLED"
+    [ "$(cat "${ENV_SCENARIO_ROOT}/.env")" = "$(cat "$ENV_SCENARIO_CONTROLLED")" ] &&
+      [ -z "${CLOUDFLARE_API_TOKEN:-}" ] &&
+      [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ] &&
+      [ -z "${RESEND_API_KEY:-}" ] &&
+      [ -z "${STRIPE_SECRET_KEY:-}" ] &&
+      [ -z "${PRINTFUL_API_KEY:-}" ]
+  ); then
+    echo "  ✓ ${scenario} developer .env produces the controlled test environment"
+    PASS=$((PASS + 1))
+  else
+    echo "  ✗ ${scenario} developer .env leaked into the test environment"
+    FAIL=$((FAIL + 1))
+  fi
+
+  rm -rf "$ENV_SCENARIO_ROOT"
+  rm -f "$ENV_SCENARIO_CONTROLLED"
+done
+
 # ── Isolated SITE_DIR for all script tests ────────────────────────────────────
 export SITE_DIR
 SITE_DIR=$(mktemp -d)
@@ -78,23 +138,32 @@ if [ -d "sites" ]; then
   cp -r sites/. "$SITES_BACKUP/"
 fi
 
+ENV_WAS_PRESENT=false
 ENV_BACKUP=""
 if [ -f ".env" ]; then
+  ENV_WAS_PRESENT=true
   ENV_BACKUP=$(mktemp)
   cp .env "$ENV_BACKUP"
 fi
+
+TEST_ENV_FILE=$(mktemp)
+printf '%s\n' \
+  'CLOUDFLARE_API_TOKEN=test-token' \
+  'CLOUDFLARE_ACCOUNT_ID=test-account' > "$TEST_ENV_FILE"
+install_controlled_test_env "$(pwd)" "$TEST_ENV_FILE"
 
 cleanup() {
   rm -rf "$SITE_DIR"
   rm -rf site sites
   rm -f .env
+  rm -f "$TEST_ENV_FILE"
   if [ -n "$SITE_BACKUP" ]; then
     mkdir -p site && cp -r "$SITE_BACKUP/." site/ && rm -rf "$SITE_BACKUP"
   fi
   if [ -n "$SITES_BACKUP" ]; then
     mkdir -p sites && cp -r "$SITES_BACKUP/." sites/ && rm -rf "$SITES_BACKUP"
   fi
-  if [ -n "$ENV_BACKUP" ]; then
+  if [ "$ENV_WAS_PRESENT" = true ]; then
     cp "$ENV_BACKUP" .env && rm -f "$ENV_BACKUP"
   fi
   if [ -n "$ORIGINAL_SITES_DIR" ]; then
@@ -1367,9 +1436,6 @@ assert_not_contains "protected NEXT-STEPS omits bot-protection warning" "no rate
 echo ""
 echo "=== status.sh ==="
 
-printf '%s\n' 'CLOUDFLARE_API_TOKEN=test-token
-CLOUDFLARE_ACCOUNT_ID=test-account' > .env
-
 # Shared mock wrangler setup
 MOCK_BIN=$(mktemp -d)
 CF_FIXTURE="$(pwd)/scripts/test/fixtures/status-cf-projects.json"
@@ -1971,8 +2037,6 @@ STRIPE_SECRET_KEY=sk_test RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
   bash scripts/deploy.sh > /dev/null 2>&1
 assert_exit "live commerce deploy exits 0" 0 $?
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
-# deploy.sh sources .env, so the Cloudflare account ID in URLs is the real
-# one — match on method-filtered lines instead of full URLs.
 CHECKOUT_POST_LINES=$(grep '^POST' "${CHECKOUT_STUB_LOG}" || true)
 CHECKOUT_PATCH_LINES=$(grep '^PATCH' "${CHECKOUT_STUB_LOG}" || true)
 assert_contains "ORDERS KV namespace created" "storage/kv/namespaces" "$CHECKOUT_POST_LINES"
