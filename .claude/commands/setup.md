@@ -83,7 +83,11 @@ bash scripts/setup.sh --verify
 
 > "Please paste your Cloudflare API token. You can create one at https://dash.cloudflare.com/profile/api-tokens — it needs these permissions:
 > - **Cloudflare Pages: Edit** — required for deploy
+> - **Account > Workers KV Storage: Edit** — required to deploy a site with live commerce checkout (deployment provisions the ORDERS KV namespace)
+> - **Account > Turnstile: Edit** — required to deploy a `resend-form` with `turnstile: true`
 > - **Zone > DNS: Edit** — required for `/domain` to create CNAME records automatically (optional: without it, `/domain` prints the record for you to add manually)"
+>
+> An existing token can be edited in place to add a missing permission (⋯ > Edit on the token row) — the token string does not change, so `.env` stays as-is.
 
 Wait for their reply.
 

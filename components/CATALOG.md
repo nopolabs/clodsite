@@ -42,7 +42,7 @@ emphasis: strong
 
 ## catalog
 
-Product catalog grid. Renders products from the site's commerce/catalog.json: image, name, price, description, variant pickers, and a size-guide modal when a product carries one. Optional products filter: array of catalog slugs selecting which active products appear, in display order. Default: all active products in catalog order.
+Product catalog grid. Renders products from the site's commerce/catalog.json: image, name, price, description, variant pickers, and a size-guide modal when a product carries one. Optional products filter: array of catalog slugs selecting which active products appear, in display order. Default: all active products in catalog order. Live checkout deployment provisions an ORDERS KV namespace and requires Account > Workers KV Storage > Edit permission.
 
 **Required fields:**
 
