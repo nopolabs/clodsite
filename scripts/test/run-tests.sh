@@ -1566,6 +1566,101 @@ assert_contains "static Pages deploy still called" "pages deploy dist" "$DEPLOY_
 export PATH="$DEPLOY_ORIGINAL_PATH"
 rm -rf "$DEPLOY_STUB_DIR"
 
+# ── commerce catalog (validate-plan + render + build) ─────────────────────────
+echo ""
+echo "=== commerce catalog ==="
+
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist" "${SITE_DIR}/commerce" "${SITE_DIR}/assets" "${SITE_DIR}/functions"
+cp scripts/test/fixtures/valid-build-plan-catalog.yaml "${SITE_DIR}/build-plan.yaml"
+
+# catalog component without commerce/catalog.json → exits 1
+CATALOG_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "catalog component without catalog.json exits 1" 1 $?
+assert_contains "missing catalog.json names the requirement" "requires" "$CATALOG_OUTPUT"
+
+# valid catalog.json → exits 0
+mkdir -p "${SITE_DIR}/commerce/assets"
+cp scripts/test/fixtures/valid-catalog.json "${SITE_DIR}/commerce/catalog.json"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "catalog plan with valid catalog.json exits 0" 0 $?
+
+# invalid catalog.json (decimal-string price) → exits 1 with a catalog-scoped error
+node -e "
+const fs=require('fs');
+const file='${SITE_DIR}/commerce/catalog.json';
+const c=JSON.parse(fs.readFileSync(file,'utf8'));
+c.products[0].price_minor='20.00';
+fs.writeFileSync(file, JSON.stringify(c));
+"
+CATALOG_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "invalid catalog.json exits 1" 1 $?
+assert_contains "catalog errors are catalog-scoped" "commerce/catalog.json:" "$CATALOG_OUTPUT"
+assert_contains "decimal-string price is rejected" "price_minor must be a non-negative integer" "$CATALOG_OUTPUT"
+
+# plan filter referencing an unknown slug → exits 1
+cp scripts/test/fixtures/valid-catalog.json "${SITE_DIR}/commerce/catalog.json"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.pages[1].components[0].products=['no-such-product'];
+fs.writeFileSync(file, yaml.dump(p));
+"
+CATALOG_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "filter with unknown slug exits 1" 1 $?
+assert_contains "unknown slug is reported" "unknown catalog slug: no-such-product" "$CATALOG_OUTPUT"
+
+# render-templates resolves catalog data into the page templates
+cp scripts/test/fixtures/valid-build-plan-catalog.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src"
+bash scripts/render-templates.sh > /dev/null 2>&1
+assert_exit "render-templates with catalog exits 0" 0 $?
+CATALOG_HOME=$(cat "${SITE_DIR}/src/index.njk")
+CATALOG_TEES=$(cat "${SITE_DIR}/src/tees.njk")
+assert_contains "home includes catalog component" "catalog/component.njk" "$CATALOG_HOME"
+assert_contains "prices are formatted at render time" '"price_display":"$20.00"' "$CATALOG_HOME"
+assert_contains "asset paths are rooted" '"/commerce/assets/crow-tee-white-front.png"' "$CATALOG_HOME"
+assert_contains "active products resolve by default" '"slug":"logo-cap"' "$CATALOG_HOME"
+assert_not_contains "inactive products are dropped" "retired-tee" "$CATALOG_HOME"
+assert_not_contains "fulfillment refs never reach the page" "fulfillment_ref" "$CATALOG_HOME"
+assert_not_contains "raw minor units never reach the page" "price_minor" "$CATALOG_HOME"
+assert_contains "filtered page keeps the filtered product" '"slug":"crow-tee"' "$CATALOG_TEES"
+assert_not_contains "filtered page drops other products" "logo-cap" "$CATALOG_TEES"
+
+# render-templates fails loudly when a filter resolves to zero products
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.pages[1].components[0].products=['retired-tee'];
+fs.writeFileSync(file, yaml.dump(p));
+"
+rm -rf "${SITE_DIR}/src"
+CATALOG_OUTPUT=$(bash scripts/render-templates.sh 2>&1)
+assert_exit "zero-product catalog render exits 1" 1 $?
+assert_contains "zero-product error is reported" "zero active products" "$CATALOG_OUTPUT"
+
+# full build: catalog markup in dist, commerce assets copied
+cp scripts/test/fixtures/valid-build-plan-catalog.yaml "${SITE_DIR}/build-plan.yaml"
+printf 'png' > "${SITE_DIR}/commerce/assets/crow-tee-white-front.png"
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "catalog fixture builds" 0 $?
+CATALOG_HTML=$(cat "${SITE_DIR}/dist/index.html")
+assert_contains "HTML has catalog grid" 'class="c-catalog"' "$CATALOG_HTML"
+assert_contains "HTML has product card" 'data-slug="crow-tee"' "$CATALOG_HTML"
+assert_contains "HTML has formatted price" '$20.00' "$CATALOG_HTML"
+assert_contains "HTML has color swatches" 'c-catalog__swatch' "$CATALOG_HTML"
+assert_contains "HTML has size dropdown" 'c-catalog__select' "$CATALOG_HTML"
+assert_contains "HTML has size-guide dialog" 'c-catalog__size-guide' "$CATALOG_HTML"
+assert_contains "HTML has size-guide measurement" '25.5' "$CATALOG_HTML"
+assert_not_contains "HTML never carries fulfillment refs" "4938291" "$CATALOG_HTML"
+assert_contains "catalog CSS is aggregated" ".c-catalog" "$(cat scaffold/src/css/components.css)"
+assert_file_exists "commerce assets copied into dist" "${SITE_DIR}/dist/commerce/assets/crow-tee-white-front.png"
+rm -rf "${SITE_DIR}/commerce"
+
 # ── JS unit tests (scripts/lib/*.test.mjs) ────────────────────────────────────
 echo ""
 echo "=== JS unit tests (node --test scripts/lib/*.test.mjs) ==="

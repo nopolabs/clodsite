@@ -40,6 +40,26 @@ actions:
 emphasis: strong
 ```
 
+## catalog
+
+Product catalog grid. Renders products from the site's commerce/catalog.json: image, name, price, description, variant pickers, and a size-guide modal when a product carries one. Optional products filter: array of catalog slugs selecting which active products appear, in display order. Default: all active products in catalog order.
+
+**Required fields:**
+
+_(none)_
+
+**Optional fields:**
+
+- `products` (array; minimum 1 items)
+- `products[]` (non-empty string)
+
+**Example:**
+
+```yaml
+type: catalog
+products: [crow-tee, logo-cap]
+```
+
 ## feature-grid
 
 A compact grid of two to six features or benefits.

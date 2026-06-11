@@ -1,0 +1,75 @@
+{
+  "products": [
+    {
+      "slug": "crow-tee",
+      "name": "Crow Tee",
+      "description": "A tee with a crow on it.",
+      "price_minor": 2000,
+      "active": true,
+      "images": {
+        "main": "commerce/assets/crow-tee-white-front.png",
+        "gallery": ["commerce/assets/crow-tee-white-back.png"]
+      },
+      "options": [
+        {
+          "name": "Color",
+          "values": [
+            { "value": "White", "hex": "#FFFFFF" },
+            { "value": "Black", "hex": "#000000" }
+          ]
+        },
+        {
+          "name": "Size",
+          "values": [{ "value": "S" }, { "value": "M" }, { "value": "L" }]
+        }
+      ],
+      "variants": [
+        { "optionValues": { "Color": "White", "Size": "S" }, "fulfillment_ref": "4938291" },
+        { "optionValues": { "Color": "White", "Size": "M" }, "fulfillment_ref": "4938292" },
+        { "optionValues": { "Color": "Black", "Size": "L" }, "fulfillment_ref": "4938293" }
+      ],
+      "size_guide": {
+        "unit": "inches",
+        "tables": [
+          {
+            "label": "Product measurements",
+            "note": "Measurements may vary by up to 2\" (5 cm).",
+            "diagram": {
+              "image": "commerce/assets/sg-tee-diagram.png",
+              "steps": [
+                { "label": "A Length", "text": "Place the end of the tape beside the collar at the top of the tee." },
+                { "label": "B Width", "text": "Place the end of the tape at the seam under the sleeve." }
+              ]
+            },
+            "rows": [
+              { "label": "Length", "values": { "S": "25.5", "M": "26", "L": "27" } },
+              { "label": "Width", "values": { "S": "16.5", "M": "18", "L": "20" } }
+            ]
+          },
+          {
+            "label": "Measure yourself",
+            "rows": [
+              { "label": "Chest", "values": { "S": "34-37", "M": "38-41", "L": "42-45" } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "slug": "logo-cap",
+      "name": "Logo Cap",
+      "description": "A cap with the logo.",
+      "price_minor": 1500,
+      "active": true,
+      "images": { "main": "commerce/assets/logo-cap.png" }
+    },
+    {
+      "slug": "retired-tee",
+      "name": "Retired Tee",
+      "description": "No longer sold.",
+      "price_minor": 1000,
+      "active": false,
+      "images": { "main": "commerce/assets/retired-tee.png" }
+    }
+  ]
+}

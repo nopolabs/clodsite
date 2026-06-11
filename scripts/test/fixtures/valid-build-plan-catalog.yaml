@@ -1,0 +1,23 @@
+slug: catalog-test
+name: Catalog Test
+overview: Fixture for the commerce catalog component.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          ## Shop
+          Our small catalog.
+      - type: catalog
+  - id: tees
+    title: Tees
+    components:
+      - type: catalog
+        products: [crow-tee]
+nav:
+  order: [home, tees]
+contact:
+  enabled: false
