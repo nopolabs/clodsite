@@ -379,6 +379,13 @@ scripts/lib/validate-plan.mjs                commerce block + catalog component 
 
 Each phase is an independently PR-able block; phases 2–4 need no Printful
 account (the `manual` provider carries the pipeline end-to-end first).
+Phases 1–5 have shipped.
+
+hmc-cycling.org is a functioning store, not the place to test-in-production
+what is essentially a major rewrite — so the original single "dogfood
+cutover" phase is replaced by a validation ladder (phases 6–11) that
+escalates one risk dimension at a time: real keys, real money, a real port,
+real personalization, the real store — and only then the real domain.
 
 1. **Spec** — this document.
 2. **`catalog` component, display-only** — lookbook mode, hand-written
@@ -390,14 +397,47 @@ account (the `manual` provider carries the pipeline end-to-end first).
    provider; `provision-kv.sh`, `provision-stripe-webhook.sh`, secret pushes.
 5. **`printful` provider + `commerce-sync.sh`** — sync, normalization, image
    mirroring; the abstraction's second data point.
-6. **Dogfood cutover** — hmc `build-plan.yaml`, content port, soak behind a
-   preview flag, disconnect the Pages git-integration build, repoint
-   hmc-cycling.org via `/domain`, update the Stripe webhook endpoint.
+6. **`.env` test isolation** — the bash missing-key deploy tests rely on
+   `unset` plus a repo `.env` that happens to lack real keys; the first real
+   `STRIPE_SECRET_KEY`/`PRINTFUL_API_KEY` written to `.env` silently inverts
+   them. Isolate the test harness from the developer `.env` *before* any
+   real keys exist.
+7. **clodsite-demo goes commercial** — first contact with production Stripe,
+   Resend, and the provisioning scripts (everything to date has run against
+   stubs). Manual provider, one $1 product: buy a treat for Anchovy the cat —
+   he'll send you a picture (eventually, when he gets around to it). This
+   phase also streamlines **Stripe test mode**: users must be able to
+   exercise a store safely and confidently before going live, so easy
+   test-mode setup is an adoption requirement, not a nicety.
+8. **bbpp commerce design** — a design doc (like this one) for
+   bigbeautifulpeaceprize.com's certificate commerce. Two sales points: the
+   prize *awarder* may opt to send a physical certificate, and the prize
+   *recipient's* notification email offers a printed copy of their prize.
+   Both require **personalization** — an order references a specific
+   certificate/recipient, which the v1 checkout payload
+   (`{ slug, optionValues, qty }`) cannot carry. Settle the channel (e.g.
+   Stripe Checkout custom fields → session metadata → provider order) and
+   the fulfillment split (manual vs a Printful print product) before
+   building.
+9. **bbpp port + certificate commerce** — port the live site
+   (github.com/nopolabs/bbpp) to clodsite, then implement the Phase 8
+   design. A live but low-stakes sandbox for ironing out real ecommerce
+   flows end to end before touching hmc.
+10. **next-gen.hmc-cycling.org** — parallel build mirroring hmc-cycling.org
+    with the `printful` provider against the real store, on its own Pages
+    project and subdomain with its own Stripe webhook endpoint; the live
+    site and its Worker are untouched. Soak behind `preview: true`, then one
+    deliberate live purchase.
+11. **Cutover** — repoint hmc-cycling.org via `/domain` to the soaked
+    next-gen project, disconnect the old Pages git-integration build,
+    decommission the standalone Worker and its Stripe webhook endpoint.
+    Reversible by pointing the domain back.
 
-Cutover cautions (Phase 6): the Stripe webhook moves from the standalone
-Worker URL to a Pages Function path — update the endpoint and re-capture the
-signing secret with the preview flag on; hmc loses push-to-deploy (deploys
-become `/build` + `/deploy`), an accepted workflow change.
+Cutover cautions (Phase 11): the next-gen project provisions its own webhook
+endpoint at its Pages Function path during Phase 10, so cutover deletes the
+old Worker's endpoint rather than migrating it — there is no signing-secret
+handoff. hmc loses push-to-deploy (deploys become `/build` + `/deploy`), an
+accepted workflow change.
 
 ---
 
