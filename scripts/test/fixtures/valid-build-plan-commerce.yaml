@@ -11,6 +11,13 @@ commerce:
   preview: true
   shipping:
     flat_rate_minor: 500
+  printful:
+    store_id: 17828143
+    products:
+      - slug: crow-tee
+        printful_product_id: 428417969
+        price_minor: 2000
+        description: A tee with a crow on it.
 pages:
   - id: home
     title: Home

@@ -22,10 +22,28 @@ const PLAN = {
   },
 };
 
+const PRINTFUL_PLAN = {
+  commerce: {
+    enabled: true,
+    provider: 'printful',
+    currency: 'usd',
+    checkout: 'stripe',
+    printful: {
+      store_id: 17828143,
+      products: [
+        { slug: 'crow-tee', printful_product_id: 428417969, price_minor: 2000, description: 'A tee.' },
+      ],
+    },
+  },
+};
+
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clodsite-webhook-'));
 const modulePath = path.join(tmpDir, 'webhook.mjs');
 fs.writeFileSync(modulePath, renderWebhookSource(PLAN));
 const { onRequestPost } = await import(pathToFileURL(modulePath).href);
+const printfulModulePath = path.join(tmpDir, 'webhook-printful.mjs');
+fs.writeFileSync(printfulModulePath, renderWebhookSource(PRINTFUL_PLAN));
+const { onRequestPost: onRequestPostPrintful } = await import(pathToFileURL(printfulModulePath).href);
 test.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
 function fakeKV(entries = {}) {
@@ -261,6 +279,54 @@ test('failed record is retried with attempts incremented', async (t) => {
   const record = orders.read('cs_test_abc123');
   assert.equal(record.state, 'completed');
   assert.equal(record.attempts, 3);
+});
+
+test('printful provider: fulfills end-to-end with the store id overlaid from the plan', async (t) => {
+  const calls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const method = (init && init.method) || 'GET';
+    calls.push({ method, url, init });
+    const { pathname } = new URL(url);
+    if (method === 'GET' && pathname.startsWith('/orders/@')) {
+      return new Response(JSON.stringify({ code: 404, result: 'Order not found' }), { status: 404 });
+    }
+    if (method === 'POST' && pathname === '/orders') {
+      return new Response(JSON.stringify({ code: 200, result: { id: 77001, status: 'draft' } }), { status: 200 });
+    }
+    if (method === 'POST' && pathname === '/orders/77001/confirm') {
+      return new Response(JSON.stringify({ code: 200, result: { id: 77001, status: 'pending' } }), { status: 200 });
+    }
+    throw new Error('unexpected fetch: ' + method + ' ' + url);
+  };
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+  const res = await onRequestPostPrintful(makeContext({
+    body,
+    signature: sign(body),
+    orders,
+    env: { PRINTFUL_API_KEY: 'pf_test_key' },
+  }));
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(calls.map((c) => c.method), ['GET', 'POST', 'POST']);
+  // PRINTFUL_STORE_ID comes from the render-time plan overlay, not the runtime env.
+  for (const call of calls) {
+    assert.equal(new URL(call.url).searchParams.get('store_id'), '17828143');
+    assert.equal(call.init.headers['Authorization'], 'Bearer pf_test_key');
+  }
+  const created = JSON.parse(calls[1].init.body);
+  assert.equal(created.external_id, 'cs_test_abc123');
+  assert.deepEqual(created.items, [
+    { external_id: 'cs_test_abc123-1', sync_variant_id: 4938291, quantity: 2 },
+  ]);
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.provider_order_id, '77001');
 });
 
 test('provider failure records failed with last_error and returns 500 so Stripe retries', async (t) => {

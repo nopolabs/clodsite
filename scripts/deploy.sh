@@ -73,6 +73,14 @@ if [ -f "${SITE_DIR}/functions/api/checkout.js" ] && [ -z "${STRIPE_SECRET_KEY:-
   exit 1
 fi
 
+# The printful provider's webhook creates Printful orders server-side.
+if [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ "$COMMERCE_PROVIDER" = "printful" ] \
+    && [ -z "${PRINTFUL_API_KEY:-}" ]; then
+  echo "Error: PRINTFUL_API_KEY is not set in .env but this site fulfills via Printful."
+  echo "Add PRINTFUL_API_KEY=... to .env (Printful dashboard > Settings > Stores > API) and redeploy."
+  exit 1
+fi
+
 # Ensure the Cloudflare Pages project exists in *this* account.
 #
 # wrangler v4 requires the project to exist before `pages deploy` — it will not
@@ -130,6 +138,18 @@ if [ -f "${SITE_DIR}/functions/api/checkout.js" ]; then
   if ! printf '%s' "$STRIPE_SECRET_KEY" | wrangler pages secret put STRIPE_SECRET_KEY \
       --project-name "$SITE_NAME"; then
     echo "Error: failed to set STRIPE_SECRET_KEY Pages secret."
+    exit 1
+  fi
+  echo ""
+fi
+
+# Push PRINTFUL_API_KEY as a Pages secret when the webhook fulfills via
+# Printful — it creates and confirms Printful orders.
+if [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ "$COMMERCE_PROVIDER" = "printful" ]; then
+  echo "Setting PRINTFUL_API_KEY secret for '$SITE_NAME'..."
+  if ! printf '%s' "$PRINTFUL_API_KEY" | wrangler pages secret put PRINTFUL_API_KEY \
+      --project-name "$SITE_NAME"; then
+    echo "Error: failed to set PRINTFUL_API_KEY Pages secret."
     exit 1
   fi
   echo ""

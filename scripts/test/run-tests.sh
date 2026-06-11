@@ -1816,6 +1816,28 @@ COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
 assert_exit "bad shipping countries exits 1" 1 $?
 assert_contains "shipping countries format is named" "commerce.shipping.countries must be a non-empty array of two-letter uppercase country codes" "$COMMERCE_OUTPUT"
 
+# printful block validation (plan-side product curation, spec §1)
+commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment;"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "printful provider without printful block exits 1" 1 $?
+assert_contains "printful block requirement is named" "commerce.printful ({ store_id, products }) is required when provider is printful" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "printful block on manual provider exits 1" 1 $?
+assert_contains "provider mismatch is named" "commerce.printful is only valid when commerce.provider is printful" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:'17828143',products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "string store_id exits 1" 1 $?
+assert_contains "store_id format is named" "commerce.printful.store_id must be a positive integer" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.',retail_price:'20.00'},{slug:'crow-tee',printful_product_id:428417970,price_minor:2500,description:'Another tee.'}]};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "bad printful products exit 1" 1 $?
+assert_contains "unknown product field is rejected" 'has unknown field "retail_price"' "$COMMERCE_OUTPUT"
+assert_contains "duplicate product slug is rejected" 'slug duplicates "crow-tee"' "$COMMERCE_OUTPUT"
+
 # full live build: functions rendered, live cart wiring in dist
 cp scripts/test/fixtures/valid-build-plan-commerce-live.yaml "${SITE_DIR}/build-plan.yaml"
 printf 'png' > "${SITE_DIR}/commerce/assets/crow-tee-white-front.png"
@@ -1848,11 +1870,22 @@ assert_not_contains "live HTML drops the preview note" "Checkout is coming soon.
 assert_not_contains "live HTML never carries fulfillment refs" "4938291" "$LIVE_HTML"
 assert_contains "cart stylesheet styles the checkout error" ".cart-drawer__error" "$(cat "${SITE_DIR}/dist/css/cart.css")"
 
-# printful has no order.mjs yet → render-functions fails loudly
+# printful provider: the webhook embeds the store id from the plan's
+# printful block, so rendering without one fails loudly
 commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment;"
 COMMERCE_OUTPUT=$(bash scripts/render-functions.sh 2>&1)
-assert_exit "live printful render-functions exits 1" 1 $?
-assert_contains "missing provider implementation is named" 'commerce provider "printful" has no order.mjs' "$COMMERCE_OUTPUT"
+assert_exit "live printful render without printful block exits 1" 1 $?
+assert_contains "store_id requirement is named" "commerce.printful.store_id (a positive integer) is required" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]};"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "live printful render-functions exits 0" 0 $?
+WEBHOOK_FUNCTION=$(cat "${SITE_DIR}/functions/api/webhook.js")
+assert_contains "printful webhook overlays the store id" '"PRINTFUL_STORE_ID":"17828143"' "$WEBHOOK_FUNCTION"
+assert_contains "printful webhook inlines the printful provider" "sync_variant_id" "$WEBHOOK_FUNCTION"
+assert_not_contains "printful webhook drops the manual fulfillment overlay" '"COMMERCE_FULFILLMENT_TO":' "$WEBHOOK_FUNCTION"
+node --check "${SITE_DIR}/functions/api/webhook.js" 2>/dev/null
+assert_exit "printful webhook Function is valid JS" 0 $?
 
 # switching to preview stale-cleans the live functions
 cp scripts/test/fixtures/valid-build-plan-commerce.yaml "${SITE_DIR}/build-plan.yaml"
@@ -1964,10 +1997,45 @@ assert_contains "redeploy fetches the recorded endpoint" "GET https://api.stripe
 assert_not_contains "redeploy creates no new endpoint" "POST https://api.stripe.com/v1/webhook_endpoints" "$CHECKOUT_LOG"
 assert_not_contains "redeploy never re-pushes the signing secret" "pages secret put STRIPE_WEBHOOK_SECRET" "$CHECKOUT_LOG"
 
+# printful live variant: re-render with the printful provider, then deploy
+commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]};"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "printful re-render for deploy exits 0" 0 $?
+
+( unset PRINTFUL_API_KEY; STRIPE_SECRET_KEY=sk_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1 )
+assert_exit "printful provider without PRINTFUL_API_KEY exits 1" 1 $?
+
+: > "${CHECKOUT_STUB_LOG}"
+STRIPE_SECRET_KEY=sk_test PRINTFUL_API_KEY=pf_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "live printful deploy exits 0" 0 $?
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_contains "Printful key pushed through Wrangler" "pages secret put PRINTFUL_API_KEY" "$CHECKOUT_LOG"
+assert_contains "Stripe secret key still pushed for printful" "pages secret put STRIPE_SECRET_KEY" "$CHECKOUT_LOG"
+assert_not_contains "no Resend push for printful without contact form" "pages secret put RESEND_API_KEY" "$CHECKOUT_LOG"
+assert_contains "printful Pages deploy called" "pages deploy dist" "$CHECKOUT_LOG"
+
 export PATH="$CHECKOUT_ORIGINAL_PATH"
 rm -rf "$CHECKOUT_STUB_DIR"
 rm -rf "${SITE_DIR}/commerce" "${SITE_DIR}/functions"
 rm -f "${SITE_DIR}/.stripe-webhook-state.json"
+
+# ── commerce sync (commerce-sync.sh gating) ───────────────────────────────────
+echo ""
+echo "=== commerce sync ==="
+
+# manual provider: catalog.json is authored by hand, sync is a no-op
+cp scripts/test/fixtures/valid-build-plan-commerce-live.yaml "${SITE_DIR}/build-plan.yaml"
+SYNC_OUTPUT=$(SITE_DIR="${SITE_DIR}" bash scripts/commerce-sync.sh 2>&1)
+assert_exit "manual provider sync exits 0" 0 $?
+assert_contains "manual catalog is hand-maintained" "maintained by hand" "$SYNC_OUTPUT"
+
+# no commerce block: nothing to sync
+cp scripts/test/fixtures/valid-build-plan-catalog.yaml "${SITE_DIR}/build-plan.yaml"
+SYNC_OUTPUT=$(SITE_DIR="${SITE_DIR}" bash scripts/commerce-sync.sh 2>&1)
+assert_exit "no-commerce sync exits 0" 0 $?
+assert_contains "no commerce block names nothing to sync" "nothing to sync" "$SYNC_OUTPUT"
 
 # ── JS unit tests (scripts/lib/**/*.test.mjs) ─────────────────────────────────
 echo ""

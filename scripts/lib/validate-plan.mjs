@@ -434,7 +434,7 @@ if ('commerce' in plan) {
   if (!isObject(commerce)) {
     errors.push('commerce must be an object');
   } else {
-    const allowed = new Set(['enabled', 'provider', 'currency', 'checkout', 'preview', 'shipping', 'fulfillment']);
+    const allowed = new Set(['enabled', 'provider', 'currency', 'checkout', 'preview', 'shipping', 'fulfillment', 'printful']);
     for (const field of Object.keys(commerce)) {
       if (!allowed.has(field))
         errors.push('commerce has unknown field "' + field + '"');
@@ -490,6 +490,64 @@ if ('commerce' in plan) {
       }
     } else if (commerce.provider === 'manual' && 'checkout' in commerce) {
       errors.push('commerce.fulfillment ({ to, from }) is required when provider is manual and checkout is set — the manual provider emails orders to the merchant');
+    }
+    // The printful provider curates products in the plan (spec §1, tier 1):
+    // which sync products to sell, at what price, with what description.
+    if ('printful' in commerce) {
+      if (commerce.provider !== 'printful') {
+        errors.push('commerce.printful is only valid when commerce.provider is printful (got: ' + commerce.provider + ')');
+      } else if (!isObject(commerce.printful)) {
+        errors.push('commerce.printful must be an object ({ store_id, products })');
+      } else {
+        const printful = commerce.printful;
+        for (const field of Object.keys(printful)) {
+          if (field !== 'store_id' && field !== 'products')
+            errors.push('commerce.printful has unknown field "' + field + '"');
+        }
+        if (!Number.isInteger(printful.store_id) || printful.store_id <= 0)
+          errors.push('commerce.printful.store_id must be a positive integer (Printful dashboard > Settings > Stores)');
+        if (!Array.isArray(printful.products) || printful.products.length === 0) {
+          errors.push('commerce.printful.products must be a non-empty array');
+        } else {
+          const seenSlugs = new Set();
+          printful.products.forEach(function(entry, i) {
+            const tag = 'commerce.printful.products[' + i + ']';
+            if (!isObject(entry)) {
+              errors.push(tag + ' must be an object');
+              return;
+            }
+            const allowedEntry = new Set(['slug', 'printful_product_id', 'price_minor', 'description', 'name', 'color_order', 'active']);
+            for (const field of Object.keys(entry)) {
+              if (!allowedEntry.has(field))
+                errors.push(tag + ' has unknown field "' + field + '"');
+            }
+            if (!(typeof entry.slug === 'string' && entry.slug.trim() !== '')) {
+              errors.push(tag + '.slug must be a non-empty string');
+            } else if (seenSlugs.has(entry.slug)) {
+              errors.push(tag + '.slug duplicates "' + entry.slug + '"');
+            } else {
+              seenSlugs.add(entry.slug);
+            }
+            if (!Number.isInteger(entry.printful_product_id) || entry.printful_product_id <= 0)
+              errors.push(tag + '.printful_product_id must be a positive integer (the sync product id)');
+            if (!Number.isInteger(entry.price_minor) || entry.price_minor < 0)
+              errors.push(tag + '.price_minor must be a non-negative integer (minor currency units)');
+            if (!(typeof entry.description === 'string' && entry.description.trim() !== ''))
+              errors.push(tag + '.description must be a non-empty string');
+            if ('name' in entry && !(typeof entry.name === 'string' && entry.name.trim() !== ''))
+              errors.push(tag + '.name must be a non-empty string');
+            if ('color_order' in entry) {
+              if (!Array.isArray(entry.color_order) || entry.color_order.length === 0 ||
+                  !entry.color_order.every(function(c) { return typeof c === 'string' && c.trim() !== ''; }))
+                errors.push(tag + '.color_order must be a non-empty array of non-empty strings');
+            }
+            if ('active' in entry && typeof entry.active !== 'boolean')
+              errors.push(tag + '.active must be a boolean');
+          });
+        }
+      }
+    } else if (commerce.provider === 'printful') {
+      errors.push('commerce.printful ({ store_id, products }) is required when provider is printful — commerce-sync.sh reads it to sync the catalog');
     }
     commerceCheckoutEnabled = commerce.enabled === true && commerce.checkout === 'stripe';
   }
