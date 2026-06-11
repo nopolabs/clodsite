@@ -18,6 +18,17 @@ clodsite_load_env() {
   fi
 }
 
+# Prints "test" or "live" from the STRIPE_SECRET_KEY prefix (secret and
+# restricted keys both carry it), or nothing when the key is missing or
+# unrecognized. Mode visibility must be unambiguous: callers treat an empty
+# result on a commerce site as an error.
+clodsite_stripe_mode() {
+  case "${STRIPE_SECRET_KEY:-}" in
+    sk_test_*|rk_test_*) echo "test" ;;
+    sk_live_*|rk_live_*) echo "live" ;;
+  esac
+}
+
 clodsite_abs_path() {
   local input="${1:?path required}"
   case "$input" in

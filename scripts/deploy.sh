@@ -81,6 +81,33 @@ if [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ "$COMMERCE_PROVIDER" = "pr
   exit 1
 fi
 
+# Say which Stripe mode this deploy targets, loudly, before anything is
+# provisioned — test-mode setup and mode visibility must be easy and
+# unambiguous (commerce spec, phase 7).
+if [ -f "${SITE_DIR}/functions/api/checkout.js" ]; then
+  STRIPE_MODE=$(clodsite_stripe_mode)
+  case "$STRIPE_MODE" in
+    test)
+      echo "────────────────────────────────────────────────────────────"
+      echo "  Stripe mode: TEST — no real money can move."
+      echo "  Checkout accepts test cards only (e.g. 4242 4242 4242 4242)."
+      echo "────────────────────────────────────────────────────────────"
+      ;;
+    live)
+      echo "────────────────────────────────────────────────────────────"
+      echo "  Stripe mode: LIVE — real cards will be charged."
+      echo "────────────────────────────────────────────────────────────"
+      ;;
+    *)
+      echo "Error: STRIPE_SECRET_KEY does not look like a Stripe secret key"
+      echo "(expected an sk_test_/sk_live_ or rk_test_/rk_live_ prefix)."
+      echo "Copy the key from the Stripe dashboard (Developers > API keys) into .env."
+      exit 1
+      ;;
+  esac
+  echo ""
+fi
+
 # Ensure the Cloudflare Pages project exists in *this* account.
 #
 # wrangler v4 requires the project to exist before `pages deploy` — it will not
