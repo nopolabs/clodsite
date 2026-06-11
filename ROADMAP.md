@@ -98,13 +98,27 @@ provisioning and secret installation, but arbitrary generated Functions and
 per-component secrets are not yet expressible. BBPP remains the driving
 example: authenticated proxying and a separate rendering/email service.
 
-### 8. MCP HTTP transport
+### 8. Per-site environments and credentials
+
+`.env` is scoped to the Clodsite repository, so every site in `SITES_DIR`
+shares one set of credentials: one Cloudflare account, one Resend key, one
+Stripe account, one Printful key. Commerce makes this an active constraint —
+all stores currently settle into the same Stripe account, and switching one
+site between Stripe test and live mode means editing the shared file that
+every other site's deploy reads. Add a per-site environment layer (e.g.
+`$SITES_DIR/<site>/.env` overlaying the repo `.env`) so each site can carry
+its own commerce keys and mode without affecting its neighbors. Keep the
+existing single-file setup as the default for single-tenant use; per-site
+files must be covered by the same never-committed and test-isolation
+guarantees as the repo `.env`.
+
+### 9. MCP HTTP transport
 
 The MCP server currently supports stdio only. Add an authenticated HTTP
 transport so Clodsite can run as a shared or hosted deployment service while
 preserving the same `list_components` and `deploy_site` contracts.
 
-### 9. Free-form legacy interview opener
+### 10. Free-form legacy interview opener
 
 Replace the fixed ten-question `/interview` sequence with one open prompt,
 targeted follow-up questions for missing information, and a confirmation
@@ -112,7 +126,7 @@ summary before writing `site-spec.json`. Keep the fixed sequence as a fallback.
 This is lower priority because direct collaboration on `build-plan.yaml` is now
 the primary workflow and interview/spec is explicitly legacy scaffolding.
 
-### 10. Root-page routing contract
+### 11. Root-page routing contract
 
 Fix the current assumption that both the page with `id: home` and the first
 page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
