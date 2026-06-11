@@ -11,6 +11,7 @@ const selectors = {
   'custom-domain': getCustomDomain,
   'required-custom-domain': (plan) => getCustomDomain(plan, { required: true }),
   'resend-turnstile': (plan) => isResendTurnstileEnabled(plan) ? 'true' : 'false',
+  'commerce-provider': getCommerceProvider,
 };
 
 export function readBuildPlan(planPath) {
@@ -63,6 +64,13 @@ export function findFirstComponent(plan, type) {
 
 export function isResendTurnstileEnabled(plan) {
   return findFirstComponent(plan, 'resend-form')?.turnstile === true;
+}
+
+export function getCommerceProvider(plan) {
+  const provider = plan.commerce && typeof plan.commerce.provider === 'string'
+    ? plan.commerce.provider.trim()
+    : '';
+  return provider;
 }
 
 export function selectPlanValues(plan, requestedSelectors) {

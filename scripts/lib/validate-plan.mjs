@@ -434,7 +434,7 @@ if ('commerce' in plan) {
   if (!isObject(commerce)) {
     errors.push('commerce must be an object');
   } else {
-    const allowed = new Set(['enabled', 'provider', 'currency', 'checkout', 'preview', 'shipping']);
+    const allowed = new Set(['enabled', 'provider', 'currency', 'checkout', 'preview', 'shipping', 'fulfillment']);
     for (const field of Object.keys(commerce)) {
       if (!allowed.has(field))
         errors.push('commerce has unknown field "' + field + '"');
@@ -457,13 +457,39 @@ if ('commerce' in plan) {
       if (!isObject(commerce.shipping)) {
         errors.push('commerce.shipping must be an object');
       } else {
+        const allowedShipping = new Set(['flat_rate_minor', 'countries']);
         for (const field of Object.keys(commerce.shipping)) {
-          if (field !== 'flat_rate_minor')
+          if (!allowedShipping.has(field))
             errors.push('commerce.shipping has unknown field "' + field + '"');
         }
         if (!Number.isInteger(commerce.shipping.flat_rate_minor) || commerce.shipping.flat_rate_minor < 0)
           errors.push('commerce.shipping.flat_rate_minor must be a non-negative integer (minor currency units)');
+        if ('countries' in commerce.shipping) {
+          // Stripe shipping_address_collection needs explicit allowed_countries.
+          const countries = commerce.shipping.countries;
+          if (!Array.isArray(countries) || countries.length === 0 ||
+              !countries.every(function(c) { return typeof c === 'string' && /^[A-Z]{2}$/.test(c); }))
+            errors.push('commerce.shipping.countries must be a non-empty array of two-letter uppercase country codes, e.g. [US, CA]');
+        }
       }
+    }
+    // The manual provider emails orders to the merchant; checkout cannot
+    // fulfill without a destination.
+    if ('fulfillment' in commerce) {
+      if (!isObject(commerce.fulfillment)) {
+        errors.push('commerce.fulfillment must be an object');
+      } else {
+        for (const field of Object.keys(commerce.fulfillment)) {
+          if (field !== 'to' && field !== 'from')
+            errors.push('commerce.fulfillment has unknown field "' + field + '"');
+        }
+        if (!(typeof commerce.fulfillment.to === 'string' && commerce.fulfillment.to.trim() !== ''))
+          errors.push('commerce.fulfillment.to must be a non-empty string');
+        if (!(typeof commerce.fulfillment.from === 'string' && commerce.fulfillment.from.trim() !== ''))
+          errors.push('commerce.fulfillment.from must be a non-empty string');
+      }
+    } else if (commerce.provider === 'manual' && 'checkout' in commerce) {
+      errors.push('commerce.fulfillment ({ to, from }) is required when provider is manual and checkout is set — the manual provider emails orders to the merchant');
     }
     commerceCheckoutEnabled = commerce.enabled === true && commerce.checkout === 'stripe';
   }

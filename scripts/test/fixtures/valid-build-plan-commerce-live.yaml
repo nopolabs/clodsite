@@ -1,0 +1,29 @@
+slug: commerce-live-test
+name: Commerce Live Test
+overview: Fixture for live checkout (manual provider, no preview).
+style: minimal
+tone: professional
+commerce:
+  enabled: true
+  provider: manual
+  currency: usd
+  checkout: stripe
+  shipping:
+    flat_rate_minor: 500
+    countries: [US, CA]
+  fulfillment:
+    to: orders@example.com
+    from: shop@example.com
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          ## Shop
+          Our small catalog.
+      - type: catalog
+nav:
+  order: [home]
+contact:
+  enabled: false

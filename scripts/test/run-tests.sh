@@ -1777,10 +1777,202 @@ assert_not_contains "lookbook HTML has no cart toggle" "cart-toggle" "$LOOKBOOK_
 assert_not_contains "lookbook HTML has no add-to-cart button" 'class="c-catalog__add-button"' "$LOOKBOOK_HTML"
 rm -rf "${SITE_DIR}/commerce"
 
-# ── JS unit tests (scripts/lib/*.test.mjs) ────────────────────────────────────
+# ── commerce checkout (live functions, provisioning, deploy) ──────────────────
 echo ""
-echo "=== JS unit tests (node --test scripts/lib/*.test.mjs) ==="
-NODE_TEST_OUTPUT=$(node --test scripts/lib/*.test.mjs 2>&1)
+echo "=== commerce checkout ==="
+
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist" "${SITE_DIR}/commerce" "${SITE_DIR}/functions"
+rm -f "${SITE_DIR}/.stripe-webhook-state.json"
+cp scripts/test/fixtures/valid-build-plan-commerce-live.yaml "${SITE_DIR}/build-plan.yaml"
+mkdir -p "${SITE_DIR}/commerce/assets"
+cp scripts/test/fixtures/valid-catalog.json "${SITE_DIR}/commerce/catalog.json"
+
+# validate-plan: live manual plan with fulfillment + countries → exits 0
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "live commerce plan exits 0" 0 $?
+
+commerce_live_mutation() {
+  cp scripts/test/fixtures/valid-build-plan-commerce-live.yaml "${SITE_DIR}/build-plan.yaml"
+  node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+$1
+fs.writeFileSync(file, yaml.dump(p));
+"
+}
+
+commerce_live_mutation "delete p.commerce.fulfillment;"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "manual checkout without fulfillment exits 1" 1 $?
+assert_contains "fulfillment requirement is named" "commerce.fulfillment ({ to, from }) is required when provider is manual" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.fulfillment.cc='extra@example.com';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown fulfillment field exits 1" 1 $?
+assert_contains "unknown fulfillment field is rejected" 'commerce.fulfillment has unknown field "cc"' "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.shipping.countries=['usa'];"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "bad shipping countries exits 1" 1 $?
+assert_contains "shipping countries format is named" "commerce.shipping.countries must be a non-empty array of two-letter uppercase country codes" "$COMMERCE_OUTPUT"
+
+# full live build: functions rendered, live cart wiring in dist
+cp scripts/test/fixtures/valid-build-plan-commerce-live.yaml "${SITE_DIR}/build-plan.yaml"
+printf 'png' > "${SITE_DIR}/commerce/assets/crow-tee-white-front.png"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "render-functions for live commerce exits 0" 0 $?
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "live commerce fixture builds" 0 $?
+assert_file_exists "checkout Function rendered" "${SITE_DIR}/functions/api/checkout.js"
+assert_file_exists "webhook Function rendered" "${SITE_DIR}/functions/api/webhook.js"
+node --check "${SITE_DIR}/functions/api/checkout.js" 2>/dev/null
+assert_exit "checkout Function is valid JS" 0 $?
+node --check "${SITE_DIR}/functions/api/webhook.js" 2>/dev/null
+assert_exit "webhook Function is valid JS" 0 $?
+CHECKOUT_FUNCTION=$(cat "${SITE_DIR}/functions/api/checkout.js")
+WEBHOOK_FUNCTION=$(cat "${SITE_DIR}/functions/api/webhook.js")
+assert_contains "checkout CONFIG keys variants in option order" '"crow-tee:White:S"' "$CHECKOUT_FUNCTION"
+assert_contains "checkout CONFIG resolves fulfillment refs server-side" '"fulfillment_ref":"4938291"' "$CHECKOUT_FUNCTION"
+assert_contains "checkout CONFIG carries plan shipping countries" '"countries":["US","CA"]' "$CHECKOUT_FUNCTION"
+assert_not_contains "checkout Function has no unrendered markers" "{{" "$CHECKOUT_FUNCTION"
+assert_contains "webhook inlines the provider createOrder" "async function createOrder" "$WEBHOOK_FUNCTION"
+assert_contains "webhook overlays the fulfillment destination" '"COMMERCE_FULFILLMENT_TO":"orders@example.com"' "$WEBHOOK_FUNCTION"
+assert_not_contains "webhook Function has no unrendered markers" "{{" "$WEBHOOK_FUNCTION"
+LIVE_HTML=$(cat "${SITE_DIR}/dist/index.html")
+assert_contains "live HTML wires checkout to the API" "/api/checkout" "$LIVE_HTML"
+assert_contains "live HTML has the checkout error element" "cart-drawer__error" "$LIVE_HTML"
+assert_not_contains "live HTML drops the preview note" "Checkout is coming soon." "$LIVE_HTML"
+assert_not_contains "live HTML never carries fulfillment refs" "4938291" "$LIVE_HTML"
+assert_contains "cart stylesheet styles the checkout error" ".cart-drawer__error" "$(cat "${SITE_DIR}/dist/css/cart.css")"
+
+# printful has no order.mjs yet → render-functions fails loudly
+commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment;"
+COMMERCE_OUTPUT=$(bash scripts/render-functions.sh 2>&1)
+assert_exit "live printful render-functions exits 1" 1 $?
+assert_contains "missing provider implementation is named" 'commerce provider "printful" has no order.mjs' "$COMMERCE_OUTPUT"
+
+# switching to preview stale-cleans the live functions
+cp scripts/test/fixtures/valid-build-plan-commerce.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "preview render-functions exits 0" 0 $?
+if [ ! -f "${SITE_DIR}/functions/api/checkout.js" ] && [ ! -f "${SITE_DIR}/functions/api/webhook.js" ]; then
+  echo "  ✓ preview removes stale commerce Functions"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ preview removes stale commerce Functions"
+  FAIL=$((FAIL + 1))
+fi
+
+# deploy + provisioning with stubbed wrangler and curl
+cp scripts/test/fixtures/valid-build-plan-commerce-live.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/render-functions.sh > /dev/null 2>&1
+
+CHECKOUT_STUB_DIR=$(mktemp -d)
+CHECKOUT_STUB_LOG="${CHECKOUT_STUB_DIR}/calls.log"
+cat > "${CHECKOUT_STUB_DIR}/curl" << STUB
+#!/usr/bin/env bash
+method="GET"
+url=""
+while [ "\$#" -gt 0 ]; do
+  case "\$1" in
+    --request) method="\$2"; shift 2 ;;
+    --data|--header|--write-out) shift 2 ;;
+    --fail-with-body|--silent|--show-error) shift ;;
+    *) url="\$1"; shift ;;
+  esac
+done
+echo "\${method} \${url}" >> "${CHECKOUT_STUB_LOG}"
+case "\${url}" in
+  *api.stripe.com/v1/webhook_endpoints/we_test1)
+    printf '%s\n200' '{"id":"we_test1","url":"https://commerce-live-test.pages.dev/api/webhook"}'
+    ;;
+  *api.stripe.com/v1/webhook_endpoints\?*)
+    printf '%s\n200' '{"object":"list","data":[]}'
+    ;;
+  *api.stripe.com/v1/webhook_endpoints)
+    printf '%s\n200' '{"id":"we_test1","secret":"whsec_test_secret_xyz"}'
+    ;;
+  *storage/kv/namespaces\?*)
+    printf '%s' '{"success":true,"result":[]}'
+    ;;
+  *storage/kv/namespaces)
+    printf '%s' '{"success":true,"result":{"id":"kv-test-namespace-id"}}'
+    ;;
+  */pages/projects/commerce-live-test)
+    if [ "\${method}" = "PATCH" ]; then
+      printf '%s' '{"success":true,"result":{}}'
+    else
+      printf '%s' '{"success":true,"result":{"subdomain":"commerce-live-test.pages.dev","deployment_configs":{"production":{},"preview":{}}}}'
+    fi
+    ;;
+  *)
+    printf '%s' '{"success":false,"errors":[{"message":"unexpected test URL"}]}'
+    exit 22
+    ;;
+esac
+STUB
+cat > "${CHECKOUT_STUB_DIR}/wrangler" << STUB
+#!/usr/bin/env bash
+echo "wrangler \$*" >> "${CHECKOUT_STUB_LOG}"
+exit 0
+STUB
+chmod +x "${CHECKOUT_STUB_DIR}/curl" "${CHECKOUT_STUB_DIR}/wrangler"
+CHECKOUT_ORIGINAL_PATH="$PATH"
+export PATH="${CHECKOUT_STUB_DIR}:${PATH}"
+
+( unset STRIPE_SECRET_KEY; RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1 )
+assert_exit "missing STRIPE_SECRET_KEY exits 1" 1 $?
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}" 2>/dev/null || true)
+assert_not_contains "deploy not called when Stripe key missing" "pages deploy" "$CHECKOUT_LOG"
+
+( unset RESEND_API_KEY; STRIPE_SECRET_KEY=sk_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1 )
+assert_exit "manual provider without RESEND_API_KEY exits 1" 1 $?
+
+: > "${CHECKOUT_STUB_LOG}"
+STRIPE_SECRET_KEY=sk_test RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "live commerce deploy exits 0" 0 $?
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+# deploy.sh sources .env, so the Cloudflare account ID in URLs is the real
+# one — match on method-filtered lines instead of full URLs.
+CHECKOUT_POST_LINES=$(grep '^POST' "${CHECKOUT_STUB_LOG}" || true)
+CHECKOUT_PATCH_LINES=$(grep '^PATCH' "${CHECKOUT_STUB_LOG}" || true)
+assert_contains "ORDERS KV namespace created" "storage/kv/namespaces" "$CHECKOUT_POST_LINES"
+assert_contains "ORDERS KV namespace bound to the project" "pages/projects/commerce-live-test" "$CHECKOUT_PATCH_LINES"
+assert_contains "Stripe webhook endpoint created" "POST https://api.stripe.com/v1/webhook_endpoints" "$CHECKOUT_LOG"
+assert_contains "webhook signing secret pushed through Wrangler" "pages secret put STRIPE_WEBHOOK_SECRET" "$CHECKOUT_LOG"
+assert_contains "Stripe secret key pushed through Wrangler" "pages secret put STRIPE_SECRET_KEY" "$CHECKOUT_LOG"
+assert_contains "Resend key pushed for manual fulfillment" "pages secret put RESEND_API_KEY" "$CHECKOUT_LOG"
+assert_contains "Pages deploy called" "pages deploy dist" "$CHECKOUT_LOG"
+assert_file_exists "Stripe webhook state recorded" "${SITE_DIR}/.stripe-webhook-state.json"
+CHECKOUT_STATE=$(cat "${SITE_DIR}/.stripe-webhook-state.json")
+assert_contains "webhook state records the endpoint id" "we_test1" "$CHECKOUT_STATE"
+assert_not_contains "webhook state NEVER records the signing secret" "whsec_test_secret_xyz" "$CHECKOUT_STATE"
+
+# second deploy reuses the endpoint without re-pushing the signing secret
+: > "${CHECKOUT_STUB_LOG}"
+STRIPE_SECRET_KEY=sk_test RESEND_API_KEY=re_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "live commerce redeploy exits 0" 0 $?
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_contains "redeploy fetches the recorded endpoint" "GET https://api.stripe.com/v1/webhook_endpoints/we_test1" "$CHECKOUT_LOG"
+assert_not_contains "redeploy creates no new endpoint" "POST https://api.stripe.com/v1/webhook_endpoints" "$CHECKOUT_LOG"
+assert_not_contains "redeploy never re-pushes the signing secret" "pages secret put STRIPE_WEBHOOK_SECRET" "$CHECKOUT_LOG"
+
+export PATH="$CHECKOUT_ORIGINAL_PATH"
+rm -rf "$CHECKOUT_STUB_DIR"
+rm -rf "${SITE_DIR}/commerce" "${SITE_DIR}/functions"
+rm -f "${SITE_DIR}/.stripe-webhook-state.json"
+
+# ── JS unit tests (scripts/lib/**/*.test.mjs) ─────────────────────────────────
+echo ""
+echo "=== JS unit tests (node --test scripts/lib/**/*.test.mjs) ==="
+NODE_TEST_OUTPUT=$(node --test $(find scripts/lib -name '*.test.mjs' | sort) 2>&1)
 NODE_TEST_EXIT=$?
 # node --test prints "# pass N" (tap reporter) or "ℹ pass N" (spec reporter)
 NODE_PASS=$(printf '%s\n' "$NODE_TEST_OUTPUT" | sed -n -e 's/^# pass \([0-9][0-9]*\).*/\1/p' -e 's/^ℹ pass \([0-9][0-9]*\).*/\1/p' | head -1)
