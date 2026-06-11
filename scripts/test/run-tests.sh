@@ -405,6 +405,21 @@ else
   echo "  ✗ unexpected commit message: $COMMIT_MSG"
   FAIL=$((FAIL + 1))
 fi
+assert_not_contains "messageless commit subject has no dangling separator" "—" "$COMMIT_MSG"
+assert_contains "commit body records the production URL" "site: https://nopo-labs.pages.dev" \
+  "$(git -C sites log -1 --format=%b 2>/dev/null)"
+
+# With DEPLOY_MESSAGE → the reason becomes the commit subject
+echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
+touch "${SITE_DIR}/redeployed-file"
+DEPLOY_MESSAGE="switch to live keys" bash scripts/deploy-finalize.sh > /dev/null 2>&1
+assert_exit "finalize with DEPLOY_MESSAGE exits 0" 0 $?
+assert_contains "commit subject carries the deploy message" \
+  "deploy: ${TEST_SITE_NAME} — switch to live keys" \
+  "$(git -C sites log -1 --format=%s 2>/dev/null)"
+assert_contains "messaged commit body records the snapshot URL" \
+  "snapshot: https://abc12345.nopo-labs.pages.dev" \
+  "$(git -C sites log -1 --format=%b 2>/dev/null)"
 rm -rf sites
 # Restore SITE_DIR for any tests that follow
 export SITE_DIR="$SAVED_SITE_DIR"

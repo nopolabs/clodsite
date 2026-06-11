@@ -132,9 +132,26 @@ elif [ "$STRIPE_MODE" = "live" ]; then
 fi
 echo "See ${SITE_DIR}/NEXT-STEPS.md for next steps."
 
-# Auto-commit to sites repo if initialised
+# Auto-commit to sites repo if initialised. An optional DEPLOY_MESSAGE says
+# why this deploy happened (passed through from build-deploy.sh / the /deploy
+# command); the URLs and Stripe mode go in the body where they don't crowd
+# `git log --oneline`.
 SITE_DIR_NAME=$(basename "${SITE_DIR}")
 if [ -d "${SITES_DIR}/.git" ]; then
+  if [ -n "${DEPLOY_MESSAGE:-}" ]; then
+    COMMIT_SUBJECT="deploy: ${SITE_DIR_NAME} — ${DEPLOY_MESSAGE}"
+  else
+    COMMIT_SUBJECT="deploy: ${SITE_DIR_NAME}"
+  fi
+  COMMIT_BODY="site: ${PROD_URL}"
+  if [ -n "$BUILD_URL" ] && [ "$BUILD_URL" != "$PROD_URL" ]; then
+    COMMIT_BODY="${COMMIT_BODY}
+snapshot: ${BUILD_URL}"
+  fi
+  if [ -n "$STRIPE_MODE" ]; then
+    COMMIT_BODY="${COMMIT_BODY}
+stripe mode: ${STRIPE_MODE}"
+  fi
   git -C "$SITES_DIR" add "${SITE_DIR_NAME}/" 2>/dev/null || true
-  git -C "$SITES_DIR" commit -m "deploy: ${SITE_DIR_NAME} → ${PROD_URL}" 2>/dev/null || true
+  git -C "$SITES_DIR" commit -m "$COMMIT_SUBJECT" -m "$COMMIT_BODY" 2>/dev/null || true
 fi

@@ -119,7 +119,7 @@ Deploy to Cloudflare Pages. Produces a live URL and `$SITES_DIR/<site-name>/NEXT
 [SCRIPT] bash scripts/deploy.sh --local      (if `/deploy <site-name> local` — serve, no deploy)
 [SCRIPT] bash scripts/deploy.sh              (ensure Pages project; provision Turnstile when enabled; deploy)
 [LLM]    Interpret error if deploy fails
-[SCRIPT] bash scripts/deploy-finalize.sh     (on success — production URL, NEXT-STEPS.md)
+[SCRIPT] bash scripts/deploy-finalize.sh     (on success — production URL, NEXT-STEPS.md, sites-repo commit; DEPLOY_MESSAGE says why: "deploy: <site> — <message>")
 ```
 
 ### `/domain` — `[HYBRID]`
