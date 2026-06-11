@@ -204,6 +204,22 @@
       }
 
       var items = load();
+
+      // Returning from a completed Stripe Checkout — success_url carries
+      // ?checkout=success (spec §6). The order is placed, so empty the cart
+      // and drop the marker from the address bar.
+      var params = new URLSearchParams(window.location.search);
+      if (params.get("checkout") === "success") {
+        items = [];
+        params.delete("checkout");
+        params.delete("session_id");
+        var query = params.toString();
+        try {
+          window.history.replaceState(null, "",
+            window.location.pathname + (query ? "?" + query : "") + window.location.hash);
+        } catch (_) {}
+      }
+
       save();
 
       var toggle = document.querySelector(".cart-toggle");

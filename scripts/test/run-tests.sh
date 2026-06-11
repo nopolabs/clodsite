@@ -1932,6 +1932,7 @@ assert_not_contains "webhook Function has no unrendered markers" "{{" "$WEBHOOK_
 LIVE_HTML=$(cat "${SITE_DIR}/dist/index.html")
 assert_contains "live HTML wires checkout to the API" "/api/checkout" "$LIVE_HTML"
 assert_contains "live HTML has the checkout error element" "cart-drawer__error" "$LIVE_HTML"
+assert_contains "live HTML clears the cart after checkout success" 'params.get("checkout") === "success"' "$LIVE_HTML"
 assert_not_contains "live HTML drops the preview note" "Checkout is coming soon." "$LIVE_HTML"
 assert_not_contains "live HTML never carries fulfillment refs" "4938291" "$LIVE_HTML"
 assert_contains "cart stylesheet styles the checkout error" ".cart-drawer__error" "$(cat "${SITE_DIR}/dist/css/cart.css")"
