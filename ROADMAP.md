@@ -13,7 +13,24 @@ deliberate review cycle.
 
 Items are ordered by proposed implementation priority.
 
-### 1. Governed preview-and-revise workflow
+### 1. Commerce v1 — sell a small catalog of products
+
+Add ecommerce as a Clodsite capability: a `catalog` component with
+customer-requested size guides, site-level cart chrome (lookbook / preview /
+live activation states), Stripe Checkout via generated Pages Functions, and a
+fulfillment provider abstraction proven by shipping two providers (`printful`
+and `manual` email fulfillment). Catalog data is provider-synced, normalized,
+and committed alongside mirrored assets, keeping builds offline and the
+inference boundary intact. Webhook fulfillment runs a KV-backed order state
+machine (`processing`/`completed`/`failed`) with automated Stripe-retry
+recovery and stored diagnostics; human intervention remains the final tier.
+Dogfood target is hmc-cycling.org, ported and cut over as the final phase.
+Six PR-able phases; the first four need no Printful account. Partially
+advances "General Pages Functions and secrets" below (per-component secrets,
+`provision-kv`, `provision-stripe-webhook`). Design:
+`docs/superpowers/specs/2026-06-10-commerce-design.md`.
+
+### 2. Governed preview-and-revise workflow
 
 Add a first-class workflow for previewing an existing site, collecting targeted
 feedback, proposing a reviewable `build-plan.yaml` diff, and rebuilding only
@@ -23,14 +40,14 @@ This evolves the planned `/modify` command around current build-plan-first
 usage, preserves stable page IDs, and keeps revision governed rather than
 silently regenerating the site.
 
-### 2. Generated not-found page
+### 3. Generated not-found page
 
 Generate a top-level `404.html` for every site, with useful navigation back to
 known content. This disables Cloudflare Pages' implicit single-page-application
 fallback, so unknown URLs return an honest `404` response instead of serving
 the home page with `200`.
 
-### 3. Explicit redirects
+### 4. Explicit redirects
 
 Add optional redirect declarations to `build-plan.yaml` and generate a
 Cloudflare Pages `_redirects` file. Support intentional permanent redirects for
@@ -38,7 +55,7 @@ renamed or retired pages, while leaving genuinely unknown paths to the generated
 404 page. Validate sources, destinations, status codes, duplicates, and
 conflicts with generated page routes.
 
-### 4. Installable skill/plugin packaging
+### 5. Installable skill/plugin packaging
 
 Clodsite currently ships as a template repo: clone it, `cd` into it, and open
 an agent there. Package Clodsite as an installable skill or plugin available
@@ -46,7 +63,7 @@ from any directory, removing the clone-and-`cd` bootstrap. Multi-site
 workspaces and configurable `SITES_DIR` have cleared the original storage and
 invocation blockers.
 
-### 5. General Pages Functions and secrets
+### 6. General Pages Functions and secrets
 
 Generalize the function and secret pipeline beyond the specific
 `resend-form` use case. Turnstile-protected contact forms now exercise widget
@@ -54,13 +71,13 @@ provisioning and secret installation, but arbitrary generated Functions and
 per-component secrets are not yet expressible. BBPP remains the driving
 example: authenticated proxying and a separate rendering/email service.
 
-### 6. MCP HTTP transport
+### 7. MCP HTTP transport
 
 The MCP server currently supports stdio only. Add an authenticated HTTP
 transport so Clodsite can run as a shared or hosted deployment service while
 preserving the same `list_components` and `deploy_site` contracts.
 
-### 7. Free-form legacy interview opener
+### 8. Free-form legacy interview opener
 
 Replace the fixed ten-question `/interview` sequence with one open prompt,
 targeted follow-up questions for missing information, and a confirmation
@@ -68,7 +85,7 @@ summary before writing `site-spec.json`. Keep the fixed sequence as a fallback.
 This is lower priority because direct collaboration on `build-plan.yaml` is now
 the primary workflow and interview/spec is explicitly legacy scaffolding.
 
-### 8. Root-page routing contract
+### 9. Root-page routing contract
 
 Fix the current assumption that both the page with `id: home` and the first
 page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
