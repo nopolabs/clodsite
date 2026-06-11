@@ -47,12 +47,29 @@ if [ ! -d "${SITE_DIR}/dist" ] || [ -z "$(ls -A "${SITE_DIR}/dist" 2>/dev/null)"
   exit 1
 fi
 
-SITE_NAME=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
-  "${SITE_DIR}/build-plan.yaml" slug)
+PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+  "${SITE_DIR}/build-plan.yaml" slug commerce-provider)
+SITE_NAME=$(echo "$PLAN_VALUES" | sed -n '1p')
+COMMERCE_PROVIDER=$(echo "$PLAN_VALUES" | sed -n '2p')
 
-if [ -f "${SITE_DIR}/functions/api/contact.js" ] && [ -z "${RESEND_API_KEY:-}" ]; then
-  echo "Error: RESEND_API_KEY is not set in .env but this site uses resend-form."
+# The manual provider fulfills by emailing the merchant through Resend, so a
+# live commerce site needs the key even without a resend-form component.
+NEEDS_RESEND="false"
+if [ -f "${SITE_DIR}/functions/api/contact.js" ]; then
+  NEEDS_RESEND="true"
+elif [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ "$COMMERCE_PROVIDER" = "manual" ]; then
+  NEEDS_RESEND="true"
+fi
+if [ "$NEEDS_RESEND" = "true" ] && [ -z "${RESEND_API_KEY:-}" ]; then
+  echo "Error: RESEND_API_KEY is not set in .env but this site needs Resend"
+  echo "(resend-form component and/or manual-provider order emails)."
   echo "Add RESEND_API_KEY=re_... to .env and redeploy."
+  exit 1
+fi
+
+if [ -f "${SITE_DIR}/functions/api/checkout.js" ] && [ -z "${STRIPE_SECRET_KEY:-}" ]; then
+  echo "Error: STRIPE_SECRET_KEY is not set in .env but this site has live checkout."
+  echo "Add STRIPE_SECRET_KEY=sk_... to .env and redeploy."
   exit 1
 fi
 
@@ -84,13 +101,35 @@ if ! bash "${SCRIPT_DIR}/provision-turnstile.sh"; then
   exit 1
 fi
 
-# Push RESEND_API_KEY as a Pages secret when the generated contact Function is
-# present. Other future Functions do not require this secret.
-if [ -f "${SITE_DIR}/functions/api/contact.js" ]; then
+# Live commerce provisions the ORDERS KV namespace + binding and the Stripe
+# webhook endpoint (whose signing secret is pushed straight to Pages, never
+# written to disk). Both gate themselves on functions/api/webhook.js.
+if ! bash "${SCRIPT_DIR}/provision-kv.sh"; then
+  exit 1
+fi
+if ! bash "${SCRIPT_DIR}/provision-stripe-webhook.sh"; then
+  exit 1
+fi
+
+# Push RESEND_API_KEY as a Pages secret when a generated Function needs it:
+# the contact form, and/or the manual provider's order emails.
+if [ "$NEEDS_RESEND" = "true" ]; then
   echo "Setting RESEND_API_KEY secret for '$SITE_NAME'..."
   if ! printf '%s' "$RESEND_API_KEY" | wrangler pages secret put RESEND_API_KEY \
       --project-name "$SITE_NAME"; then
     echo "Error: failed to set RESEND_API_KEY Pages secret."
+    exit 1
+  fi
+  echo ""
+fi
+
+# Push STRIPE_SECRET_KEY as a Pages secret when the checkout Function is
+# present — it creates Checkout Sessions server-side.
+if [ -f "${SITE_DIR}/functions/api/checkout.js" ]; then
+  echo "Setting STRIPE_SECRET_KEY secret for '$SITE_NAME'..."
+  if ! printf '%s' "$STRIPE_SECRET_KEY" | wrangler pages secret put STRIPE_SECRET_KEY \
+      --project-name "$SITE_NAME"; then
+    echo "Error: failed to set STRIPE_SECRET_KEY Pages secret."
     exit 1
   fi
   echo ""

@@ -155,6 +155,7 @@
       <footer class="cart-drawer__footer">
         <p class="cart-drawer__total"><span>Total</span><span class="cart-drawer__total-amount"></span></p>
         <button class="cart-drawer__checkout" type="button">Checkout</button>
+        <p class="cart-drawer__error" role="alert" hidden>Checkout failed — please try again.</p>
 {% if site.commerce.preview %}
         <p class="cart-drawer__note">Checkout is coming soon.</p>
 {% endif %}
@@ -212,7 +213,7 @@
       var emptyNote = drawer.querySelector(".cart-drawer__empty");
       var totalAmount = drawer.querySelector(".cart-drawer__total-amount");
       var checkout = drawer.querySelector(".cart-drawer__checkout");
-      checkout.disabled = true; // Phase 4 wires live checkout
+      var checkoutError = drawer.querySelector(".cart-drawer__error");
 
       function changeQty(index, delta) {
         items[index].qty += delta;
@@ -291,6 +292,8 @@
         count.hidden = totalQty === 0;
         emptyNote.hidden = items.length > 0;
         totalAmount.textContent = formatMinor(totalMinor);
+        // Preview ships the cart chrome without live checkout (spec §2).
+        checkout.disabled = config.preview || items.length === 0;
       }
 
       function openDrawer() {
@@ -306,6 +309,32 @@
       toggle.addEventListener("click", function () {
         if (drawer.hidden) openDrawer(); else closeDrawer();
       });
+      if (!config.preview) {
+        checkout.addEventListener("click", function () {
+          if (items.length === 0) return;
+          checkout.disabled = true;
+          checkoutError.hidden = true;
+          // The server re-resolves prices and refs from the committed catalog;
+          // the client sends only what it chose (spec §6).
+          fetch("/api/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: items.map(function (item) {
+                return { slug: item.slug, optionValues: item.optionValues || {}, qty: item.qty };
+              })
+            })
+          }).then(function (response) {
+            if (!response.ok) throw new Error("checkout " + response.status);
+            return response.json();
+          }).then(function (data) {
+            window.location.assign(data.url);
+          }).catch(function () {
+            checkout.disabled = items.length === 0;
+            checkoutError.hidden = false;
+          });
+        });
+      }
       drawer.querySelector(".cart-drawer__close").addEventListener("click", closeDrawer);
       drawer.querySelector(".cart-drawer__backdrop").addEventListener("click", closeDrawer);
       document.addEventListener("keydown", function (event) {
