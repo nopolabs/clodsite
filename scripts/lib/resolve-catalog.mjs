@@ -4,7 +4,9 @@
 // The resolved product shape is display-only: prices are formatted here
 // (the single money-formatting point, spec §8), asset paths become
 // site-root URLs, and variants/fulfillment refs are stripped so provider
-// identifiers never reach the page (spec Decision 9).
+// identifiers never reach the page (spec Decision 9). price_minor stays in
+// the resolved shape as the cart's cached display price (cosmetic, spec §5);
+// checkout re-prices server-side from the committed catalog.
 
 // Minor-unit exponents; currencies not listed use 2 (cents-style).
 const CURRENCY_EXPONENTS = { jpy: 0, krw: 0 };
@@ -49,6 +51,7 @@ function resolveProduct(product, currency) {
     slug: product.slug,
     name: product.name,
     description: product.description,
+    price_minor: product.price_minor,
     price_display: formatPrice(product.price_minor, currency),
     images: {
       main: assetUrl(product.images.main),
@@ -65,6 +68,24 @@ function resolveProduct(product, currency) {
     })),
     ...(product.size_guide ? { size_guide: resolveSizeGuide(product.size_guide) } : {}),
   };
+}
+
+// The cart's purge set (spec §5): every sellable (slug, optionValues) tuple
+// as a "slug:val1:val2" string, values in declared option order; a simple
+// product (one variant, empty optionValues) is a bare "slug". The cart drops
+// stored items whose key is no longer in this set, and add-to-cart refuses
+// combinations outside it. Keys carry no fulfillment refs (spec Decision 9).
+export function buildCatalogSet(catalog) {
+  const keys = [];
+  for (const product of catalog.products) {
+    if (!product.active) continue;
+    const optionNames = (product.options || []).map((option) => option.name);
+    for (const variant of product.variants || []) {
+      const values = optionNames.map((name) => variant.optionValues[name]);
+      keys.push([product.slug, ...values].join(':'));
+    }
+  }
+  return keys;
 }
 
 // component: a `type: catalog` entry from the plan (optional products filter).

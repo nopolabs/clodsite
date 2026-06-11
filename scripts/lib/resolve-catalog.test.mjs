@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assetUrl, formatPrice, resolveCatalogComponent } from './resolve-catalog.mjs';
+import { assetUrl, buildCatalogSet, formatPrice, resolveCatalogComponent } from './resolve-catalog.mjs';
 
 function makeCatalog() {
   return {
@@ -110,8 +110,13 @@ test('strips variants and fulfillment refs from the resolved shape', () => {
   assert.ok(!serialized.includes('variants'));
   assert.ok(!serialized.includes('fulfillment_ref'));
   assert.ok(!serialized.includes('111'));
-  assert.ok(!serialized.includes('price_minor'));
   assert.ok(!serialized.includes('active'));
+});
+
+test('keeps price_minor in the resolved shape as the cart cached price', () => {
+  const resolved = resolveCatalogComponent({ type: 'catalog' }, makeCatalog());
+  assert.equal(resolved.products[0].price_minor, 2000);
+  assert.equal(resolved.products[1].price_minor, 1500);
 });
 
 test('formats prices and roots image paths in the resolved shape', () => {
@@ -135,6 +140,31 @@ test('marks options swatch-capable only when every value has a hex', () => {
   assert.equal(color.has_swatches, true);
   assert.equal(size.has_swatches, false);
   assert.equal(color.values[0].hex, '#FFFFFF');
+});
+
+test('buildCatalogSet emits one key per active variant, values in option order', () => {
+  const catalog = makeCatalog();
+  catalog.products[0].variants.push({ optionValues: { Color: 'Black', Size: 'M' }, fulfillment_ref: '222' });
+  // retired-tee variants must NOT appear: inactive products are excluded.
+  catalog.products[2].options = [{ name: 'Size', values: [{ value: 'M' }] }];
+  catalog.products[2].variants = [{ optionValues: { Size: 'M' }, fulfillment_ref: '333' }];
+  assert.deepEqual(buildCatalogSet(catalog), ['crow-tee:White:S', 'crow-tee:Black:M']);
+});
+
+test('buildCatalogSet keys a simple product (empty optionValues) as a bare slug', () => {
+  const catalog = makeCatalog();
+  catalog.products[1].variants = [{ optionValues: {}, fulfillment_ref: '444' }];
+  assert.deepEqual(buildCatalogSet(catalog), ['crow-tee:White:S', 'logo-cap']);
+});
+
+test('buildCatalogSet skips products without variants (lookbook-only items)', () => {
+  // logo-cap has no variants in the base fixture — displayable, not sellable.
+  assert.deepEqual(buildCatalogSet(makeCatalog()), ['crow-tee:White:S']);
+});
+
+test('buildCatalogSet keys contain no fulfillment refs', () => {
+  const serialized = JSON.stringify(buildCatalogSet(makeCatalog()));
+  assert.ok(!serialized.includes('111'));
 });
 
 test('resolves size guides with rooted diagram images', () => {

@@ -425,8 +425,53 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
   });
 }
 
-// Commerce: a catalog component requires a valid commerce/catalog.json next
-// to the plan, and product filters must reference catalog slugs (spec §8).
+// Commerce block (spec §2, §8): known provider, stripe-only checkout,
+// integer minor-unit money.
+const KNOWN_PROVIDERS = ['printful', 'manual'];
+let commerceCheckoutEnabled = false;
+if ('commerce' in plan) {
+  const commerce = plan.commerce;
+  if (!isObject(commerce)) {
+    errors.push('commerce must be an object');
+  } else {
+    const allowed = new Set(['enabled', 'provider', 'currency', 'checkout', 'preview', 'shipping']);
+    for (const field of Object.keys(commerce)) {
+      if (!allowed.has(field))
+        errors.push('commerce has unknown field "' + field + '"');
+    }
+    if (typeof commerce.enabled !== 'boolean')
+      errors.push('commerce.enabled must be a boolean');
+    if (!KNOWN_PROVIDERS.includes(commerce.provider))
+      errors.push('commerce.provider must be one of: ' + KNOWN_PROVIDERS.join(', ') + ' (got: ' + commerce.provider + ')');
+    if (!(typeof commerce.currency === 'string' && /^[a-z]{3}$/.test(commerce.currency)))
+      errors.push('commerce.currency must be a lowercase three-letter currency code, e.g. usd');
+    if ('checkout' in commerce && commerce.checkout !== 'stripe')
+      errors.push('commerce.checkout must be stripe (the only v1 value)');
+    if ('preview' in commerce) {
+      if (typeof commerce.preview !== 'boolean')
+        errors.push('commerce.preview must be a boolean');
+      if (!('checkout' in commerce))
+        errors.push('commerce.preview requires commerce.checkout (preview only disables the checkout button)');
+    }
+    if ('shipping' in commerce) {
+      if (!isObject(commerce.shipping)) {
+        errors.push('commerce.shipping must be an object');
+      } else {
+        for (const field of Object.keys(commerce.shipping)) {
+          if (field !== 'flat_rate_minor')
+            errors.push('commerce.shipping has unknown field "' + field + '"');
+        }
+        if (!Number.isInteger(commerce.shipping.flat_rate_minor) || commerce.shipping.flat_rate_minor < 0)
+          errors.push('commerce.shipping.flat_rate_minor must be a non-negative integer (minor currency units)');
+      }
+    }
+    commerceCheckoutEnabled = commerce.enabled === true && commerce.checkout === 'stripe';
+  }
+}
+
+// Commerce: a catalog component (or enabled checkout) requires a valid
+// commerce/catalog.json next to the plan, and product filters must reference
+// catalog slugs (spec §8).
 const catalogComponents = [];
 (plan.pages || []).forEach(function(p, i) {
   (Array.isArray(p.components) ? p.components : []).forEach(function(c, j) {
@@ -435,10 +480,11 @@ const catalogComponents = [];
   });
 });
 
-if (catalogComponents.length > 0) {
+if (catalogComponents.length > 0 || commerceCheckoutEnabled) {
   const catalogPath = path.join(path.dirname(planPath), 'commerce', 'catalog.json');
   if (!fs.existsSync(catalogPath)) {
-    errors.push('catalog component requires ' + catalogPath + ' — sync or hand-write the commerce catalog first');
+    const requiredBy = catalogComponents.length > 0 ? 'catalog component' : 'commerce.checkout';
+    errors.push(requiredBy + ' requires ' + catalogPath + ' — sync or hand-write the commerce catalog first');
   } else {
     let commerceCatalog = null;
     try {
@@ -457,6 +503,14 @@ if (catalogComponents.length > 0) {
               errors.push(entry.tag + '.products[' + k + '] references unknown catalog slug: ' + slug);
           });
         });
+        if (commerceCheckoutEnabled) {
+          // Checkout resolves (slug, optionValues) → fulfillment_ref, so every
+          // sellable product needs at least one variant (spec §6, Decision 9).
+          commerceCatalog.products.forEach(function(product) {
+            if (product.active === true && !(Array.isArray(product.variants) && product.variants.length > 0))
+              errors.push('commerce/catalog.json: product "' + product.slug + '" is active with checkout enabled but has no variants — checkout cannot resolve a fulfillment_ref');
+          });
+        }
       }
     }
   }

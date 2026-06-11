@@ -56,6 +56,9 @@
   </script>
 {% endif %}
   <link rel="stylesheet" href="/css/components.css">
+{% if site.commerce.cart_enabled %}
+  <link rel="stylesheet" href="/css/cart.css">
+{% endif %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   {% if site.style == "minimal" or (site.theme_selector.enabled and "minimal" in site.theme_selector.options) %}
@@ -89,6 +92,11 @@
 {% for theme in site.theme_selector.options %}          <option value="{{ theme | escape }}">{{ theme | capitalize | escape }}</option>
 {% endfor %}        </select>
       </label>
+{% endif %}
+{% if site.commerce.cart_enabled %}
+      <button class="cart-toggle" type="button" aria-expanded="false" aria-controls="cart-drawer" hidden>
+        Cart<span class="cart-toggle__count" aria-label="items in cart" hidden>0</span>
+      </button>
 {% endif %}
     </nav>
   </header>
@@ -131,6 +139,214 @@
       });
       applyTheme(state.current, false);
       wrapper.hidden = false;
+    }());
+  </script>
+{% endif %}
+{% if site.commerce.cart_enabled %}
+  <div class="cart-drawer" id="cart-drawer" hidden>
+    <div class="cart-drawer__backdrop"></div>
+    <aside class="cart-drawer__panel" role="dialog" aria-modal="true" aria-label="Shopping cart">
+      <header class="cart-drawer__header">
+        <h2 class="cart-drawer__title">Cart</h2>
+        <button class="cart-drawer__close" type="button" aria-label="Close cart">&times;</button>
+      </header>
+      <p class="cart-drawer__empty">Your cart is empty.</p>
+      <ul class="cart-drawer__items"></ul>
+      <footer class="cart-drawer__footer">
+        <p class="cart-drawer__total"><span>Total</span><span class="cart-drawer__total-amount"></span></p>
+        <button class="cart-drawer__checkout" type="button">Checkout</button>
+{% if site.commerce.preview %}
+        <p class="cart-drawer__note">Checkout is coming soon.</p>
+{% endif %}
+      </footer>
+    </aside>
+  </div>
+  <script>
+    (function () {
+      var config = {{ site.commerce | jsonScript | safe }};
+      var storageKey = "clodsite_cart";
+      var catalogSet = new Set(config.catalog_set);
+      // Display-only formatting of cached minor units (spec §5); checkout
+      // re-prices server-side from the committed catalog.
+      var EXPONENTS = { jpy: 0, krw: 0 };
+      var SYMBOLS = { usd: "$", cad: "$", aud: "$", eur: "€", gbp: "£" };
+
+      function formatMinor(minor) {
+        var code = config.currency;
+        var exponent = code in EXPONENTS ? EXPONENTS[code] : 2;
+        var amount = (minor / Math.pow(10, exponent)).toFixed(exponent);
+        var symbol = SYMBOLS[code];
+        return symbol ? symbol + amount : amount + " " + code.toUpperCase();
+      }
+
+      // Item identity is the (slug, optionValues) tuple, keyed in declared
+      // option order — the same order the catalog component collects them in.
+      function itemKey(slug, optionValues) {
+        return [slug].concat(Object.values(optionValues || {})).join(":");
+      }
+
+      function load() {
+        var stored = [];
+        try { stored = JSON.parse(window.localStorage.getItem(storageKey)) || []; } catch (_) {}
+        if (!Array.isArray(stored)) stored = [];
+        // Purge items the deployed catalog no longer sells (spec §5).
+        return stored.filter(function (item) {
+          return item && typeof item.slug === "string" && typeof item.name === "string" &&
+            Number.isInteger(item.price_minor) && item.price_minor >= 0 &&
+            Number.isInteger(item.qty) && item.qty > 0 &&
+            catalogSet.has(itemKey(item.slug, item.optionValues));
+        });
+      }
+
+      function save() {
+        try { window.localStorage.setItem(storageKey, JSON.stringify(items)); } catch (_) {}
+      }
+
+      var items = load();
+      save();
+
+      var toggle = document.querySelector(".cart-toggle");
+      var count = toggle.querySelector(".cart-toggle__count");
+      var drawer = document.getElementById("cart-drawer");
+      var list = drawer.querySelector(".cart-drawer__items");
+      var emptyNote = drawer.querySelector(".cart-drawer__empty");
+      var totalAmount = drawer.querySelector(".cart-drawer__total-amount");
+      var checkout = drawer.querySelector(".cart-drawer__checkout");
+      checkout.disabled = true; // Phase 4 wires live checkout
+
+      function changeQty(index, delta) {
+        items[index].qty += delta;
+        if (items[index].qty <= 0) items.splice(index, 1);
+        save();
+        render();
+      }
+
+      function controlButton(label, ariaLabel, onClick) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "cart-drawer__qty-button";
+        button.textContent = label;
+        button.setAttribute("aria-label", ariaLabel);
+        button.addEventListener("click", onClick);
+        return button;
+      }
+
+      function renderItem(item, index) {
+        var li = document.createElement("li");
+        li.className = "cart-drawer__item";
+        if (item.image) {
+          var img = document.createElement("img");
+          img.className = "cart-drawer__item-image";
+          img.src = item.image;
+          img.alt = "";
+          li.appendChild(img);
+        }
+        var body = document.createElement("div");
+        body.className = "cart-drawer__item-body";
+        var name = document.createElement("p");
+        name.className = "cart-drawer__item-name";
+        name.textContent = item.name;
+        body.appendChild(name);
+        var optionText = Object.values(item.optionValues || {}).join(" / ");
+        if (optionText) {
+          var options = document.createElement("p");
+          options.className = "cart-drawer__item-options";
+          options.textContent = optionText;
+          body.appendChild(options);
+        }
+        var controls = document.createElement("div");
+        controls.className = "cart-drawer__item-controls";
+        controls.appendChild(controlButton("−", "Decrease quantity of " + item.name, function () { changeQty(index, -1); }));
+        var qty = document.createElement("span");
+        qty.className = "cart-drawer__qty";
+        qty.textContent = String(item.qty);
+        controls.appendChild(qty);
+        controls.appendChild(controlButton("+", "Increase quantity of " + item.name, function () { changeQty(index, 1); }));
+        var remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "cart-drawer__remove";
+        remove.textContent = "Remove";
+        remove.setAttribute("aria-label", "Remove " + item.name + " from cart");
+        remove.addEventListener("click", function () { items.splice(index, 1); save(); render(); });
+        controls.appendChild(remove);
+        body.appendChild(controls);
+        li.appendChild(body);
+        var price = document.createElement("p");
+        price.className = "cart-drawer__item-price";
+        price.textContent = formatMinor(item.price_minor * item.qty);
+        li.appendChild(price);
+        return li;
+      }
+
+      function render() {
+        var totalQty = 0;
+        var totalMinor = 0;
+        list.textContent = "";
+        items.forEach(function (item, index) {
+          totalQty += item.qty;
+          totalMinor += item.price_minor * item.qty;
+          list.appendChild(renderItem(item, index));
+        });
+        count.textContent = String(totalQty);
+        count.hidden = totalQty === 0;
+        emptyNote.hidden = items.length > 0;
+        totalAmount.textContent = formatMinor(totalMinor);
+      }
+
+      function openDrawer() {
+        drawer.hidden = false;
+        toggle.setAttribute("aria-expanded", "true");
+      }
+
+      function closeDrawer() {
+        drawer.hidden = true;
+        toggle.setAttribute("aria-expanded", "false");
+      }
+
+      toggle.addEventListener("click", function () {
+        if (drawer.hidden) openDrawer(); else closeDrawer();
+      });
+      drawer.querySelector(".cart-drawer__close").addEventListener("click", closeDrawer);
+      drawer.querySelector(".cart-drawer__backdrop").addEventListener("click", closeDrawer);
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && !drawer.hidden) closeDrawer();
+      });
+
+      // The catalog component asks before dispatching so it can flash
+      // "Unavailable" on combinations the deployed catalog doesn't sell.
+      window.__clodsiteCart = {
+        sells: function (slug, optionValues) {
+          return catalogSet.has(itemKey(slug, optionValues));
+        }
+      };
+
+      document.addEventListener("clodsite:cart:add", function (event) {
+        var detail = event.detail || {};
+        var key = itemKey(detail.slug, detail.optionValues);
+        if (!catalogSet.has(key)) return;
+        var existing = null;
+        for (var i = 0; i < items.length; i++) {
+          if (itemKey(items[i].slug, items[i].optionValues) === key) { existing = items[i]; break; }
+        }
+        if (existing) {
+          existing.qty += 1;
+        } else {
+          items.push({
+            slug: detail.slug,
+            name: detail.name,
+            price_minor: detail.price_minor,
+            image: detail.image,
+            optionValues: detail.optionValues || {},
+            qty: 1
+          });
+        }
+        save();
+        render();
+        openDrawer();
+      });
+
+      render();
+      toggle.hidden = false;
     }());
   </script>
 {% endif %}
