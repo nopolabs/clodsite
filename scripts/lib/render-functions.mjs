@@ -69,13 +69,22 @@ export function renderWebhookSource(plan) {
   }
   // Inline the provider as plain function declarations.
   const createOrder = fs.readFileSync(orderPath, 'utf8').replace(/^export /gm, '');
-  const providerEnv =
-    provider === 'manual'
-      ? {
-          COMMERCE_FULFILLMENT_TO: plan.commerce.fulfillment.to,
-          COMMERCE_FULFILLMENT_FROM: plan.commerce.fulfillment.from,
-        }
-      : {};
+  let providerEnv = {};
+  if (provider === 'manual') {
+    providerEnv = {
+      COMMERCE_FULFILLMENT_TO: plan.commerce.fulfillment.to,
+      COMMERCE_FULFILLMENT_FROM: plan.commerce.fulfillment.from,
+    };
+  } else if (provider === 'printful') {
+    const storeId = plan.commerce.printful && plan.commerce.printful.store_id;
+    if (!Number.isInteger(storeId) || storeId <= 0) {
+      throw new Error(
+        'commerce.printful.store_id (a positive integer) is required when provider is printful' +
+        ' — the webhook scopes every Printful API call to it',
+      );
+    }
+    providerEnv = { PRINTFUL_STORE_ID: String(storeId) };
+  }
   return fs.readFileSync(path.join(LIB_DIR, 'commerce', 'webhook.template.js'), 'utf8')
     .replace('{{CREATE_ORDER}}', () => createOrder)
     .replace('{{PROVIDER_ENV}}', () => JSON.stringify(providerEnv));

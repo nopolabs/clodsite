@@ -1,0 +1,45 @@
+{
+  "product_id": 849,
+  "available_sizes": ["S", "M"],
+  "size_tables": [
+    {
+      "type": "product_measure",
+      "unit": "inches",
+      "description": "<p>Measurements are provided by our suppliers. Product measurements may vary by up to 2\" (5 cm).</p>",
+      "image_url": "https://files.cdn.printful.com/upload/product-measure/54/54ab917ed3b3895b_l?v=1744114846",
+      "image_description": "<h6 dir=\"ltr\">A Length</h6>\n<p dir=\"ltr\"><span id=\"docs-internal-guid-a3ac3082\">Place the end of the tape beside the collar at the top of the tee (Highest Point Shoulder). Pull the tape measure to the bottom of the shirt.</span></p>\n<h6 dir=\"ltr\">B Width</h6>\n<p dir=\"ltr\">Place the end of the tape at the seam under the sleeve and pull the tape measure across the shirt to the seam under the opposite sleeve.</p>",
+      "measurements": [
+        {
+          "type_label": "Length",
+          "values": [
+            { "size": "S", "value": "25.5" },
+            { "size": "M", "value": "26" }
+          ]
+        },
+        {
+          "type_label": "Width",
+          "values": [
+            { "size": "S", "value": "17" },
+            { "size": "M", "value": "19" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "measure_yourself",
+      "unit": "inches",
+      "description": "<p>Measurements are provided by suppliers.</p>",
+      "image_url": "https://files.cdn.printful.com/upload/measure-yourself/6a/6acb1f236f416f84_l?v=1744114846",
+      "image_description": "<h6><strong>A Chest</strong></h6>\n<p dir=\"ltr\"><span id=\"docs-internal-guid-a3ac3082\">Measure around the fullest part of your chest, keeping the tape horizontal.</span></p>",
+      "measurements": [
+        {
+          "type_label": "Chest",
+          "values": [
+            { "size": "S", "min_value": "31", "max_value": "34" },
+            { "size": "M", "min_value": "35", "max_value": "38" }
+          ]
+        }
+      ]
+    }
+  ]
+}
