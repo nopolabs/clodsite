@@ -34,8 +34,10 @@ Collect and verify Cloudflare credentials. Write `.env`. Optionally clean previo
 
 The normal token requires Cloudflare Pages edit access. Sites using
 `resend-form` with `turnstile: true` also require
-`Account > Turnstile > Edit`. Builds remain offline; Turnstile resources are
-created or reused during deployment.
+`Account > Turnstile > Edit`. Sites with live commerce checkout also require
+`Account > Workers KV Storage > Edit` — deployment provisions the ORDERS KV
+namespace that backs webhook idempotency. Builds remain offline; Turnstile
+and KV resources are created or reused during deployment.
 
 ```
 [SCRIPT] bash scripts/clean.sh               (only if user typed `/setup clean`)
