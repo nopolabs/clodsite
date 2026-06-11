@@ -1,0 +1,145 @@
+{# Receives component.products: resolved product objects embedded at render
+   time by render-templates (catalog.json ⋈ plan filter). Display fields only —
+   variants and fulfillment refs never reach the page. #}
+<div class="c-catalog">
+  {% for product in component.products %}
+  <article class="c-catalog__product" data-slug="{{ product.slug | escape }}">
+    <figure class="c-catalog__media">
+      <img class="c-catalog__image" src="{{ product.images.main | escape }}" alt="{{ product.name | escape }}" loading="lazy">
+      {% if product.images.gallery and product.images.gallery.length > 0 %}
+      <div class="c-catalog__thumbs">
+        <button type="button" class="c-catalog__thumb" data-src="{{ product.images.main | escape }}" aria-pressed="true">
+          <img src="{{ product.images.main | escape }}" alt="" loading="lazy">
+        </button>
+        {% for src in product.images.gallery %}
+        <button type="button" class="c-catalog__thumb" data-src="{{ src | escape }}" aria-pressed="false">
+          <img src="{{ src | escape }}" alt="" loading="lazy">
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </figure>
+    <div class="c-catalog__body">
+      <h3 class="c-catalog__name">{{ product.name | escape }}</h3>
+      <p class="c-catalog__price">{{ product.price_display | escape }}</p>
+      <p class="c-catalog__description">{{ product.description | escape }}</p>
+      {% for option in product.options %}
+      <div class="c-catalog__option">
+        <span class="c-catalog__option-name" id="catalog-{{ product.slug | escape }}-opt-{{ loop.index0 }}">{{ option.name | escape }}</span>
+        {% if loop.index0 == 0 and option.has_swatches %}
+        <div class="c-catalog__swatches" role="group" aria-labelledby="catalog-{{ product.slug | escape }}-opt-{{ loop.index0 }}">
+          {% for value in option.values %}
+          <button type="button" class="c-catalog__swatch" title="{{ value.value | escape }}"
+                  aria-label="{{ value.value | escape }}" aria-pressed="{% if loop.first %}true{% else %}false{% endif %}"
+                  style="background-color: {{ value.hex | escape }}"></button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <select class="c-catalog__select" aria-labelledby="catalog-{{ product.slug | escape }}-opt-{{ loop.index0 }}">
+          {% for value in option.values %}
+          <option value="{{ value.value | escape }}">{{ value.value | escape }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if product.size_guide %}
+      <button type="button" class="c-catalog__size-guide-open">Size guide</button>
+      <dialog class="c-catalog__size-guide" aria-label="{{ product.name | escape }} size guide">
+        <div class="c-catalog__size-guide-header">
+          <h4>Size guide <span class="c-catalog__size-guide-unit">({{ product.size_guide.unit | escape }})</span></h4>
+          <button type="button" class="c-catalog__size-guide-close" aria-label="Close">&times;</button>
+        </div>
+        {% if product.size_guide.tables.length > 1 %}
+        <div class="c-catalog__size-guide-tabs" role="tablist">
+          {% for table in product.size_guide.tables %}
+          <button type="button" class="c-catalog__size-guide-tab" role="tab"
+                  aria-selected="{% if loop.first %}true{% else %}false{% endif %}">{{ table.label | escape }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% for table in product.size_guide.tables %}
+        <section class="c-catalog__size-guide-panel"{% if not loop.first %} hidden{% endif %}>
+          {% if product.size_guide.tables.length == 1 %}
+          <h5 class="c-catalog__size-guide-label">{{ table.label | escape }}</h5>
+          {% endif %}
+          {% if table.diagram %}
+          <div class="c-catalog__size-guide-diagram">
+            <img src="{{ table.diagram.image | escape }}" alt="Measurement diagram" loading="lazy">
+            <ol class="c-catalog__size-guide-steps">
+              {% for step in table.diagram.steps %}
+              <li><strong>{{ step.label | escape }}</strong> {{ step.text | escape }}</li>
+              {% endfor %}
+            </ol>
+          </div>
+          {% endif %}
+          <table class="c-catalog__size-guide-table">
+            <thead>
+              <tr>
+                <th></th>
+                {% for size, value in table.rows[0].values %}<th>{{ size | escape }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in table.rows %}
+              <tr>
+                <th scope="row">{{ row.label | escape }}</th>
+                {% for size, value in table.rows[0].values %}<td>{{ row.values[size] | escape }}</td>{% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if table.note %}
+          <p class="c-catalog__size-guide-note">{{ table.note | escape }}</p>
+          {% endif %}
+        </section>
+        {% endfor %}
+      </dialog>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+  <script>
+    (function () {
+      var catalog = document.currentScript.closest('.c-catalog');
+      for (var card of catalog.querySelectorAll('.c-catalog__product')) {
+        (function (card) {
+          var mainImage = card.querySelector('.c-catalog__image');
+          var thumbs = card.querySelectorAll('.c-catalog__thumb');
+          for (var thumb of thumbs) {
+            thumb.addEventListener('click', function (e) {
+              mainImage.src = e.currentTarget.dataset.src;
+              for (var t of thumbs) t.setAttribute('aria-pressed', String(t === e.currentTarget));
+            });
+          }
+          var swatches = card.querySelectorAll('.c-catalog__swatch');
+          for (var swatch of swatches) {
+            swatch.addEventListener('click', function (e) {
+              for (var s of swatches) s.setAttribute('aria-pressed', String(s === e.currentTarget));
+            });
+          }
+          var openBtn = card.querySelector('.c-catalog__size-guide-open');
+          if (openBtn) {
+            var dialog = card.querySelector('.c-catalog__size-guide');
+            openBtn.addEventListener('click', function () { dialog.showModal(); });
+            dialog.querySelector('.c-catalog__size-guide-close')
+              .addEventListener('click', function () { dialog.close(); });
+            dialog.addEventListener('click', function (e) {
+              if (e.target === dialog) dialog.close();
+            });
+            var tabs = dialog.querySelectorAll('.c-catalog__size-guide-tab');
+            var panels = dialog.querySelectorAll('.c-catalog__size-guide-panel');
+            tabs.forEach(function (tab, index) {
+              tab.addEventListener('click', function () {
+                tabs.forEach(function (t, i) {
+                  t.setAttribute('aria-selected', String(i === index));
+                  panels[i].hidden = (i !== index);
+                });
+              });
+            });
+          }
+        })(card);
+      }
+    })();
+  </script>
+</div>

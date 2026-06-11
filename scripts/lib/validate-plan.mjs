@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import { readCatalog, validateCatalog } from './validate-catalog.mjs';
 
 const [planPath, componentsDir] = process.argv.slice(2);
 if (!planPath || !componentsDir) {
@@ -422,6 +423,43 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
         errors.push(tag + ' may contain at most one hero component');
     }
   });
+}
+
+// Commerce: a catalog component requires a valid commerce/catalog.json next
+// to the plan, and product filters must reference catalog slugs (spec §8).
+const catalogComponents = [];
+(plan.pages || []).forEach(function(p, i) {
+  (Array.isArray(p.components) ? p.components : []).forEach(function(c, j) {
+    if (c && c.type === 'catalog')
+      catalogComponents.push({ component: c, tag: 'pages[' + i + '].components[' + j + ']' });
+  });
+});
+
+if (catalogComponents.length > 0) {
+  const catalogPath = path.join(path.dirname(planPath), 'commerce', 'catalog.json');
+  if (!fs.existsSync(catalogPath)) {
+    errors.push('catalog component requires ' + catalogPath + ' — sync or hand-write the commerce catalog first');
+  } else {
+    let commerceCatalog = null;
+    try {
+      commerceCatalog = readCatalog(catalogPath);
+    } catch (e) {
+      errors.push('commerce/catalog.json: ' + e.message);
+    }
+    if (commerceCatalog !== null) {
+      const catalogErrors = validateCatalog(commerceCatalog);
+      catalogErrors.forEach(function(e) { errors.push('commerce/catalog.json: ' + e); });
+      if (catalogErrors.length === 0) {
+        const knownSlugs = new Set(commerceCatalog.products.map(function(p) { return p.slug; }));
+        catalogComponents.forEach(function(entry) {
+          (Array.isArray(entry.component.products) ? entry.component.products : []).forEach(function(slug, k) {
+            if (!knownSlugs.has(slug))
+              errors.push(entry.tag + '.products[' + k + '] references unknown catalog slug: ' + slug);
+          });
+        });
+      }
+    }
+  }
 }
 
 if (!plan.nav || !Array.isArray(plan.nav.order) || plan.nav.order.length < 1)

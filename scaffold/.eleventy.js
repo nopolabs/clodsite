@@ -51,6 +51,12 @@ module.exports = function(eleventyConfig) {
     eleventyConfig.addPassthroughCopy({ [siteAssets]: 'assets' });
   }
 
+  // Per-site mirrored commerce assets (product images, size-guide diagrams)
+  const commerceAssets = path.resolve(repoRoot, siteDir, 'commerce', 'assets');
+  if (fs.existsSync(commerceAssets)) {
+    eleventyConfig.addPassthroughCopy({ [commerceAssets]: 'commerce/assets' });
+  }
+
   if (fs.existsSync(siteFavicons) && fs.statSync(siteFavicons).isDirectory()) {
     for (const name of FAVICON_FILES) {
       const src = path.join(siteFavicons, name);

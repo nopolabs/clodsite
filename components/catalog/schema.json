@@ -1,0 +1,12 @@
+{
+  "description": "Product catalog grid. Renders products from the site's commerce/catalog.json: image, name, price, description, variant pickers, and a size-guide modal when a product carries one. Optional products filter: array of catalog slugs selecting which active products appear, in display order. Default: all active products in catalog order.",
+  "required": {},
+  "optional": {
+    "products": {
+      "type": "array",
+      "min_items": 1,
+      "items": { "type": "string", "non_empty": true }
+    }
+  },
+  "example": "type: catalog\nproducts: [crow-tee, logo-cap]\n"
+}
