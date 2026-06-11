@@ -14,10 +14,10 @@ When a user opens this project without a specific request, greet them with this:
 |------|---------|--------------|
 | 1 | `/setup` | Verify your Cloudflare token |
 | 2 | Create `$SITES_DIR/<site-name>/build-plan.yaml` | Work with the AI agent however you like until the plan is complete |
-| 3 | `/build <site-name>` | Generate templates + Eleventy build → `$SITES_DIR/<site-name>/dist/` |
-| 4 | `/deploy <site-name>` | Ship to Cloudflare Pages → live URL |
+| 3 | `/deploy <site-name>` | Build + ship to Cloudflare Pages → live URL |
 
 Or to preview locally without deploying: `/deploy <site-name> local`
+To build and inspect `dist/` without publishing: `/build <site-name>`
 
 After deploying: `/domain <site-name>` to connect a custom domain, `/teardown <site-name>` to delete a Pages project.
 
@@ -110,16 +110,18 @@ Render build plan to templates. Run Eleventy. Produces `$SITES_DIR/<site-name>/d
 [SCRIPT] bash scripts/render-templates.sh
 [SCRIPT] bash scripts/render-functions.sh
 [SCRIPT] bash scripts/build-site.sh
+[SCRIPT] bash scripts/render-headers.sh
 ```
 
 ### `/deploy` — `[SCRIPT]`
-Deploy to Cloudflare Pages. Produces a live URL and `$SITES_DIR/<site-name>/NEXT-STEPS.md`. For a `resend-form` with `turnstile: true`, deployment automatically creates or reuses a managed Turnstile widget, restricts it to the site's production hostnames, installs its secret, and injects its public site key. Use `/deploy <site-name> local` to preview at localhost:8080 instead of deploying.
+Build and deploy to Cloudflare Pages — `/deploy` always rebuilds first (builds are fast; deploying a stale `dist/` is never what anyone wants). Produces a live URL and `$SITES_DIR/<site-name>/NEXT-STEPS.md`. For a `resend-form` with `turnstile: true`, deployment automatically creates or reuses a managed Turnstile widget, restricts it to the site's production hostnames, installs its secret, and injects its public site key. Use `/deploy <site-name> local` to preview at localhost:8080 instead of deploying. An optional trailing message (`/deploy <site-name> "switch to live keys"`) becomes the sites-repo commit subject: `deploy: <site> — <message>`; when the user gives none, the agent writes a short reason itself.
 
 ```
-[SCRIPT] bash scripts/deploy.sh --local      (if `/deploy <site-name> local` — serve, no deploy)
-[SCRIPT] bash scripts/deploy.sh              (ensure Pages project; provision Turnstile when enabled; deploy)
-[LLM]    Interpret error if deploy fails
-[SCRIPT] bash scripts/deploy-finalize.sh     (on success — production URL, NEXT-STEPS.md, sites-repo commit; DEPLOY_MESSAGE says why: "deploy: <site> — <message>")
+[SCRIPT] bash scripts/deploy.sh --local                  (if `/deploy <site-name> local` — serve, no deploy)
+[SCRIPT] bash scripts/build-deploy.sh <site-name> "<message>"
+         (full pipeline: validate → build → render-headers → deploy → finalize;
+          finalize prints the production URL, writes NEXT-STEPS.md, and commits to the sites repo)
+[LLM]    Interpret error if any stage fails
 ```
 
 ### `/domain` — `[HYBRID]`
