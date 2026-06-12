@@ -1,0 +1,30 @@
+slug: proxy-test
+name: Proxy Test
+overview: proxy-test exercises the proxies block — an authenticated pass-through to a worker.
+style: minimal
+tone: professional
+custom_domain: ""
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          # Welcome
+
+          This is the home page.
+nav:
+  order:
+    - home
+contact:
+  enabled: false
+proxies:
+  - mount: parchment
+    upstream: https://parchment-worker.example.workers.dev/parchment
+    headers:
+      X-Site-ID: bbpp
+    secret: PARCHMENT_API_KEY
+    authenticated:
+      - POST issue
+    turnstile:
+      - POST issue

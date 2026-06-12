@@ -2307,6 +2307,160 @@ SYNC_OUTPUT=$(SITE_DIR="${SITE_DIR}" bash scripts/commerce-sync.sh 2>&1)
 assert_exit "no-commerce sync exits 0" 0 $?
 assert_contains "no commerce block names nothing to sync" "nothing to sync" "$SYNC_OUTPUT"
 
+# ── proxy functions (proxies plan block → functions/<mount>/[[path]].js) ─────
+echo ""
+echo "=== proxy functions ==="
+
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist" "${SITE_DIR}/functions"
+cp scripts/test/fixtures/valid-build-plan-proxy.yaml "${SITE_DIR}/build-plan.yaml"
+
+# proxies render independent of commerce
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "valid proxy plan exits 0 without commerce" 0 $?
+
+proxy_plan_mutation() {
+  cp scripts/test/fixtures/valid-build-plan-proxy.yaml "${SITE_DIR}/build-plan.yaml"
+  node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+$1
+fs.writeFileSync(file, yaml.dump(p));
+"
+}
+
+# mount validation
+proxy_plan_mutation "p.proxies[0].mount='Bad_Mount';"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "invalid mount exits 1" 1 $?
+assert_contains "mount regex is named" 'mount must be a short lowercase path segment' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "p.proxies[0].mount='api';"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "reserved mount exits 1" 1 $?
+assert_contains "reserved mount is named" 'is reserved for clodsite-generated content' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "p.proxies.push(JSON.parse(JSON.stringify(p.proxies[0])));"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "duplicate mount exits 1" 1 $?
+assert_contains "duplicate mount is named" '.mount duplicates "parchment"' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "p.proxies[0].mount='home';"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "page-id collision exits 1" 1 $?
+assert_contains "page-id collision is explained" 'the proxy Function would shadow the page' "$PROXY_OUTPUT"
+
+# upstream validation
+proxy_plan_mutation "p.proxies[0].upstream='http://insecure.example.com/base';"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "http upstream exits 1" 1 $?
+assert_contains "https requirement is named" 'must be an absolute https:// URL' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "p.proxies[0].upstream='https://svc.example.com/base?x=1';"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "upstream with query exits 1" 1 $?
+assert_contains "query rejection is named" 'must not contain a query or fragment' "$PROXY_OUTPUT"
+
+# header validation
+proxy_plan_mutation "p.proxies[0].headers={Authorization:'Bearer x'};"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "forbidden header exits 1" 1 $?
+assert_contains "credential headers are rejected" 'credentials travel via secret/authenticated, never the plan' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "p.proxies[0].headers={'X Bad Name':'v'};"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "invalid header name exits 1" 1 $?
+assert_contains "invalid header name is named" 'invalid header name' "$PROXY_OUTPUT"
+
+# secret ↔ authenticated pairing
+proxy_plan_mutation "delete p.proxies[0].secret;"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "authenticated without secret exits 1" 1 $?
+assert_contains "missing secret is explained" 'secret is required when authenticated routes are declared' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "delete p.proxies[0].authenticated;"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "secret without authenticated exits 1" 1 $?
+assert_contains "orphan secret is explained" 'secret has no effect without authenticated routes' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "p.proxies[0].secret='STRIPE_SECRET_KEY';"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "reserved secret name exits 1" 1 $?
+assert_contains "reserved secret is named" 'is a reserved name' "$PROXY_OUTPUT"
+
+# route validation
+proxy_plan_mutation "p.proxies[0].turnstile=['GET issue'];"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "GET turnstile route exits 1" 1 $?
+assert_contains "POST-only turnstile is explained" 'the token travels in the form body' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "p.proxies[0].authenticated=['DELETE issue'];"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "bad route syntax exits 1" 1 $?
+assert_contains "route syntax is named" 'must be "<METHOD> <subpath>" with METHOD GET or POST' "$PROXY_OUTPUT"
+
+# structural limits
+proxy_plan_mutation "p.proxies[0].rewrite='/x';"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown proxy field exits 1" 1 $?
+assert_contains "unknown field is named" 'has unknown field "rewrite"' "$PROXY_OUTPUT"
+
+proxy_plan_mutation "
+for (let n = 0; n < 11; n++) p.proxies[n] = { mount: 'svc-' + n, upstream: 'https://svc.example.com/base' };
+"
+PROXY_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "more than 10 proxies exits 1" 1 $?
+assert_contains "proxy cap is named" 'at most 10 entries' "$PROXY_OUTPUT"
+
+# render-functions: proxy Function is rendered from the plan
+cp scripts/test/fixtures/valid-build-plan-proxy.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/functions"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "proxy render exits 0" 0 $?
+assert_file_exists "functions/parchment/[[path]].js created" "${SITE_DIR}/functions/parchment/[[path]].js"
+PROXY_FUNC=$(cat "${SITE_DIR}/functions/parchment/[[path]].js")
+assert_contains "rendered proxy starts with the marker" '// clodsite:proxy' "$(head -1 "${SITE_DIR}/functions/parchment/[[path]].js")"
+assert_contains "rendered config carries the upstream" 'https://parchment-worker.example.workers.dev/parchment' "$PROXY_FUNC"
+assert_contains "rendered config carries the configured header" '"X-Site-ID":"bbpp"' "$PROXY_FUNC"
+assert_contains "rendered config scopes the turnstile action" 'clodsite-proxy-parchment' "$PROXY_FUNC"
+assert_contains "rendered config keeps the hostnames marker" '__CLODSITE_TURNSTILE_HOSTNAMES__' "$PROXY_FUNC"
+assert_not_contains "CONFIG placeholder is replaced" "{{CONFIG}}" "$PROXY_FUNC"
+node --check "${SITE_DIR}/functions/parchment/[[path]].js" 2>/dev/null
+assert_exit "rendered proxy Function is valid JS" 0 $?
+
+# stale cleanup: a mount removed from the plan loses its generated Function,
+# but hand-written Functions without the marker are never touched
+proxy_plan_mutation "p.proxies[0].mount='other-mount';"
+mkdir -p "${SITE_DIR}/functions/handwritten"
+echo "export async function onRequest() {}" > "${SITE_DIR}/functions/handwritten/[[path]].js"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "proxy re-render exits 0" 0 $?
+assert_file_exists "renamed mount renders at the new path" "${SITE_DIR}/functions/other-mount/[[path]].js"
+if [ ! -e "${SITE_DIR}/functions/parchment" ]; then
+  echo "  ✓ stale proxy Function and its directory removed"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ stale proxy Function was not removed"
+  FAIL=$((FAIL + 1))
+fi
+assert_file_exists "hand-written Function survives stale cleanup" "${SITE_DIR}/functions/handwritten/[[path]].js"
+rm -rf "${SITE_DIR}/functions"
+
+# build-plan.mjs queries that deploy.sh and provision-turnstile.sh consume
+cp scripts/test/fixtures/valid-build-plan-proxy.yaml "${SITE_DIR}/build-plan.yaml"
+QUERY_OUTPUT=$(node scripts/lib/build-plan.mjs "${SITE_DIR}/build-plan.yaml" turnstile-consumers proxy-secrets)
+assert_contains "proxy turnstile routes mark the site a turnstile consumer" "true" "$(echo "$QUERY_OUTPUT" | sed -n '1p')"
+assert_contains "proxy-secrets lists the declared secret" "PARCHMENT_API_KEY" "$(echo "$QUERY_OUTPUT" | sed -n '2p')"
+
+proxy_plan_mutation "delete p.proxies[0].turnstile;"
+QUERY_OUTPUT=$(node scripts/lib/build-plan.mjs "${SITE_DIR}/build-plan.yaml" turnstile-consumers)
+assert_contains "no turnstile routes means no turnstile consumer" "false" "$QUERY_OUTPUT"
+
+cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
+QUERY_OUTPUT=$(node scripts/lib/build-plan.mjs "${SITE_DIR}/build-plan.yaml" proxy-secrets)
+assert_exit "proxy-secrets on a plan without proxies exits 0" 0 $?
+assert_not_contains "no proxies yields no secret names" "PARCHMENT_API_KEY" "$QUERY_OUTPUT"
+
 # ── JS unit tests (scripts/lib/**/*.test.mjs) ─────────────────────────────────
 echo ""
 echo "=== JS unit tests (node --test scripts/lib/**/*.test.mjs) ==="

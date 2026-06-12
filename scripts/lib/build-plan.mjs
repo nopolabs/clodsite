@@ -11,6 +11,8 @@ const selectors = {
   'custom-domain': getCustomDomain,
   'required-custom-domain': (plan) => getCustomDomain(plan, { required: true }),
   'resend-turnstile': (plan) => isResendTurnstileEnabled(plan) ? 'true' : 'false',
+  'turnstile-consumers': (plan) => hasTurnstileConsumer(plan) ? 'true' : 'false',
+  'proxy-secrets': getProxySecrets,
   'commerce-provider': getCommerceProvider,
 };
 
@@ -64,6 +66,30 @@ export function findFirstComponent(plan, type) {
 
 export function isResendTurnstileEnabled(plan) {
   return findFirstComponent(plan, 'resend-form')?.turnstile === true;
+}
+
+export function getProxies(plan) {
+  return Array.isArray(plan.proxies) ? plan.proxies : [];
+}
+
+// Turnstile provisioning runs when anything in the plan consumes a widget:
+// a turnstile-protected resend-form or a proxy with turnstile-guarded routes.
+export function hasTurnstileConsumer(plan) {
+  return isResendTurnstileEnabled(plan) ||
+    getProxies(plan).some((proxy) =>
+      proxy && Array.isArray(proxy.turnstile) && proxy.turnstile.length > 0);
+}
+
+// Distinct env-var names that proxies declare as bearer credentials —
+// deploy.sh requires each in .env and pushes each as a Pages secret.
+export function getProxySecrets(plan) {
+  const names = new Set();
+  for (const proxy of getProxies(plan)) {
+    if (proxy && typeof proxy.secret === 'string' && proxy.secret.trim() !== '') {
+      names.add(proxy.secret.trim());
+    }
+  }
+  return [...names].join(' ');
 }
 
 export function getCommerceProvider(plan) {
