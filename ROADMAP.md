@@ -94,7 +94,16 @@ Cross-file checks that JSON Schema cannot express (nav/page cross-references,
 catalog slug resolution, filesystem existence) remain as a thin imperative
 layer on top of the schema.
 
-### 6. Governed preview-and-revise workflow
+### 6. Retire the `site-spec.json` legacy bridge
+
+Make `build-plan.yaml` the only active site-authoring contract. Preserve the
+guided `/interview` experience, but have it produce and validate a complete
+plan directly; remove `/plan`, the intermediate JSON artifact, its scripts,
+tests, fixtures, and permissions. Correct current operational documentation
+while retaining dated design and implementation records as history. Design:
+`docs/superpowers/specs/2026-06-12-site-spec-retirement-design.md`.
+
+### 7. Governed preview-and-revise workflow
 
 Add a first-class workflow for previewing an existing site, collecting targeted
 feedback, proposing a reviewable `build-plan.yaml` diff, and rebuilding only
@@ -104,14 +113,14 @@ This evolves the planned `/modify` command around current build-plan-first
 usage, preserves stable page IDs, and keeps revision governed rather than
 silently regenerating the site.
 
-### 7. Generated not-found page
+### 8. Generated not-found page
 
 Generate a top-level `404.html` for every site, with useful navigation back to
 known content. This disables Cloudflare Pages' implicit single-page-application
 fallback, so unknown URLs return an honest `404` response instead of serving
 the home page with `200`.
 
-### 8. Explicit redirects
+### 9. Explicit redirects
 
 Add optional redirect declarations to `build-plan.yaml` and generate a
 Cloudflare Pages `_redirects` file. Support intentional permanent redirects for
@@ -119,7 +128,7 @@ renamed or retired pages, while leaving genuinely unknown paths to the generated
 404 page. Validate sources, destinations, status codes, duplicates, and
 conflicts with generated page routes.
 
-### 9. Installable skill/plugin packaging
+### 10. Installable skill/plugin packaging
 
 Clodsite currently ships as a template repo: clone it, `cd` into it, and open
 an agent there. Package Clodsite as an installable skill or plugin available
@@ -127,7 +136,7 @@ from any directory, removing the clone-and-`cd` bootstrap. Multi-site
 workspaces and configurable `SITES_DIR` have cleared the original storage and
 invocation blockers.
 
-### 10. General Pages Functions and secrets
+### 11. General Pages Functions and secrets
 
 Generalize the function and secret pipeline beyond the specific
 `resend-form` use case. Turnstile-protected contact forms now exercise widget
@@ -135,7 +144,7 @@ provisioning and secret installation, but arbitrary generated Functions and
 per-component secrets are not yet expressible. BBPP remains the driving
 example: authenticated proxying and a separate rendering/email service.
 
-### 11. Per-site environments and credentials
+### 12. Per-site environments and credentials
 
 `.env` is scoped to the Clodsite repository, so every site in `SITES_DIR`
 shares one set of credentials: one Cloudflare account, one Resend key, one
@@ -149,19 +158,11 @@ existing single-file setup as the default for single-tenant use; per-site
 files must be covered by the same never-committed and test-isolation
 guarantees as the repo `.env`.
 
-### 12. MCP HTTP transport
+### 13. MCP HTTP transport
 
 The MCP server currently supports stdio only. Add an authenticated HTTP
 transport so Clodsite can run as a shared or hosted deployment service while
 preserving the same `list_components` and `deploy_site` contracts.
-
-### 13. Free-form legacy interview opener
-
-Replace the fixed ten-question `/interview` sequence with one open prompt,
-targeted follow-up questions for missing information, and a confirmation
-summary before writing `site-spec.json`. Keep the fixed sequence as a fallback.
-This is lower priority because direct collaboration on `build-plan.yaml` is now
-the primary workflow and interview/spec is explicitly legacy scaffolding.
 
 ### 14. Root-page routing contract
 
