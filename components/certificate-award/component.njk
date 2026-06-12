@@ -5,7 +5,9 @@
    gates the award button; validate-plan guarantees at most one
    certificate-award per page, so the global callback name is safe. #}
 {% set mount = component.proxy %}
-<section class="c-certificate-award" data-mount="{{ mount | escape }}">
+{# id="award" is the component's own anchor — hero CTAs link to "#award"
+   (bbpp parity). At most one per page, so the id cannot collide. #}
+<section class="c-certificate-award" id="award" data-mount="{{ mount | escape }}">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <h2>{{ (component.heading or "Present the Prize") | escape }}</h2>
   {% if component.markdown %}

@@ -62,7 +62,7 @@ products: [crow-tee, logo-cap]
 
 ## certificate-award
 
-Certificate award flow speaking a parchment-shaped render/issue protocol through a proxy mount. The visitor names a recipient, previews the certificate (GET <proxy>/render), and awards it (POST <proxy>/issue) behind a Turnstile widget that gates the award button. `proxy` must reference a proxies[].mount on this site, and that proxy must guard "POST issue" with both turnstile and authenticated. At most one per page (one Turnstile widget id, same constraint resend-form has).
+Certificate award flow speaking a parchment-shaped render/issue protocol through a proxy mount. The visitor names a recipient, previews the certificate (GET <proxy>/render), and awards it (POST <proxy>/issue) behind a Turnstile widget that gates the award button. `proxy` must reference a proxies[].mount on this site, and that proxy must guard "POST issue" with both turnstile and authenticated. At most one per page (one Turnstile widget id, same constraint resend-form has). Renders with the anchor id "award", so a hero action can link to "#award".
 
 **Required fields:**
 
