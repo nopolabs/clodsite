@@ -26,6 +26,7 @@ export function buildCheckoutConfig(plan, catalog) {
   const commerce = plan.commerce;
   const optionNames = {};
   const items = {};
+  const personalization = {};
   for (const product of catalog.products) {
     if (!product.active) continue;
     const names = (product.options || []).map((option) => option.name);
@@ -38,12 +39,18 @@ export function buildCheckoutConfig(plan, catalog) {
         fulfillment_ref: variant.fulfillment_ref,
       };
     }
+    // Personalization-required products (bbpp design §3): checkout validates
+    // the client token against this origin-relative url template.
+    if (product.personalization) {
+      personalization[product.slug] = product.personalization.url;
+    }
   }
   const shipping = commerce.shipping || {};
   return {
     currency: commerce.currency,
     option_names: optionNames,
     items,
+    personalization,
     shipping: {
       flat_rate_minor: typeof shipping.flat_rate_minor === 'number' ? shipping.flat_rate_minor : null,
       countries: Array.isArray(shipping.countries) && shipping.countries.length > 0

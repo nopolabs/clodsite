@@ -5,7 +5,10 @@
 // Workers-compatible APIs only (fetch).
 //
 // Contract (spec §7): createOrder(order, env) -> { provider_order_id }
-//   order = { idempotency_key, lineItems: [{ fulfillment_ref, qty }], shipping, email }
+//   order = { idempotency_key, lineItems: [{ fulfillment_ref, qty,
+//             personalization_id?, personalization_url? }], shipping, email }
+// Personalized lines (bbpp design §3) carry the capability token and the
+// resolved print-resolution URL; the operator clicks the link, prints, mails.
 // Throws on failure; the thrown error carries provider_detail for the
 // webhook's KV last_error record. The Stripe session ID (idempotency_key) is
 // passed to Resend as an Idempotency-Key header, so webhook retries cannot
@@ -29,6 +32,12 @@ export async function createOrder(order, env) {
   const lines = ['New order ' + order.idempotency_key, '', 'Items:'];
   for (const item of order.lineItems) {
     lines.push('  ' + item.qty + ' x ' + item.fulfillment_ref);
+    if (item.personalization_id) {
+      lines.push('      personalization: ' + item.personalization_id);
+    }
+    if (item.personalization_url) {
+      lines.push('      print file: ' + item.personalization_url);
+    }
   }
   lines.push('', 'Customer email: ' + (order.email || '(none)'));
   const shipping = order.shipping;

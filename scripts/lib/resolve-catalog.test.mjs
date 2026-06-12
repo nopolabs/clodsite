@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assetUrl, buildCatalogSet, formatPrice, resolveCatalogComponent } from './resolve-catalog.mjs';
+import {
+  assetUrl,
+  buildCatalogSet,
+  formatPrice,
+  resolveCatalogComponent,
+  resolvePersonalizedProductComponent,
+} from './resolve-catalog.mjs';
 
 function makeCatalog() {
   return {
@@ -165,6 +171,77 @@ test('buildCatalogSet skips products without variants (lookbook-only items)', ()
 test('buildCatalogSet keys contain no fulfillment refs', () => {
   const serialized = JSON.stringify(buildCatalogSet(makeCatalog()));
   assert.ok(!serialized.includes('111'));
+});
+
+function makePersonalizedCatalog() {
+  const catalog = makeCatalog();
+  catalog.products.push({
+    slug: 'printed-certificate',
+    name: 'Printed Certificate',
+    description: 'Your certificate, printed and mailed.',
+    price_minor: 4500,
+    active: true,
+    images: { main: 'commerce/assets/certificate.png' },
+    variants: [{ optionValues: {}, fulfillment_ref: 'bbpp-print' }],
+    personalization: { required: true, url: '/parchment/cert/{id}' },
+  });
+  return catalog;
+}
+
+test('buildCatalogSet excludes personalization-required products (buy-now only)', () => {
+  assert.deepEqual(buildCatalogSet(makePersonalizedCatalog()), ['crow-tee:White:S']);
+});
+
+test('catalog grid excludes personalization-required products by default', () => {
+  const resolved = resolveCatalogComponent({ type: 'catalog' }, makePersonalizedCatalog());
+  assert.deepEqual(resolved.products.map((p) => p.slug), ['crow-tee', 'logo-cap']);
+});
+
+test('resolvePersonalizedProductComponent resolves the product with display fields only', () => {
+  const resolved = resolvePersonalizedProductComponent(
+    { type: 'personalized-product', product: 'printed-certificate' },
+    makePersonalizedCatalog()
+  );
+  assert.equal(resolved.type, 'personalized-product');
+  assert.equal(resolved.param, 'cert');
+  assert.equal(resolved.personalization_url, '/parchment/cert/{id}');
+  assert.equal(resolved.product.slug, 'printed-certificate');
+  assert.equal(resolved.product.price_display, '$45.00');
+  const serialized = JSON.stringify(resolved);
+  assert.ok(!serialized.includes('fulfillment_ref'));
+  assert.ok(!serialized.includes('bbpp-print'));
+});
+
+test('resolvePersonalizedProductComponent honors a custom param', () => {
+  const resolved = resolvePersonalizedProductComponent(
+    { type: 'personalized-product', product: 'printed-certificate', param: 'token' },
+    makePersonalizedCatalog()
+  );
+  assert.equal(resolved.param, 'token');
+});
+
+test('resolvePersonalizedProductComponent rejects unknown, inactive, and non-personalized slugs', () => {
+  assert.throws(
+    () => resolvePersonalizedProductComponent(
+      { type: 'personalized-product', product: 'no-such-product' },
+      makePersonalizedCatalog()
+    ),
+    /unknown catalog slug/
+  );
+  assert.throws(
+    () => resolvePersonalizedProductComponent(
+      { type: 'personalized-product', product: 'retired-tee' },
+      makePersonalizedCatalog()
+    ),
+    /inactive product/
+  );
+  assert.throws(
+    () => resolvePersonalizedProductComponent(
+      { type: 'personalized-product', product: 'crow-tee' },
+      makePersonalizedCatalog()
+    ),
+    /does not declare personalization/
+  );
 });
 
 test('resolves size guides with rooted diagram images', () => {

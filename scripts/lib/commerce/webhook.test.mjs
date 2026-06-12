@@ -215,6 +215,27 @@ test('PROVIDER_ENV overlays plan fulfillment config onto the runtime env', async
   assert.match(email.text, /Pat Crow/);
 });
 
+test('personalization fields pass through metadata to the provider verbatim', async (t) => {
+  const calls = stubResend(t);
+  const token = 'tok_aaaaaaaaaaaaaaaaaaaa';
+  const printUrl = 'https://shop.example.com/parchment/cert/' + token + '?scale=3';
+  const body = JSON.stringify(makeEvent({
+    metadata: {
+      items: JSON.stringify([
+        { fulfillment_ref: 'bbpp-print', qty: 1, personalization_id: token, personalization_url: printUrl },
+      ]),
+    },
+  }));
+
+  const res = await onRequestPost(makeContext({ body, signature: sign(body), orders: fakeKV() }));
+
+  assert.equal(res.status, 200);
+  const email = JSON.parse(calls[0].init.body);
+  assert.match(email.text, /1 x bbpp-print/);
+  assert.match(email.text, new RegExp('personalization: ' + token));
+  assert.ok(email.text.includes('print file: ' + printUrl));
+});
+
 test('duplicate delivery of a completed order returns 200 without refulfilling', async (t) => {
   const calls = stubResend(t);
   const orders = fakeKV({

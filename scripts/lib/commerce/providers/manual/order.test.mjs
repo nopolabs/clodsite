@@ -98,6 +98,28 @@ test('createOrder renders line items, customer email, and shipping in the body',
   assert.match(text, /US/);
 });
 
+test('createOrder renders personalization token and print link for personalized lines only', async (t) => {
+  const calls = stubFetch(t, () => jsonResponse({ id: 'email_123' }));
+  const token = 'tok_aaaaaaaaaaaaaaaaaaaa';
+  const printUrl = 'https://shop.example.com/parchment/cert/' + token + '?scale=3';
+
+  await createOrder(makeOrder({
+    lineItems: [
+      { fulfillment_ref: 'bbpp-print', qty: 1, personalization_id: token, personalization_url: printUrl },
+      { fulfillment_ref: '5500110', qty: 1 },
+    ],
+  }), ENV);
+
+  const text = JSON.parse(calls[0].init.body).text;
+  assert.ok(text.includes('1 x bbpp-print'));
+  assert.ok(text.includes('personalization: ' + token));
+  assert.ok(text.includes('print file: ' + printUrl));
+  // The plain line carries no personalization detail.
+  const plainLineIndex = text.indexOf('1 x 5500110');
+  assert.ok(plainLineIndex !== -1);
+  assert.ok(!text.slice(plainLineIndex).includes('personalization:'));
+});
+
 test('createOrder tolerates a missing shipping block and missing email', async (t) => {
   const calls = stubFetch(t, () => jsonResponse({ id: 'email_123' }));
 

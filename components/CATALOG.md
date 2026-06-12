@@ -237,6 +237,26 @@ markdown: |
   Prose paired with the image.
 ```
 
+## personalized-product
+
+Buy page for one personalization-required product (e.g. a printed certificate). The visitor arrives with a personalization token in a query parameter (default: cert); the component previews the personalized item and offers a buy-now checkout — personalized items never enter the cart. Without a valid token the page explains how to get one instead of showing the product. `product` must reference a catalog slug that declares personalization; requires live commerce checkout. Optional `param` renames the query parameter.
+
+**Required fields:**
+
+- `product` (non-empty string)
+
+**Optional fields:**
+
+- `param` (non-empty string)
+
+**Example:**
+
+```yaml
+type: personalized-product
+product: printed-certificate
+param: cert
+```
+
 ## prose
 
 Renders a Markdown body to HTML. Supports GFM: headings, paragraphs, lists, links, inline code, blockquotes, tables, fenced code blocks.

@@ -2181,6 +2181,116 @@ rm -rf "$CHECKOUT_STUB_DIR"
 rm -rf "${SITE_DIR}/commerce" "${SITE_DIR}/functions"
 rm -f "${SITE_DIR}/.stripe-webhook-state.json"
 
+# ── personalized products (component + validation + checkout config) ──────────
+echo ""
+echo "=== personalized products ==="
+
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist" "${SITE_DIR}/commerce" "${SITE_DIR}/functions"
+cp scripts/test/fixtures/valid-build-plan-personalized.yaml "${SITE_DIR}/build-plan.yaml"
+
+# personalized-product without commerce/catalog.json → exits 1
+PERSONALIZED_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "personalized plan without catalog.json exits 1" 1 $?
+assert_contains "missing catalog names the requirement" "requires" "$PERSONALIZED_OUTPUT"
+
+# valid plan + catalog with a personalization product → exits 0
+mkdir -p "${SITE_DIR}/commerce/assets"
+cp scripts/test/fixtures/valid-catalog-personalized.json "${SITE_DIR}/commerce/catalog.json"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "personalized plan with valid catalog exits 0" 0 $?
+
+personalized_plan_mutation() {
+  cp scripts/test/fixtures/valid-build-plan-personalized.yaml "${SITE_DIR}/build-plan.yaml"
+  node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+$1
+fs.writeFileSync(file, yaml.dump(p));
+"
+}
+
+# personalized-product is a buy page: it requires live checkout
+personalized_plan_mutation "delete p.commerce;"
+PERSONALIZED_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "personalized-product without commerce exits 1" 1 $?
+assert_contains "checkout requirement is named" "requires commerce.enabled: true with checkout: stripe" "$PERSONALIZED_OUTPUT"
+
+# product must reference a known, personalization-declaring catalog slug
+personalized_plan_mutation "p.pages[1].components[0].product='no-such-product';"
+PERSONALIZED_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown personalized slug exits 1" 1 $?
+assert_contains "unknown personalized slug is reported" "unknown catalog slug: no-such-product" "$PERSONALIZED_OUTPUT"
+
+personalized_plan_mutation "p.pages[1].components[0].product='crow-tee';"
+PERSONALIZED_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "non-personalized slug exits 1" 1 $?
+assert_contains "missing personalization declaration is named" 'references "crow-tee" which does not declare personalization' "$PERSONALIZED_OUTPUT"
+
+# a catalog filter must not reference a personalization-required product
+personalized_plan_mutation "p.pages[0].components[1].products=['crow-tee','printed-certificate'];"
+PERSONALIZED_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "catalog filter with personalized slug exits 1" 1 $?
+assert_contains "filter error points at the right component" "use a personalized-product component instead" "$PERSONALIZED_OUTPUT"
+
+# an inactive personalization product is rejected
+cp scripts/test/fixtures/valid-build-plan-personalized.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs');
+const file='${SITE_DIR}/commerce/catalog.json';
+const c=JSON.parse(fs.readFileSync(file,'utf8'));
+c.products.find(p=>p.slug==='printed-certificate').active=false;
+fs.writeFileSync(file, JSON.stringify(c));
+"
+PERSONALIZED_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "inactive personalized product exits 1" 1 $?
+assert_contains "inactive personalized product is named" "references inactive product: printed-certificate" "$PERSONALIZED_OUTPUT"
+cp scripts/test/fixtures/valid-catalog-personalized.json "${SITE_DIR}/commerce/catalog.json"
+
+# write-site-json: personalized products stay out of the cart purge set
+rm -rf "${SITE_DIR}/src"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+assert_exit "write-site-json with personalized catalog exits 0" 0 $?
+PERSONALIZED_SITE_JSON=$(cat "${SITE_DIR}/src/_data/site.json")
+assert_contains "purge set keeps plain products" '"crow-tee:White:S"' "$PERSONALIZED_SITE_JSON"
+assert_not_contains "purge set excludes personalized products" "printed-certificate" "$PERSONALIZED_SITE_JSON"
+
+# render-templates: the buy page resolves; the grid excludes the product
+bash scripts/render-templates.sh > /dev/null 2>&1
+assert_exit "render-templates with personalized-product exits 0" 0 $?
+PERSONALIZED_HOME=$(cat "${SITE_DIR}/src/index.njk")
+PERSONALIZED_PRINT=$(cat "${SITE_DIR}/src/print.njk")
+assert_contains "print page includes the component" "personalized-product/component.njk" "$PERSONALIZED_PRINT"
+assert_contains "print page carries the url template" "/parchment/cert/{id}" "$PERSONALIZED_PRINT"
+assert_contains "print page defaults the query param" '"param":"cert"' "$PERSONALIZED_PRINT"
+assert_contains "print page formats the price" '"price_display":"$45.00"' "$PERSONALIZED_PRINT"
+assert_not_contains "print page never carries fulfillment refs" "bbpp-print" "$PERSONALIZED_PRINT"
+assert_not_contains "catalog grid excludes the personalized product" "printed-certificate" "$PERSONALIZED_HOME"
+
+# render-functions: checkout CONFIG carries the personalization url map
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "render-functions with personalized catalog exits 0" 0 $?
+PERSONALIZED_CHECKOUT=$(cat "${SITE_DIR}/functions/api/checkout.js")
+assert_contains "checkout CONFIG maps slug to url template" '"personalization":{"printed-certificate":"/parchment/cert/{id}"}' "$PERSONALIZED_CHECKOUT"
+assert_contains "checkout CONFIG resolves the print fulfillment ref" '"fulfillment_ref":"bbpp-print"' "$PERSONALIZED_CHECKOUT"
+node --check "${SITE_DIR}/functions/api/checkout.js" 2>/dev/null
+assert_exit "personalized checkout Function is valid JS" 0 $?
+
+# full build: buy-page markup in dist
+printf 'png' > "${SITE_DIR}/commerce/assets/crow-tee-white-front.png"
+printf 'png' > "${SITE_DIR}/commerce/assets/certificate.png"
+rm -rf "${SITE_DIR}/dist"
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "personalized fixture builds" 0 $?
+PERSONALIZED_HTML=$(cat "${SITE_DIR}/dist/print/index.html")
+assert_contains "HTML has the personalized product root" 'class="c-personalized-product"' "$PERSONALIZED_HTML"
+assert_contains "HTML carries the url template" 'data-url-template="/parchment/cert/{id}"' "$PERSONALIZED_HTML"
+assert_contains "HTML has the buy-now button" "Buy now" "$PERSONALIZED_HTML"
+assert_contains "HTML has the missing-token explanation" "personalization link" "$PERSONALIZED_HTML"
+assert_not_contains "HTML never carries fulfillment refs" "bbpp-print" "$PERSONALIZED_HTML"
+assert_contains "personalized CSS is aggregated" ".c-personalized-product" "$(cat scaffold/src/css/components.css)"
+rm -rf "${SITE_DIR}/commerce" "${SITE_DIR}/functions"
+
 # ── commerce sync (commerce-sync.sh gating) ───────────────────────────────────
 echo ""
 echo "=== commerce sync ==="

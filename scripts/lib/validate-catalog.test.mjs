@@ -252,6 +252,103 @@ test('rejects unknown fields on nested commerce shapes', () => {
   assert.ok(errors.some((e) => e.includes('size_guide has unknown field "source"')));
 });
 
+function makePersonalizedProduct(overrides = {}) {
+  return makeProduct({
+    slug: 'printed-certificate',
+    name: 'Printed Certificate',
+    description: 'Your certificate, printed and mailed.',
+    options: [],
+    variants: [{ optionValues: {}, fulfillment_ref: 'bbpp-print' }],
+    personalization: { required: true, url: '/parchment/cert/{id}' },
+    ...overrides,
+  });
+}
+
+test('accepts a personalization-required product', () => {
+  assert.deepEqual(validateCatalog({ products: [makePersonalizedProduct()] }), []);
+});
+
+test('rejects personalization without required: true', () => {
+  for (const required of [false, undefined, 'true']) {
+    const product = makePersonalizedProduct({
+      personalization: { required, url: '/parchment/cert/{id}' },
+    });
+    const errors = validateCatalog({ products: [product] });
+    assert.ok(
+      errors.some((e) => e.includes('personalization.required must be true')),
+      'expected required error for ' + JSON.stringify(required)
+    );
+  }
+});
+
+test('rejects personalization urls that are not origin-relative', () => {
+  for (const url of [
+    'https://evil.example.com/cert/{id}',
+    '//evil.example.com/cert/{id}',
+    'javascript:alert(1)//{id}',
+    'parchment/cert/{id}',
+  ]) {
+    const product = makePersonalizedProduct({ personalization: { required: true, url } });
+    const errors = validateCatalog({ products: [product] });
+    assert.ok(
+      errors.some((e) => e.includes('must be origin-relative')),
+      'expected origin-relative error for ' + url
+    );
+  }
+});
+
+test('rejects personalization urls containing ".."', () => {
+  const product = makePersonalizedProduct({
+    personalization: { required: true, url: '/parchment/../cert/{id}' },
+  });
+  const errors = validateCatalog({ products: [product] });
+  assert.ok(errors.some((e) => e.includes('must not contain ".."')));
+});
+
+test('rejects personalization urls without exactly one {id} placeholder', () => {
+  for (const url of ['/parchment/cert/', '/parchment/{id}/cert/{id}']) {
+    const product = makePersonalizedProduct({ personalization: { required: true, url } });
+    const errors = validateCatalog({ products: [product] });
+    assert.ok(
+      errors.some((e) => e.includes('{id} placeholder exactly once')),
+      'expected {id} error for ' + url
+    );
+  }
+});
+
+test('rejects unknown personalization fields', () => {
+  const product = makePersonalizedProduct({
+    personalization: { required: true, url: '/parchment/cert/{id}', scale: 3 },
+  });
+  const errors = validateCatalog({ products: [product] });
+  assert.ok(errors.some((e) => e.includes('personalization has unknown field "scale"')));
+});
+
+test('rejects personalized products with options or multiple variants (v1: plain products)', () => {
+  const withOptions = makePersonalizedProduct({
+    options: [{ name: 'Size', values: [{ value: 'A4' }, { value: 'Letter' }] }],
+    variants: [
+      { optionValues: { Size: 'A4' }, fulfillment_ref: 'a4' },
+      { optionValues: { Size: 'Letter' }, fulfillment_ref: 'letter' },
+    ],
+  });
+  assert.ok(
+    validateCatalog({ products: [withOptions] }).some((e) => e.includes('has options — personalized products are plain'))
+  );
+
+  const multiVariant = makePersonalizedProduct({
+    variants: [
+      { optionValues: {}, fulfillment_ref: 'one' },
+      { optionValues: {}, fulfillment_ref: 'two' },
+    ],
+  });
+  // The duplicate empty combination also trips the variant validator; check
+  // specifically for the personalization constraint.
+  assert.ok(
+    validateCatalog({ products: [multiVariant] }).some((e) => e.includes('multiple variants'))
+  );
+});
+
 test('readCatalog throws on missing files and invalid JSON', () => {
   assert.throws(() => readCatalog('/nonexistent/catalog.json'), /cannot read catalog/);
 

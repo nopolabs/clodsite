@@ -1,0 +1,101 @@
+{# Receives the resolved shape from resolve-catalog.mjs:
+     component.param               — query parameter carrying the token (default "cert")
+     component.personalization_url — origin-relative url template with {id}
+     component.product             — resolved display product (slug, name,
+                                     description, price_display, price_minor)
+   The token is a capability (bbpp design §3): the browser substitutes it into
+   the url template for the preview image; checkout re-validates it
+   server-side. Buy-now only — personalized items never touch the cart. #}
+<div class="c-personalized-product"
+     data-slug="{{ component.product.slug | escape }}"
+     data-param="{{ component.param | escape }}"
+     data-url-template="{{ component.personalization_url | escape }}">
+  <div class="c-personalized-product__missing" hidden>
+    <h3 class="c-personalized-product__name">{{ component.product.name | escape }}</h3>
+    <p>This page needs a personalization link to show your item. Follow the
+      link from your email — it carries the code that identifies your
+      personalized version.</p>
+  </div>
+  <article class="c-personalized-product__item" hidden>
+    <figure class="c-personalized-product__media">
+      <img class="c-personalized-product__preview" alt="Preview of your personalized {{ component.product.name | escape }}">
+    </figure>
+    <div class="c-personalized-product__body">
+      <h3 class="c-personalized-product__name">{{ component.product.name | escape }}</h3>
+      <p class="c-personalized-product__price">{{ component.product.price_display | escape }}</p>
+      <p class="c-personalized-product__description">{{ component.product.description | escape }}</p>
+      <div class="c-personalized-product__buy">
+        <label class="c-personalized-product__qty-label">
+          Qty
+          <input class="c-personalized-product__qty" type="number" value="1" min="1" max="99" inputmode="numeric">
+        </label>
+        <button type="button" class="c-personalized-product__buy-button"
+                {% if site.commerce.preview %}disabled{% endif %}>Buy now</button>
+        <span class="c-personalized-product__flash" role="status" hidden></span>
+      </div>
+      {% if site.commerce.preview %}
+      <p class="c-personalized-product__preview-note">Checkout is coming soon.</p>
+      {% endif %}
+    </div>
+  </article>
+  <script>
+    (function () {
+      var root = document.currentScript.closest('.c-personalized-product');
+      var missing = root.querySelector('.c-personalized-product__missing');
+      var item = root.querySelector('.c-personalized-product__item');
+      var TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
+
+      var token = new URLSearchParams(window.location.search).get(root.dataset.param);
+      if (!token || !TOKEN_PATTERN.test(token)) {
+        missing.hidden = false;
+        return;
+      }
+
+      // Preview the personalized item itself — the url template resolves to
+      // an image on this origin. A failed load means the token is unknown
+      // (or the upstream is down): explain instead of selling nothing.
+      var img = root.querySelector('.c-personalized-product__preview');
+      img.addEventListener('error', function () {
+        item.hidden = true;
+        missing.hidden = false;
+      });
+      img.src = root.dataset.urlTemplate.replace('{id}', token);
+      item.hidden = false;
+
+      var buyButton = root.querySelector('.c-personalized-product__buy-button');
+      var qtyInput = root.querySelector('.c-personalized-product__qty');
+      var flash = root.querySelector('.c-personalized-product__flash');
+      buyButton.addEventListener('click', function () {
+        var qty = parseInt(qtyInput.value, 10);
+        if (!(qty >= 1 && qty <= 99)) {
+          flash.textContent = 'Quantity must be between 1 and 99.';
+          flash.hidden = false;
+          return;
+        }
+        flash.hidden = true;
+        buyButton.disabled = true;
+        fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: [{ slug: root.dataset.slug, optionValues: {}, qty: qty, personalization_id: token }]
+          })
+        }).then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            if (res.ok && data.url) {
+              window.location.assign(data.url);
+              return;
+            }
+            flash.textContent = data.error || 'Checkout is unavailable right now — please try again.';
+            flash.hidden = false;
+            buyButton.disabled = false;
+          });
+        }).catch(function () {
+          flash.textContent = 'Checkout is unavailable right now — please try again.';
+          flash.hidden = false;
+          buyButton.disabled = false;
+        });
+      });
+    })();
+  </script>
+</div>

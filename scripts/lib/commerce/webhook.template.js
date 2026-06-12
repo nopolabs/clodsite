@@ -4,6 +4,10 @@
 // provider's order.mjs source (with `export ` stripped), defining
 // createOrder(order, env).
 //
+// metadata[items] passes through to createOrder verbatim — including the
+// optional personalization_id / personalization_url fields on personalized
+// lines (bbpp design §3). The webhook never interprets them.
+//
 // KV (env.ORDERS) is a best-effort dedup layer (spec §6); the provider
 // idempotency key — the Stripe session ID — is what actually guarantees
 // exactly-once fulfillment. State machine per Decision 10:

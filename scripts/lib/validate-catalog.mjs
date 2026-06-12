@@ -189,6 +189,39 @@ function validateOptions(options, tag, errors) {
   return declared;
 }
 
+// Personalization (bbpp certificate commerce design §3, §7): the product can
+// only be bought in reference to an externally-issued thing, identified by a
+// capability token. The url template must be origin-relative — an absolute
+// URL would let a catalog edit exfiltrate tokens to a third party at
+// checkout-validation time — and must contain {id} exactly once.
+function validatePersonalization(personalization, tag, errors) {
+  if (!isObject(personalization)) {
+    errors.push(tag + ' must be an object');
+    return;
+  }
+  checkUnknownFields(personalization, new Set(['required', 'url']), tag, errors);
+
+  if (personalization.required !== true) {
+    errors.push(tag + '.required must be true (optional personalization is reserved until something needs it)');
+  }
+
+  const url = personalization.url;
+  if (!isNonEmptyString(url)) {
+    errors.push(tag + '.url must be a non-empty string');
+    return;
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//') || !url.startsWith('/')) {
+    errors.push(tag + '.url must be origin-relative (start with /) — absolute URLs would exfiltrate tokens');
+  }
+  if (url.includes('..')) {
+    errors.push(tag + '.url must not contain ".."');
+  }
+  const idCount = url.split('{id}').length - 1;
+  if (idCount !== 1) {
+    errors.push(tag + '.url must contain the {id} placeholder exactly once (found ' + idCount + ')');
+  }
+}
+
 function validateVariants(variants, declaredOptions, tag, errors) {
   if (!Array.isArray(variants) || variants.length === 0) {
     errors.push(tag + ' must be a non-empty array');
@@ -256,7 +289,7 @@ export function validateCatalog(catalog) {
     }
     checkUnknownFields(product, new Set([
       'slug', 'name', 'description', 'price_minor', 'active',
-      'images', 'options', 'variants', 'size_guide'
+      'images', 'options', 'variants', 'size_guide', 'personalization'
     ]), tag, errors);
 
     if (!isNonEmptyString(product.slug)) {
@@ -314,6 +347,19 @@ export function validateCatalog(catalog) {
 
     if ('size_guide' in product) {
       validateSizeGuide(product.size_guide, tag + '.size_guide', errors);
+    }
+
+    if ('personalization' in product) {
+      validatePersonalization(product.personalization, tag + '.personalization', errors);
+      // Buy-now of the single plain variant is the v1 contract (design §3:
+      // options on personalized products are deferred); the component sends
+      // empty optionValues, so anything else could never resolve at checkout.
+      if (Array.isArray(product.options) && product.options.length > 0) {
+        errors.push(tag + ' declares personalization but has options — personalized products are plain (single variant) in v1');
+      }
+      if ('variants' in product && Array.isArray(product.variants) && product.variants.length > 1) {
+        errors.push(tag + ' declares personalization but has multiple variants — personalized products are plain (single variant) in v1');
+      }
     }
   });
 
