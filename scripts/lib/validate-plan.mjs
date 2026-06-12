@@ -634,6 +634,113 @@ if (catalogComponents.length > 0 || personalizedComponents.length > 0 || commerc
   }
 }
 
+// Proxies (proxy-functions design §1): each entry renders an authenticated
+// pass-through Function at functions/<mount>/[[path]].js.
+const RESERVED_MOUNTS = ['api', 'assets', 'commerce'];
+const RESERVED_SECRET_NAMES = [
+  'TURNSTILE_SECRET_KEY', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET', 'PRINTFUL_API_KEY',
+];
+const FORBIDDEN_PROXY_HEADERS = ['authorization', 'host', 'cookie'];
+if ('proxies' in plan) {
+  if (!Array.isArray(plan.proxies) || plan.proxies.length === 0) {
+    errors.push('proxies must be a non-empty array');
+  } else {
+    if (plan.proxies.length > 10)
+      errors.push('proxies must contain at most 10 entries');
+    const seenMounts = new Set();
+    const pageIds = new Set((plan.pages || []).map(function(p) { return p.id; }));
+    plan.proxies.forEach(function(proxy, i) {
+      const tag = 'proxies[' + i + ']';
+      if (!isObject(proxy)) {
+        errors.push(tag + ' must be an object');
+        return;
+      }
+      const allowed = new Set(['mount', 'upstream', 'headers', 'secret', 'authenticated', 'turnstile']);
+      for (const field of Object.keys(proxy)) {
+        if (!allowed.has(field))
+          errors.push(tag + ' has unknown field "' + field + '"');
+      }
+
+      if (typeof proxy.mount !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(proxy.mount)) {
+        errors.push(tag + '.mount must be a short lowercase path segment matching ^[a-z][a-z0-9-]{0,31}$');
+      } else {
+        if (RESERVED_MOUNTS.includes(proxy.mount))
+          errors.push(tag + '.mount "' + proxy.mount + '" is reserved for clodsite-generated content');
+        if (seenMounts.has(proxy.mount))
+          errors.push(tag + '.mount duplicates "' + proxy.mount + '"');
+        seenMounts.add(proxy.mount);
+        if (pageIds.has(proxy.mount))
+          errors.push(tag + '.mount "' + proxy.mount + '" collides with a page id — the proxy Function would shadow the page');
+      }
+
+      if (typeof proxy.upstream !== 'string' || !/^https:\/\//.test(proxy.upstream)) {
+        errors.push(tag + '.upstream must be an absolute https:// URL');
+      } else {
+        let parsed = null;
+        try { parsed = new URL(proxy.upstream); } catch (_) {}
+        if (!parsed || parsed.hostname.length === 0) {
+          errors.push(tag + '.upstream must be an absolute https:// URL');
+        } else if (proxy.upstream.includes('?') || proxy.upstream.includes('#')) {
+          errors.push(tag + '.upstream must not contain a query or fragment');
+        }
+      }
+
+      if ('headers' in proxy) {
+        if (!isObject(proxy.headers) || Object.keys(proxy.headers).length === 0) {
+          errors.push(tag + '.headers must be a non-empty object');
+        } else {
+          for (const [name, value] of Object.entries(proxy.headers)) {
+            if (!/^[A-Za-z][A-Za-z0-9-]*$/.test(name))
+              errors.push(tag + '.headers has an invalid header name "' + name + '"');
+            else if (FORBIDDEN_PROXY_HEADERS.includes(name.toLowerCase()))
+              errors.push(tag + '.headers must not set "' + name + '" — credentials travel via secret/authenticated, never the plan');
+            if (typeof value !== 'string' || value.trim() === '' || /[\r\n]/.test(value))
+              errors.push(tag + '.headers.' + name + ' must be a non-empty single-line string');
+          }
+        }
+      }
+
+      for (const field of ['authenticated', 'turnstile']) {
+        if (!(field in proxy)) continue;
+        if (!Array.isArray(proxy[field]) || proxy[field].length === 0) {
+          errors.push(tag + '.' + field + ' must be a non-empty array of "<METHOD> <subpath>" routes');
+          continue;
+        }
+        const seenRoutes = new Set();
+        proxy[field].forEach(function(route, k) {
+          const rtag = tag + '.' + field + '[' + k + ']';
+          if (typeof route !== 'string' || !/^(GET|POST) [A-Za-z0-9_\-.~/]+$/.test(route)) {
+            errors.push(rtag + ' must be "<METHOD> <subpath>" with METHOD GET or POST, e.g. "POST issue"');
+            return;
+          }
+          const subpath = route.split(' ')[1];
+          if (subpath.split('/').some(function(s) { return s === '' || s === '.' || s === '..'; }))
+            errors.push(rtag + ' subpath must be plain path segments without leading/trailing slashes or dot segments');
+          if (field === 'turnstile' && !route.startsWith('POST '))
+            errors.push(rtag + ' turnstile routes must use POST — the token travels in the form body');
+          if (seenRoutes.has(route))
+            errors.push(rtag + ' duplicates "' + route + '"');
+          seenRoutes.add(route);
+        });
+      }
+
+      const hasAuthenticated = Array.isArray(proxy.authenticated) && proxy.authenticated.length > 0;
+      if ('secret' in proxy) {
+        if (typeof proxy.secret !== 'string' || !/^[A-Z][A-Z0-9_]{2,63}$/.test(proxy.secret)) {
+          errors.push(tag + '.secret must be an env-var name matching ^[A-Z][A-Z0-9_]{2,63}$');
+        } else if (RESERVED_SECRET_NAMES.includes(proxy.secret) || proxy.secret.startsWith('CLOUDFLARE_')) {
+          errors.push(tag + '.secret "' + proxy.secret + '" is a reserved name');
+        }
+        if (!hasAuthenticated)
+          errors.push(tag + '.secret has no effect without authenticated routes');
+      } else if (hasAuthenticated) {
+        errors.push(tag + '.secret is required when authenticated routes are declared — it names the env var holding the bearer credential');
+      }
+    });
+  }
+}
+
 if (!plan.nav || !Array.isArray(plan.nav.order) || plan.nav.order.length < 1)
   errors.push('nav.order must be a non-empty array');
 

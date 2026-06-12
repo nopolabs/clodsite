@@ -81,6 +81,18 @@ if [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ "$COMMERCE_PROVIDER" = "pr
   exit 1
 fi
 
+# Generated proxy Functions hold their bearer credentials as Pages secrets;
+# every secret name the plan's proxies declare must be present in .env.
+PROXY_SECRETS=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+  "${SITE_DIR}/build-plan.yaml" proxy-secrets)
+for SECRET_NAME in $PROXY_SECRETS; do
+  if [ -z "${!SECRET_NAME:-}" ]; then
+    echo "Error: ${SECRET_NAME} is not set in .env but a proxy in build-plan.yaml declares it."
+    echo "Add ${SECRET_NAME}=... to .env and redeploy."
+    exit 1
+  fi
+done
+
 # Say which Stripe mode this deploy targets, loudly, before anything is
 # provisioned — test-mode setup and mode visibility must be easy and
 # unambiguous (commerce spec, phase 7).
@@ -181,6 +193,18 @@ if [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ "$COMMERCE_PROVIDER" = "pr
   fi
   echo ""
 fi
+
+# Push each proxy-declared bearer credential as a Pages secret (presence in
+# .env was checked above, before any provisioning).
+for SECRET_NAME in $PROXY_SECRETS; do
+  echo "Setting ${SECRET_NAME} secret for '$SITE_NAME'..."
+  if ! printf '%s' "${!SECRET_NAME}" | wrangler pages secret put "$SECRET_NAME" \
+      --project-name "$SITE_NAME"; then
+    echo "Error: failed to set ${SECRET_NAME} Pages secret."
+    exit 1
+  fi
+  echo ""
+done
 
 echo "Deploying '$SITE_NAME' to Cloudflare Pages..."
 echo ""

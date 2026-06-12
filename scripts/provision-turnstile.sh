@@ -8,7 +8,6 @@ clodsite_init_site_dir
 
 PLAN="${SITE_DIR}/build-plan.yaml"
 STATE="${SITE_DIR}/.turnstile-state.json"
-FUNCTION="${SITE_DIR}/functions/api/contact.js"
 SITEKEY_MARKER="__CLODSITE_TURNSTILE_SITEKEY__"
 HOSTNAMES_MARKER="__CLODSITE_TURNSTILE_HOSTNAMES__"
 API_BASE="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID:-}"
@@ -18,13 +17,15 @@ if [ ! -f "$PLAN" ]; then
   exit 1
 fi
 
+# Anything in the plan that consumes a widget triggers provisioning: a
+# turnstile-protected resend-form, or a proxy with turnstile-guarded routes.
 PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
-  "$PLAN" resend-turnstile slug custom-domain)
-TURNSTILE_ENABLED=$(echo "$PLAN_VALUES" | sed -n '1p')
+  "$PLAN" turnstile-consumers slug custom-domain)
+TURNSTILE_NEEDED=$(echo "$PLAN_VALUES" | sed -n '1p')
 SITE_NAME=$(echo "$PLAN_VALUES" | sed -n '2p')
 CUSTOM_DOMAIN=$(echo "$PLAN_VALUES" | sed -n '3p')
 
-if [ "$TURNSTILE_ENABLED" != "true" ]; then
+if [ "$TURNSTILE_NEEDED" != "true" ]; then
   exit 0
 fi
 
@@ -36,7 +37,7 @@ if [ -z "$SITE_NAME" ]; then
   echo "Error: build-plan.yaml is missing slug."
   exit 1
 fi
-if [ ! -d "${SITE_DIR}/dist" ] || [ ! -f "$FUNCTION" ]; then
+if [ ! -d "${SITE_DIR}/dist" ] || [ ! -d "${SITE_DIR}/functions" ]; then
   echo "Error: protected site artifacts are missing. Run /build first."
   exit 1
 fi
@@ -101,7 +102,13 @@ DOMAINS_JSON=$(PAGES_DOMAIN="$PAGES_DOMAIN" CUSTOM_DOMAIN="$CUSTOM_DOMAIN" node 
 const domains=[process.env.PAGES_DOMAIN, process.env.CUSTOM_DOMAIN].filter(Boolean);
 process.stdout.write(JSON.stringify([...new Set(domains)].sort()));
 ")
-WIDGET_NAME="clodsite:${SITE_NAME}:resend-form"
+# One widget per site, shared by every consumer (per-consumer `action`
+# strings keep tokens bound to the form that rendered them). New widgets are
+# named clodsite:<site>; widgets created before proxies existed carry the
+# legacy resend-form suffix and keep their name — no rename churn.
+WIDGET_NAME="clodsite:${SITE_NAME}"
+LEGACY_WIDGET_NAME="clodsite:${SITE_NAME}:resend-form"
+EFFECTIVE_WIDGET_NAME="$WIDGET_NAME"
 SITEKEY=""
 PREVIOUS_SITEKEY=""
 PREVIOUS_DOMAINS_JSON=""
@@ -124,22 +131,26 @@ fi
 
 if [ -z "$SITEKEY" ]; then
   LIST_RESPONSE=$(api_request GET "${API_BASE}/challenges/widgets")
-  MATCH=$(RESPONSE="$LIST_RESPONSE" WIDGET_NAME="$WIDGET_NAME" node -e "
+  MATCH=$(RESPONSE="$LIST_RESPONSE" WIDGET_NAME="$WIDGET_NAME" \
+    LEGACY_WIDGET_NAME="$LEGACY_WIDGET_NAME" node -e "
 const response=JSON.parse(process.env.RESPONSE);
-const matches=(response.result || []).filter((widget) => widget.name === process.env.WIDGET_NAME);
+const byName=(name) => (response.result || []).filter((widget) => widget.name === name);
+let matches=byName(process.env.WIDGET_NAME);
+if (matches.length === 0) matches=byName(process.env.LEGACY_WIDGET_NAME);
 if (matches.length > 1) process.stdout.write('ambiguous');
 else if (matches.length === 1) process.stdout.write(matches[0].sitekey);
 ")
   unset LIST_RESPONSE
   if [ "$MATCH" = "ambiguous" ]; then
-    echo "Error: multiple Turnstile widgets are named '$WIDGET_NAME'."
+    echo "Error: multiple Turnstile widgets are named '$WIDGET_NAME' (or '$LEGACY_WIDGET_NAME')."
     echo "Remove the duplicate widgets or restore ${STATE} with the intended site key."
     exit 1
   fi
   SITEKEY="$MATCH"
 fi
 
-WIDGET_PAYLOAD=$(WIDGET_NAME="$WIDGET_NAME" DOMAINS_JSON="$DOMAINS_JSON" node -e "
+if [ -z "$SITEKEY" ]; then
+  WIDGET_PAYLOAD=$(WIDGET_NAME="$WIDGET_NAME" DOMAINS_JSON="$DOMAINS_JSON" node -e "
 process.stdout.write(JSON.stringify({
   name: process.env.WIDGET_NAME,
   domains: JSON.parse(process.env.DOMAINS_JSON),
@@ -147,13 +158,28 @@ process.stdout.write(JSON.stringify({
   clearance_level: 'no_clearance',
 }));
 ")
-
-if [ -z "$SITEKEY" ]; then
   echo "Creating Turnstile widget '$WIDGET_NAME'..."
   DETAIL_RESPONSE=$(api_request POST "${API_BASE}/challenges/widgets" "$WIDGET_PAYLOAD")
 else
-  echo "Reusing Turnstile widget '$WIDGET_NAME'..."
   DETAIL_RESPONSE=$(api_request GET "${API_BASE}/challenges/widgets/${SITEKEY}")
+  # Preserve the existing widget's name — updates only reconcile domains,
+  # mode, and clearance level.
+  EFFECTIVE_WIDGET_NAME=$(RESPONSE="$DETAIL_RESPONSE" node -e "
+const result=JSON.parse(process.env.RESPONSE).result || {};
+process.stdout.write(result.name || '');
+")
+  if [ -z "$EFFECTIVE_WIDGET_NAME" ]; then
+    EFFECTIVE_WIDGET_NAME="$WIDGET_NAME"
+  fi
+  echo "Reusing Turnstile widget '$EFFECTIVE_WIDGET_NAME'..."
+  WIDGET_PAYLOAD=$(WIDGET_NAME="$EFFECTIVE_WIDGET_NAME" DOMAINS_JSON="$DOMAINS_JSON" node -e "
+process.stdout.write(JSON.stringify({
+  name: process.env.WIDGET_NAME,
+  domains: JSON.parse(process.env.DOMAINS_JSON),
+  mode: 'managed',
+  clearance_level: 'no_clearance',
+}));
+")
   NEEDS_UPDATE=$(RESPONSE="$DETAIL_RESPONSE" WIDGET_PAYLOAD="$WIDGET_PAYLOAD" node -e "
 const widget=JSON.parse(process.env.RESPONSE).result;
 const desired=JSON.parse(process.env.WIDGET_PAYLOAD);
@@ -211,7 +237,7 @@ const sitekey = process.env.SITEKEY;
 const previousSitekey = process.env.PREVIOUS_SITEKEY;
 const domainsJson = process.env.DOMAINS_JSON;
 const previousDomainsJson = process.env.PREVIOUS_DOMAINS_JSON;
-const functionPath = path.join(siteDir, 'functions', 'api', 'contact.js');
+const functionsDir = path.join(siteDir, 'functions');
 let configuredHtml = 0;
 
 function walk(dir) {
@@ -241,23 +267,42 @@ if (configuredHtml === 0) {
   process.exit(1);
 }
 
-let functionSource = fs.readFileSync(functionPath, 'utf8');
-if (functionSource.includes(hostnamesMarker)) {
-  functionSource = functionSource.replace(hostnamesMarker, domainsJson);
-} else if (functionSource.includes(domainsJson)) {
-  // Already configured for this domain set.
-} else if (previousDomainsJson && functionSource.includes(previousDomainsJson)) {
-  functionSource = functionSource.replace(previousDomainsJson, domainsJson);
-} else {
-  console.error('Error: Turnstile hostname marker was not found in contact Function.');
+// Every turnstile-consuming Function carries the hostname marker (the
+// contact form and/or proxy functions with turnstile routes). Patch them
+// all; a deploy that provisions a widget no Function consumes is an error.
+let configuredFunctions = 0;
+function walkFunctions(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkFunctions(fullPath);
+    } else if (entry.isFile() && entry.name.endsWith('.js')) {
+      const source = fs.readFileSync(fullPath, 'utf8');
+      if (source.includes(hostnamesMarker)) {
+        fs.writeFileSync(fullPath, source.split(hostnamesMarker).join(domainsJson));
+        configuredFunctions += 1;
+      } else if (source.includes(domainsJson)) {
+        // Already configured for this domain set.
+        configuredFunctions += 1;
+      } else if (previousDomainsJson && source.includes(previousDomainsJson)) {
+        fs.writeFileSync(fullPath, source.split(previousDomainsJson).join(domainsJson));
+        configuredFunctions += 1;
+      }
+    }
+  }
+}
+
+walkFunctions(functionsDir);
+if (configuredFunctions === 0) {
+  console.error('Error: Turnstile hostname marker was not found in any Function.');
   process.exit(1);
 }
-fs.writeFileSync(functionPath, functionSource);
 
 const remainingHtml = [];
 walkForMarker(path.join(siteDir, 'dist'), remainingHtml);
-const remainingFunction = fs.readFileSync(functionPath, 'utf8');
-if (remainingHtml.length > 0 || remainingFunction.includes(process.env.HOSTNAMES_MARKER)) {
+const remainingFunctions = [];
+walkForFunctionMarker(functionsDir, remainingFunctions);
+if (remainingHtml.length > 0 || remainingFunctions.length > 0) {
   console.error('Error: unresolved Turnstile deployment marker remains.');
   process.exit(1);
 }
@@ -271,9 +316,19 @@ function walkForMarker(dir, found) {
     }
   }
 }
+
+function walkForFunctionMarker(dir, found) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkForFunctionMarker(fullPath, found);
+    else if (entry.isFile() && entry.name.endsWith('.js')) {
+      if (fs.readFileSync(fullPath, 'utf8').includes(process.env.HOSTNAMES_MARKER)) found.push(fullPath);
+    }
+  }
+}
 NODE
 
-SITEKEY="$SITEKEY" WIDGET_NAME="$WIDGET_NAME" DOMAINS_JSON="$DOMAINS_JSON" STATE="$STATE" node <<'NODE'
+SITEKEY="$SITEKEY" WIDGET_NAME="$EFFECTIVE_WIDGET_NAME" DOMAINS_JSON="$DOMAINS_JSON" STATE="$STATE" node <<'NODE'
 const fs = require('fs');
 fs.writeFileSync(process.env.STATE, JSON.stringify({
   sitekey: process.env.SITEKEY,

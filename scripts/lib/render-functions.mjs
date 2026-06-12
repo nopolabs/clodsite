@@ -2,12 +2,14 @@
 // Invoked by scripts/render-functions.sh:
 //   node scripts/lib/render-functions.mjs <site-dir> [components-dir]
 //
-// Two function families:
+// Three function families:
 //   - resend-form component  -> functions/api/contact.js
 //   - commerce checkout      -> functions/api/checkout.js + functions/api/webhook.js
 //     (rendered only when commerce is live: enabled + checkout stripe + NOT preview;
 //      preview mode ships the cart chrome with a disabled checkout button and
 //      needs no Stripe keys)
+//   - proxies plan block     -> functions/<mount>/[[path]].js per entry
+//     (independent of commerce; rendered in preview and live modes alike)
 // Functions whose source of truth left the plan are removed (stale cleanup).
 import fs from 'fs';
 import path from 'path';
@@ -95,6 +97,35 @@ export function renderWebhookSource(plan) {
   return fs.readFileSync(path.join(LIB_DIR, 'commerce', 'webhook.template.js'), 'utf8')
     .replace('{{CREATE_ORDER}}', () => createOrder)
     .replace('{{PROVIDER_ENV}}', () => JSON.stringify(providerEnv));
+}
+
+// ── proxy config ──────────────────────────────────────────────────────────────
+
+// First line of proxy.template.js; identifies clodsite-rendered proxy
+// functions so stale cleanup never touches a hand-written Function.
+export const PROXY_MARKER = '// clodsite:proxy';
+
+export function buildProxyConfig(proxy) {
+  const turnstileRoutes = Array.isArray(proxy.turnstile) ? proxy.turnstile : [];
+  return {
+    mount: proxy.mount,
+    upstream: proxy.upstream.replace(/\/+$/, ''),
+    headers: proxy.headers || {},
+    secret: typeof proxy.secret === 'string' ? proxy.secret : null,
+    authenticated: Array.isArray(proxy.authenticated) ? proxy.authenticated : [],
+    turnstile: turnstileRoutes.length > 0
+      ? {
+          routes: turnstileRoutes,
+          action: 'clodsite-proxy-' + proxy.mount,
+          hostnames: '__CLODSITE_TURNSTILE_HOSTNAMES__',
+        }
+      : { routes: [], action: null, hostnames: [] },
+  };
+}
+
+export function renderProxySource(proxy) {
+  const template = fs.readFileSync(path.join(LIB_DIR, 'proxy.template.js'), 'utf8');
+  return template.replace('{{CONFIG}}', JSON.stringify(buildProxyConfig(proxy)));
 }
 
 // ── resend-form config (behavior unchanged from the previous inline script) ──
@@ -194,6 +225,34 @@ export function renderFunctions(siteDir, componentsDir) {
       : 'commerce checkout is not live';
     removeIfStale(functionsDir, 'checkout.js', reason);
     removeIfStale(functionsDir, 'webhook.js', reason);
+  }
+
+  // proxies -> functions/<mount>/[[path]].js
+  const proxies = Array.isArray(plan.proxies) ? plan.proxies : [];
+  for (const proxy of proxies) {
+    const source = renderProxySource(proxy);
+    const mountDir = path.join(functionsDir, proxy.mount);
+    fs.mkdirSync(mountDir, { recursive: true });
+    fs.writeFileSync(path.join(mountDir, '[[path]].js'), source);
+    console.log(
+      '✓ Rendered functions/' + proxy.mount + '/[[path]].js (upstream: ' +
+      buildProxyConfig(proxy).upstream + ')',
+    );
+  }
+  // Stale cleanup: remove marker-stamped proxy functions whose mount left the
+  // plan. Hand-written Functions (no marker) are never touched.
+  if (fs.existsSync(functionsDir)) {
+    const mounts = new Set(proxies.map((proxy) => proxy.mount));
+    for (const entry of fs.readdirSync(functionsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || mounts.has(entry.name)) continue;
+      const file = path.join(functionsDir, entry.name, '[[path]].js');
+      if (!fs.existsSync(file)) continue;
+      if (!fs.readFileSync(file, 'utf8').startsWith(PROXY_MARKER)) continue;
+      fs.rmSync(file);
+      const dir = path.join(functionsDir, entry.name);
+      if (fs.readdirSync(dir).length === 0) fs.rmdirSync(dir);
+      console.log('✓ Removed stale functions/' + entry.name + '/[[path]].js (no matching proxy in plan)');
+    }
   }
 
   pruneEmptyDirs(functionsDir);
