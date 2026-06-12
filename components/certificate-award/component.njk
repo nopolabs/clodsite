@@ -1,0 +1,193 @@
+{# The award flow from bbpp, as a component pairing with a proxy mount
+   (proxy-functions design §3). The component speaks parchment's
+   render/issue protocol; the proxy at /<mount>/ supplies authentication
+   and Turnstile verification server-side. The Turnstile success callback
+   gates the award button; validate-plan guarantees at most one
+   certificate-award per page, so the global callback name is safe. #}
+{% set mount = component.proxy %}
+<section class="c-certificate-award" data-mount="{{ mount | escape }}">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <h2>{{ (component.heading or "Present the Prize") | escape }}</h2>
+  {% if component.markdown %}
+  <div class="c-certificate-award__prose">{{ component.markdown | md | safe }}</div>
+  {% endif %}
+  <div class="c-certificate-award__form">
+    <div class="c-certificate-award__field">
+      <label for="ca-name">Recipient Name <span class="c-certificate-award__required">*</span></label>
+      <input type="text" id="ca-name" name="name" maxlength="100" autocomplete="off">
+      <p class="c-certificate-award__field-error" hidden></p>
+    </div>
+    <div class="c-certificate-award__field">
+      <label for="ca-achievement">Achievement</label>
+      <textarea id="ca-achievement" name="achievement" maxlength="200"></textarea>
+      <p class="c-certificate-award__hint">Optional — leave blank to use the default citation.</p>
+    </div>
+    <div class="c-certificate-award__field">
+      <label for="ca-email">Recipient Email <span class="c-certificate-award__required">*</span></label>
+      <input type="email" id="ca-email" name="email" autocomplete="off">
+      <p class="c-certificate-award__field-error" hidden></p>
+    </div>
+    <div class="c-certificate-award__actions">
+      <button type="button" class="c-certificate-award__preview-button">Preview</button>
+      <div class="cf-turnstile"
+           data-sitekey="__CLODSITE_TURNSTILE_SITEKEY__"
+           data-action="clodsite-proxy-{{ mount | escape }}"
+           data-callback="clodsiteCertificateAwardVerified"></div>
+      <button type="button" class="c-certificate-award__award-button"
+              data-label="Award the Prize" disabled>Award the Prize</button>
+    </div>
+    <div class="c-certificate-award__preview" hidden></div>
+  </div>
+  <div class="c-certificate-award__confirmation" hidden>
+    <h3>The Prize Has Been Awarded!</h3>
+    <p class="c-certificate-award__confirmation-text"></p>
+    <button type="button" class="c-certificate-award__reset-button">Award Another</button>
+  </div>
+  <script>
+    (function () {
+      var root = document.currentScript.closest('.c-certificate-award');
+      var mount = root.dataset.mount;
+      var form = root.querySelector('.c-certificate-award__form');
+      var confirmation = root.querySelector('.c-certificate-award__confirmation');
+      var confirmText = root.querySelector('.c-certificate-award__confirmation-text');
+      var nameEl = root.querySelector('#ca-name');
+      var achievementEl = root.querySelector('#ca-achievement');
+      var emailEl = root.querySelector('#ca-email');
+      var nameErr = nameEl.parentElement.querySelector('.c-certificate-award__field-error');
+      var emailErr = emailEl.parentElement.querySelector('.c-certificate-award__field-error');
+      var previewBtn = root.querySelector('.c-certificate-award__preview-button');
+      var awardBtn = root.querySelector('.c-certificate-award__award-button');
+      var previewArea = root.querySelector('.c-certificate-award__preview');
+
+      // Turnstile's success callback gates the award button (data-callback
+      // above). One certificate-award per page makes the global name safe.
+      window.clodsiteCertificateAwardVerified = function () {
+        awardBtn.disabled = false;
+      };
+
+      function clearErrors() {
+        nameErr.hidden = true;
+        emailErr.hidden = true;
+        nameEl.classList.remove('c-certificate-award__input--invalid');
+        emailEl.classList.remove('c-certificate-award__input--invalid');
+      }
+
+      function showError(el, input, msg) {
+        el.textContent = msg;
+        el.hidden = false;
+        input.classList.add('c-certificate-award__input--invalid');
+      }
+
+      function validateName() {
+        var v = nameEl.value.trim();
+        if (!v) { showError(nameErr, nameEl, 'Name is required.'); return false; }
+        if (v.length > 100) { showError(nameErr, nameEl, 'Name must be 100 characters or fewer.'); return false; }
+        return true;
+      }
+
+      function validateEmail() {
+        var v = emailEl.value.trim();
+        if (!v) { showError(emailErr, emailEl, 'Email is required.'); return false; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { showError(emailErr, emailEl, 'Please enter a valid email address.'); return false; }
+        return true;
+      }
+
+      function buildQuery() {
+        var params = new URLSearchParams({ name: nameEl.value.trim() });
+        var ach = achievementEl.value.trim();
+        if (ach) params.set('achievement', ach);
+        return params.toString();
+      }
+
+      previewBtn.addEventListener('click', async function () {
+        clearErrors();
+        if (!validateName()) return;
+
+        previewBtn.disabled = true;
+        previewArea.hidden = false;
+        previewArea.textContent = 'Rendering certificate…';
+
+        try {
+          var res = await fetch('/' + mount + '/render?' + buildQuery());
+          if (!res.ok) {
+            var body = await res.json().catch(function () { return {}; });
+            throw new Error(body.error || 'Render failed.');
+          }
+          var blob = await res.blob();
+          previewArea.textContent = '';
+          var label = document.createElement('p');
+          label.className = 'c-certificate-award__preview-label';
+          label.textContent = 'Certificate Preview';
+          var img = document.createElement('img');
+          img.src = URL.createObjectURL(blob);
+          img.alt = 'Certificate preview';
+          previewArea.append(label, img);
+        } catch (err) {
+          previewArea.textContent = '';
+          var errorEl = document.createElement('p');
+          errorEl.className = 'c-certificate-award__preview-error';
+          errorEl.textContent = 'Preview unavailable — ' + (err.message || 'please try again.') +
+            ' You can still award the prize.';
+          previewArea.append(errorEl);
+        } finally {
+          previewBtn.disabled = false;
+        }
+      });
+
+      awardBtn.addEventListener('click', async function () {
+        clearErrors();
+        var nameOk = validateName();
+        var emailOk = validateEmail();
+        if (!nameOk || !emailOk) return;
+
+        awardBtn.disabled = true;
+        awardBtn.textContent = 'Awarding…';
+
+        var body = new URLSearchParams({
+          name: nameEl.value.trim(),
+          email: emailEl.value.trim()
+        });
+        var ach = achievementEl.value.trim();
+        if (ach) body.set('achievement', ach);
+        body.set('cf-turnstile-response', window.turnstile.getResponse());
+
+        try {
+          var res = await fetch('/' + mount + '/issue', { method: 'POST', body: body });
+          if (!res.ok) {
+            var data = await res.json().catch(function () { return {}; });
+            throw new Error(data.error || 'Something went wrong. Please try again.');
+          }
+          // textContent on built elements — recipient values never parse as HTML.
+          confirmText.textContent = '';
+          var who = document.createElement('strong');
+          who.textContent = nameEl.value.trim();
+          var where = document.createElement('strong');
+          where.textContent = emailEl.value.trim();
+          confirmText.append(who, ' will receive their certificate at ', where, '.');
+          form.hidden = true;
+          confirmation.hidden = false;
+        } catch (err) {
+          awardBtn.disabled = false;
+          awardBtn.textContent = awardBtn.dataset.label;
+          showError(emailErr, emailEl, err.message);
+        }
+      });
+
+      root.querySelector('.c-certificate-award__reset-button').addEventListener('click', function () {
+        nameEl.value = '';
+        achievementEl.value = '';
+        emailEl.value = '';
+        clearErrors();
+        previewArea.hidden = true;
+        previewArea.textContent = '';
+        awardBtn.disabled = true;
+        awardBtn.textContent = awardBtn.dataset.label;
+        if (window.turnstile && typeof window.turnstile.reset === 'function') {
+          window.turnstile.reset();
+        }
+        form.hidden = false;
+        confirmation.hidden = true;
+      });
+    })();
+  </script>
+</section>

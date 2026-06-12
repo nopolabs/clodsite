@@ -2461,6 +2461,86 @@ QUERY_OUTPUT=$(node scripts/lib/build-plan.mjs "${SITE_DIR}/build-plan.yaml" pro
 assert_exit "proxy-secrets on a plan without proxies exits 0" 0 $?
 assert_not_contains "no proxies yields no secret names" "PARCHMENT_API_KEY" "$QUERY_OUTPUT"
 
+# ── certificate-award (component ↔ proxy pairing) ────────────────────────────
+echo ""
+echo "=== certificate-award ==="
+
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist" "${SITE_DIR}/functions"
+cp scripts/test/fixtures/valid-build-plan-certificate-award.yaml "${SITE_DIR}/build-plan.yaml"
+
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "valid certificate-award plan exits 0" 0 $?
+
+award_plan_mutation() {
+  cp scripts/test/fixtures/valid-build-plan-certificate-award.yaml "${SITE_DIR}/build-plan.yaml"
+  node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+$1
+fs.writeFileSync(file, yaml.dump(p));
+"
+}
+
+# the component requires its proxy mount to exist
+award_plan_mutation "p.pages[0].components[1].proxy='no-such-mount';"
+AWARD_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown proxy mount exits 1" 1 $?
+assert_contains "unknown mount is named" 'references unknown proxy mount: no-such-mount' "$AWARD_OUTPUT"
+
+# ...and that proxy must guard "POST issue" with BOTH turnstile and authenticated
+award_plan_mutation "delete p.proxies[0].turnstile;"
+AWARD_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "proxy without turnstile guard exits 1" 1 $?
+assert_contains "missing turnstile guard is explained" 'must guard "POST issue" with both turnstile and authenticated' "$AWARD_OUTPUT"
+
+award_plan_mutation "delete p.proxies[0].authenticated; delete p.proxies[0].secret;"
+AWARD_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "proxy without authenticated guard exits 1" 1 $?
+assert_contains "missing authenticated guard is explained" 'must guard "POST issue" with both turnstile and authenticated' "$AWARD_OUTPUT"
+
+award_plan_mutation "p.proxies[0].turnstile=['POST other']; p.proxies[0].authenticated=['POST other'];"
+AWARD_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "guards on a different route exit 1" 1 $?
+assert_contains "wrong-route guard is explained" 'must guard "POST issue" with both turnstile and authenticated' "$AWARD_OUTPUT"
+
+# one Turnstile widget per page
+award_plan_mutation "p.pages[0].components.push(JSON.parse(JSON.stringify(p.pages[0].components[1])));"
+AWARD_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "two certificate-awards on one page exit 1" 1 $?
+assert_contains "one-per-page constraint is explained" 'at most one certificate-award component' "$AWARD_OUTPUT"
+
+# missing proxy field is a schema error
+award_plan_mutation "delete p.pages[0].components[1].proxy;"
+AWARD_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "missing proxy field exits 1" 1 $?
+assert_contains "schema requires the proxy field" '.proxy is required' "$AWARD_OUTPUT"
+
+# full build: rendered page carries the award flow
+cp scripts/test/fixtures/valid-build-plan-certificate-award.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+assert_exit "render-templates with certificate-award exits 0" 0 $?
+assert_contains "page includes the component" "certificate-award/component.njk" "$(cat "${SITE_DIR}/src/index.njk")"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_file_exists "paired proxy Function rendered" "${SITE_DIR}/functions/parchment/[[path]].js"
+bash scripts/apply-theme.sh > /dev/null 2>&1
+rm -rf "${SITE_DIR}/dist"
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "certificate-award fixture builds" 0 $?
+AWARD_HTML=$(cat "${SITE_DIR}/dist/index.html")
+assert_contains "HTML has the component root" 'class="c-certificate-award"' "$AWARD_HTML"
+assert_contains "HTML keeps the sitekey marker for provisioning" '__CLODSITE_TURNSTILE_SITEKEY__' "$AWARD_HTML"
+assert_contains "Turnstile action is scoped to the proxy" 'data-action="clodsite-proxy-parchment"' "$AWARD_HTML"
+assert_contains "award button starts gated" 'data-label="Award the Prize" disabled' "$AWARD_HTML"
+assert_contains "preview fetches through the mount" "/render?" "$AWARD_HTML"
+assert_contains "award posts through the mount" "/issue" "$AWARD_HTML"
+assert_contains "name field caps at 100" 'maxlength="100"' "$AWARD_HTML"
+assert_contains "achievement field caps at 200" 'maxlength="200"' "$AWARD_HTML"
+assert_contains "default heading is rendered" 'Present the Prize' "$AWARD_HTML"
+assert_contains "certificate-award CSS is aggregated" ".c-certificate-award" "$(cat scaffold/src/css/components.css)"
+rm -rf "${SITE_DIR}/functions"
+
 # ── JS unit tests (scripts/lib/**/*.test.mjs) ─────────────────────────────────
 echo ""
 echo "=== JS unit tests (node --test scripts/lib/**/*.test.mjs) ==="

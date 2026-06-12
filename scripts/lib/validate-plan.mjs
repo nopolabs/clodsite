@@ -741,6 +741,39 @@ if ('proxies' in plan) {
   }
 }
 
+// certificate-award ↔ proxy pairing (proxy-functions design §3): the award
+// flow only works through a proxy whose "POST issue" route is guarded by
+// both Turnstile and authentication — an unguarded issue route is
+// bot-spammable, and an unauthenticated one can't reach the upstream at all.
+const proxiesByMount = new Map();
+(Array.isArray(plan.proxies) ? plan.proxies : []).forEach(function(proxy) {
+  if (isObject(proxy) && typeof proxy.mount === 'string')
+    proxiesByMount.set(proxy.mount, proxy);
+});
+(plan.pages || []).forEach(function(p, i) {
+  const awards = [];
+  (Array.isArray(p.components) ? p.components : []).forEach(function(c, j) {
+    if (c && c.type === 'certificate-award')
+      awards.push({ component: c, tag: 'pages[' + i + '].components[' + j + ']' });
+  });
+  if (awards.length > 1)
+    errors.push('pages[' + i + '] may contain at most one certificate-award component — each renders its own Turnstile widget');
+  awards.forEach(function(entry) {
+    const mount = entry.component.proxy;
+    if (typeof mount !== 'string' || mount.trim() === '') return; // schema validation already flagged it
+    const proxy = proxiesByMount.get(mount);
+    if (!proxy) {
+      errors.push(entry.tag + '.proxy references unknown proxy mount: ' + mount);
+      return;
+    }
+    const guarded = function(field) {
+      return Array.isArray(proxy[field]) && proxy[field].includes('POST issue');
+    };
+    if (!guarded('turnstile') || !guarded('authenticated'))
+      errors.push(entry.tag + '.proxy "' + mount + '" must guard "POST issue" with both turnstile and authenticated — an unguarded issue route is bot-spammable; an unauthenticated one cannot reach the upstream');
+  });
+});
+
 if (!plan.nav || !Array.isArray(plan.nav.order) || plan.nav.order.length < 1)
   errors.push('nav.order must be a non-empty array');
 
