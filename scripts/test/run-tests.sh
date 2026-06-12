@@ -2530,6 +2530,7 @@ SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
 assert_exit "certificate-award fixture builds" 0 $?
 AWARD_HTML=$(cat "${SITE_DIR}/dist/index.html")
 assert_contains "HTML has the component root" 'class="c-certificate-award"' "$AWARD_HTML"
+assert_contains "component carries its own anchor" 'id="award"' "$AWARD_HTML"
 assert_contains "HTML keeps the sitekey marker for provisioning" '__CLODSITE_TURNSTILE_SITEKEY__' "$AWARD_HTML"
 assert_contains "Turnstile action is scoped to the proxy" 'data-action="clodsite-proxy-parchment"' "$AWARD_HTML"
 assert_contains "award button starts gated" 'data-label="Award the Prize" disabled' "$AWARD_HTML"
