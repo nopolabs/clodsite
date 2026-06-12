@@ -1,0 +1,37 @@
+slug: award-test
+name: Award Test
+overview: award-test exercises the certificate-award component paired with a proxy mount.
+style: minimal
+tone: friendly
+custom_domain: ""
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: hero
+        heading: The Big Test Prize
+        markdown: |
+          Awarded with great ceremony.
+        actions:
+          - label: Award the Prize
+            href: "#award"
+      - type: certificate-award
+        proxy: parchment
+        heading: Present the Prize
+        markdown: |
+          Fill in the details below, preview the certificate, then send it.
+nav:
+  order:
+    - home
+contact:
+  enabled: false
+proxies:
+  - mount: parchment
+    upstream: https://parchment-worker.example.workers.dev/parchment
+    headers:
+      X-Site-ID: bbpp
+    secret: PARCHMENT_API_KEY
+    authenticated:
+      - POST issue
+    turnstile:
+      - POST issue

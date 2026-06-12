@@ -60,6 +60,29 @@ type: catalog
 products: [crow-tee, logo-cap]
 ```
 
+## certificate-award
+
+Certificate award flow speaking a parchment-shaped render/issue protocol through a proxy mount. The visitor names a recipient, previews the certificate (GET <proxy>/render), and awards it (POST <proxy>/issue) behind a Turnstile widget that gates the award button. `proxy` must reference a proxies[].mount on this site, and that proxy must guard "POST issue" with both turnstile and authenticated. At most one per page (one Turnstile widget id, same constraint resend-form has).
+
+**Required fields:**
+
+- `proxy` (non-empty string)
+
+**Optional fields:**
+
+- `heading` (non-empty string)
+- `markdown` (non-empty string)
+
+**Example:**
+
+```yaml
+type: certificate-award
+proxy: parchment            # a proxies[].mount on this site
+heading: Present the Prize  # optional, default shown
+markdown: |                 # optional intro under the heading
+  Fill in the details below, preview the certificate, then send it.
+```
+
 ## feature-grid
 
 A compact grid of two to six features or benefits.
