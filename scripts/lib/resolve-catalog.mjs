@@ -79,6 +79,9 @@ export function buildCatalogSet(catalog) {
   const keys = [];
   for (const product of catalog.products) {
     if (!product.active) continue;
+    // Personalized products are buy-now only (bbpp design §3, Decision 4):
+    // they never enter the cart, so they are not in the purge set either.
+    if (product.personalization) continue;
     const optionNames = (product.options || []).map((option) => option.name);
     for (const variant of product.variants || []) {
       const values = optionNames.map((name) => variant.optionValues[name]);
@@ -91,8 +94,13 @@ export function buildCatalogSet(catalog) {
 // component: a `type: catalog` entry from the plan (optional products filter).
 // catalog: parsed, validated commerce/catalog.json.
 // Returns the component with the filter replaced by resolved product objects.
+// Personalization-required products never render in the grid — they have no
+// meaning without a token (bbpp design §7); validate-plan rejects explicit
+// filter references, and the default-all selection skips them here.
 export function resolveCatalogComponent(component, catalog, currency = 'usd') {
-  const active = catalog.products.filter((product) => product.active);
+  const active = catalog.products.filter(
+    (product) => product.active && !product.personalization,
+  );
 
   let selected;
   if (Array.isArray(component.products)) {
@@ -111,5 +119,33 @@ export function resolveCatalogComponent(component, catalog, currency = 'usd') {
   return {
     type: 'catalog',
     products: selected.map((product) => resolveProduct(product, currency)),
+  };
+}
+
+// component: a `type: personalized-product` entry from the plan
+// ({ product: slug, param?: query parameter name }).
+// Resolves the one personalization-required product the page sells
+// (bbpp design §3). The url template stays a template here — the browser
+// substitutes the token from the query parameter at view time; checkout
+// substitutes it server-side at validation time.
+export function resolvePersonalizedProductComponent(component, catalog, currency = 'usd') {
+  const product = catalog.products.find((entry) => entry.slug === component.product);
+  if (!product) {
+    throw new Error('personalized-product references unknown catalog slug: ' + component.product);
+  }
+  if (!product.active) {
+    throw new Error('personalized-product references inactive product: ' + component.product);
+  }
+  if (!product.personalization) {
+    throw new Error(
+      'personalized-product references "' + component.product +
+      '" which does not declare personalization',
+    );
+  }
+  return {
+    type: 'personalized-product',
+    param: typeof component.param === 'string' && component.param !== '' ? component.param : 'cert',
+    personalization_url: product.personalization.url,
+    product: resolveProduct(product, currency),
   };
 }

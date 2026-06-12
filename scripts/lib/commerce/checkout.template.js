@@ -1,14 +1,23 @@
 // Checkout Pages Function template — rendered to functions/api/checkout.js.
 //
-// The client sends only { items: [{ slug, optionValues, qty }] }. Prices and
-// fulfillment refs are resolved server-side from CONFIG (embedded from the
-// commerce catalog at render time) — nothing money-shaped or provider-shaped
-// is ever client-controlled. Unknown slug/option combinations are a 400.
+// The client sends only { items: [{ slug, optionValues, qty,
+// personalization_id? }] }. Prices and fulfillment refs are resolved
+// server-side from CONFIG (embedded from the commerce catalog at render
+// time) — nothing money-shaped or provider-shaped is ever client-controlled.
+// Unknown slug/option combinations are a 400.
+//
+// personalization_id is the one client-supplied opaque value: a capability
+// token for a personalization-required product (bbpp design §3). It is
+// syntax-checked, then verified live against the site's own origin (HEAD
+// must return 200 — never sell a print of nothing) before the Stripe session
+// is created. The resolved print-resolution URL travels via session metadata;
+// this function never interprets the token beyond substitution.
 //
 // CONFIG = {
 //   currency: 'usd',
 //   option_names: { '<slug>': ['Color', 'Size'], ... },   // declared option order
 //   items: { '<slug>:<val>:<val>': { name, price_minor, fulfillment_ref }, ... },
+//   personalization: { '<slug>': '/parchment/cert/{id}', ... },  // origin-relative url templates
 //   shipping: { flat_rate_minor: 500 | null, countries: ['US', ...] },
 // }
 
@@ -40,6 +49,9 @@ export async function onRequestPost(context) {
       { status: 400 },
     );
   }
+
+  const origin = new URL(context.request.url).origin;
+  const TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
 
   // Resolve each cart line against the embedded catalog. The lookup key is
   // slug + option values in declared option order — same identity the cart
@@ -74,10 +86,48 @@ export async function onRequestPost(context) {
     if (!entry) {
       return Response.json({ ok: false, error: 'Unknown product' }, { status: 400 });
     }
-    resolved.push({ entry, qty });
-  }
 
-  const origin = new URL(context.request.url).origin;
+    // Personalization (bbpp design §3, §7): a personalization-required
+    // product rejects items without a token; a product without it rejects
+    // items that carry one. The token is syntax-checked, then verified live —
+    // HEAD against the site's own origin, through the same authenticated
+    // proxy every visitor uses. This is the only non-Stripe network call
+    // this function makes.
+    const urlTemplate = Object.prototype.hasOwnProperty.call(CONFIG.personalization, slug)
+      ? CONFIG.personalization[slug]
+      : undefined;
+    const token = item.personalization_id;
+    if (!urlTemplate) {
+      if (token !== undefined) {
+        return Response.json(
+          { ok: false, error: 'Product does not take personalization' },
+          { status: 400 },
+        );
+      }
+      resolved.push({ entry, qty });
+      continue;
+    }
+    if (typeof token !== 'string' || !TOKEN_PATTERN.test(token)) {
+      return Response.json(
+        { ok: false, error: 'Personalization required' },
+        { status: 400 },
+      );
+    }
+    const resolvedPath = urlTemplate.replace('{id}', token);
+    let head;
+    try {
+      head = await fetch(origin + resolvedPath, { method: 'HEAD' });
+    } catch {
+      return Response.json({ ok: false, error: 'Personalization unavailable' }, { status: 502 });
+    }
+    if (!head.ok) {
+      return Response.json({ ok: false, error: 'Personalization not found' }, { status: 400 });
+    }
+    // The print-resolution variant is what fulfillment links to (design §3);
+    // resolved server-side so providers stay personalization-agnostic.
+    const printUrl = origin + resolvedPath + (resolvedPath.indexOf('?') === -1 ? '?' : '&') + 'scale=3';
+    resolved.push({ entry, qty, personalization_id: token, personalization_url: printUrl });
+  }
   const body = new URLSearchParams();
   body.set('mode', 'payment');
   body.set('success_url', origin + '/?checkout=success&session_id={CHECKOUT_SESSION_ID}');
@@ -98,14 +148,28 @@ export async function onRequestPost(context) {
     body.set('shipping_options[0][shipping_rate_data][fixed_amount][currency]', CONFIG.currency);
   }
   // The webhook fulfills from this metadata — server-resolved refs only.
-  body.set(
-    'metadata[items]',
-    JSON.stringify(
-      resolved.map(function (line) {
-        return { fulfillment_ref: line.entry.fulfillment_ref, qty: line.qty };
-      }),
-    ),
+  // Personalized lines carry the token and the resolved print URL (opaque to
+  // everything downstream of parchment, like fulfillment_ref itself).
+  const metadataItems = JSON.stringify(
+    resolved.map(function (line) {
+      const out = { fulfillment_ref: line.entry.fulfillment_ref, qty: line.qty };
+      if (line.personalization_id) {
+        out.personalization_id = line.personalization_id;
+        out.personalization_url = line.personalization_url;
+      }
+      return out;
+    }),
   );
+  // Stripe caps a metadata value at 500 characters; with URLs in the array
+  // this bounds a session to roughly three personalized line items. Enforce
+  // it here with a clear error rather than letting Stripe truncate.
+  if (metadataItems.length > 500) {
+    return Response.json(
+      { ok: false, error: 'Too many items for one checkout — please order in smaller batches' },
+      { status: 400 },
+    );
+  }
+  body.set('metadata[items]', metadataItems);
 
   let session;
   try {

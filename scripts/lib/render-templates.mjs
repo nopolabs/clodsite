@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { readCatalog } from './validate-catalog.mjs';
-import { resolveCatalogComponent } from './resolve-catalog.mjs';
+import { resolveCatalogComponent, resolvePersonalizedProductComponent } from './resolve-catalog.mjs';
 
 const [planPath, siteDir] = process.argv.slice(2);
 if (!planPath || !siteDir) {
@@ -27,10 +27,12 @@ function getCommerceCatalog() {
 
 function resolvePageComponents(page) {
   return (page.components || []).map(function (component) {
-    if (component.type !== 'catalog') return component;
+    if (component.type !== 'catalog' && component.type !== 'personalized-product') return component;
     try {
       const currency = (plan.commerce && plan.commerce.currency) || 'usd';
-      return resolveCatalogComponent(component, getCommerceCatalog(), currency);
+      return component.type === 'catalog'
+        ? resolveCatalogComponent(component, getCommerceCatalog(), currency)
+        : resolvePersonalizedProductComponent(component, getCommerceCatalog(), currency);
     } catch (error) {
       console.error('Error: page ' + page.id + ': ' + error.message);
       process.exit(1);

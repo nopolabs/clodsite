@@ -1,0 +1,10 @@
+{
+  "description": "Buy page for one personalization-required product (e.g. a printed certificate). The visitor arrives with a personalization token in a query parameter (default: cert); the component previews the personalized item and offers a buy-now checkout — personalized items never enter the cart. Without a valid token the page explains how to get one instead of showing the product. `product` must reference a catalog slug that declares personalization; requires live commerce checkout. Optional `param` renames the query parameter.",
+  "required": {
+    "product": { "type": "string", "non_empty": true }
+  },
+  "optional": {
+    "param": { "type": "string", "non_empty": true }
+  },
+  "example": "type: personalized-product\nproduct: printed-certificate\nparam: cert\n"
+}

@@ -1,0 +1,34 @@
+slug: personalized-test
+name: Personalized Test
+overview: Fixture for the personalized-product component (live checkout).
+style: minimal
+tone: professional
+commerce:
+  enabled: true
+  provider: manual
+  currency: usd
+  checkout: stripe
+  shipping:
+    flat_rate_minor: 500
+    countries: [US]
+  fulfillment:
+    to: orders@example.com
+    from: shop@example.com
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          ## Shop
+          Our small catalog.
+      - type: catalog
+  - id: print
+    title: Print
+    components:
+      - type: personalized-product
+        product: printed-certificate
+nav:
+  order: [home, print]
+contact:
+  enabled: false

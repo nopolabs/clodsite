@@ -557,17 +557,30 @@ if ('commerce' in plan) {
 // commerce/catalog.json next to the plan, and product filters must reference
 // catalog slugs (spec §8).
 const catalogComponents = [];
+const personalizedComponents = [];
 (plan.pages || []).forEach(function(p, i) {
   (Array.isArray(p.components) ? p.components : []).forEach(function(c, j) {
     if (c && c.type === 'catalog')
       catalogComponents.push({ component: c, tag: 'pages[' + i + '].components[' + j + ']' });
+    if (c && c.type === 'personalized-product')
+      personalizedComponents.push({ component: c, tag: 'pages[' + i + '].components[' + j + ']' });
   });
 });
 
-if (catalogComponents.length > 0 || commerceCheckoutEnabled) {
+// A personalized-product page is a buy page — it has no meaning without a
+// live checkout to send the token to (bbpp design §3).
+if (personalizedComponents.length > 0 && !commerceCheckoutEnabled) {
+  personalizedComponents.forEach(function(entry) {
+    errors.push(entry.tag + ' (personalized-product) requires commerce.enabled: true with checkout: stripe');
+  });
+}
+
+if (catalogComponents.length > 0 || personalizedComponents.length > 0 || commerceCheckoutEnabled) {
   const catalogPath = path.join(path.dirname(planPath), 'commerce', 'catalog.json');
   if (!fs.existsSync(catalogPath)) {
-    const requiredBy = catalogComponents.length > 0 ? 'catalog component' : 'commerce.checkout';
+    const requiredBy = catalogComponents.length > 0 ? 'catalog component'
+      : personalizedComponents.length > 0 ? 'personalized-product component'
+      : 'commerce.checkout';
     errors.push(requiredBy + ' requires ' + catalogPath + ' — sync or hand-write the commerce catalog first');
   } else {
     let commerceCatalog = null;
@@ -581,11 +594,32 @@ if (catalogComponents.length > 0 || commerceCheckoutEnabled) {
       catalogErrors.forEach(function(e) { errors.push('commerce/catalog.json: ' + e); });
       if (catalogErrors.length === 0) {
         const knownSlugs = new Set(commerceCatalog.products.map(function(p) { return p.slug; }));
+        const bySlug = new Map(commerceCatalog.products.map(function(p) { return [p.slug, p]; }));
         catalogComponents.forEach(function(entry) {
           (Array.isArray(entry.component.products) ? entry.component.products : []).forEach(function(slug, k) {
-            if (!knownSlugs.has(slug))
+            if (!knownSlugs.has(slug)) {
               errors.push(entry.tag + '.products[' + k + '] references unknown catalog slug: ' + slug);
+            } else if (bySlug.get(slug).personalization) {
+              // Personalization-required products have no meaning in a grid —
+              // there is no token to sell against (bbpp design §7). The
+              // default-all selection skips them silently in the resolver;
+              // an explicit reference is a mistake worth a loud error.
+              errors.push(entry.tag + '.products[' + k + '] references "' + slug + '" which requires personalization — use a personalized-product component instead');
+            }
           });
+        });
+        personalizedComponents.forEach(function(entry) {
+          const slug = entry.component.product;
+          if (typeof slug !== 'string' || slug === '') return; // schema validation already flagged it
+          const product = bySlug.get(slug);
+          if (!product) {
+            errors.push(entry.tag + '.product references unknown catalog slug: ' + slug);
+          } else {
+            if (!product.personalization)
+              errors.push(entry.tag + '.product references "' + slug + '" which does not declare personalization');
+            if (product.active !== true)
+              errors.push(entry.tag + '.product references inactive product: ' + slug);
+          }
         });
         if (commerceCheckoutEnabled) {
           // Checkout resolves (slug, optionValues) → fulfillment_ref, so every
