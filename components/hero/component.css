@@ -22,6 +22,38 @@
   grid-column: 2;
 }
 
+/* above/below stack to a single centered column — a ceremonial layout
+   (bbpp's seal-over-heading look). The image is capped, not full-bleed. */
+.c-hero--image-above,
+.c-hero--image-below {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  text-align: center;
+}
+
+.c-hero--image-above .c-hero__media,
+.c-hero--image-below .c-hero__media {
+  width: min(20rem, 100%);
+}
+
+.c-hero--image-above .c-hero__prose,
+.c-hero--image-below .c-hero__prose {
+  margin-inline: auto;
+}
+
+.c-hero--image-above .c-hero__actions,
+.c-hero--image-below .c-hero__actions {
+  justify-content: center;
+}
+
+.c-hero--image-above .c-hero__media {
+  grid-row: 1;
+}
+
+.c-hero--image-above .c-hero__content {
+  grid-row: 2;
+}
+
 .c-hero__eyebrow {
   color: var(--color-accent);
   font-family: var(--font-heading);

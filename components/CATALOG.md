@@ -153,7 +153,7 @@ A page-opening statement with optional eyebrow, actions, and one image.
 - `actions[]` (object)
 - `actions[].style` (string; one of: primary, secondary)
 - `image` (object)
-- `image_position` (string; one of: left, right)
+- `image_position` (string; one of: left, right, above, below)
 
 **Example:**
 
