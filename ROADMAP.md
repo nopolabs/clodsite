@@ -171,6 +171,17 @@ page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
 conflicting plans during validation. This remains low priority because all
 current sites put `home` first.
 
+### 15. Port mtw4 to Clodsite
+
+Port mastertimewaster.com (the `mtw4` repo) to a Clodsite-managed site, the
+way bbpp was ported. mtw4 is the second parchment client: its hand-rolled
+Pages Function proxy becomes a `proxies` plan entry, its certificate page
+becomes a `certificate-award` component, and its hardcoded Turnstile site key
+is replaced by Clodsite's managed widget provisioning (retiring the manual
+`TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` handling in that repo). The
+commerce/checkout worker in `mtw4/worker/` is a separate concern and may stay
+external or migrate to commerce v1 catalogs, decided at port time.
+
 ---
 
 ## Completed
