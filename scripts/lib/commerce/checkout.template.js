@@ -173,6 +173,10 @@ export async function onRequestPost(context) {
     );
   }
   body.set('metadata[items]', metadataItems);
+  // Stamp the originating site: Stripe delivers every event to every webhook
+  // endpoint on the shared account, so the webhook filters on this to fulfill
+  // only its own orders (no cross-tenant fulfillment / PII leak).
+  body.set('metadata[site]', CONFIG.site);
 
   let session;
   try {

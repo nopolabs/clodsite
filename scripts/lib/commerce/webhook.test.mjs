@@ -12,7 +12,9 @@ import { pathToFileURL } from 'node:url';
 import { renderWebhookSource } from '../render-functions.mjs';
 
 const WEBHOOK_SECRET = 'whsec_test_secret';
+const SITE_SLUG = 'crow-shop';
 const PLAN = {
+  slug: SITE_SLUG,
   commerce: {
     enabled: true,
     provider: 'manual',
@@ -23,6 +25,7 @@ const PLAN = {
 };
 
 const PRINTFUL_PLAN = {
+  slug: SITE_SLUG,
   commerce: {
     enabled: true,
     provider: 'printful',
@@ -74,7 +77,7 @@ function makeEvent(overrides = {}) {
     data: {
       object: {
         id: 'cs_test_abc123',
-        metadata: { items: JSON.stringify([{ fulfillment_ref: '4938291', qty: 2 }]) },
+        metadata: { site: SITE_SLUG, items: JSON.stringify([{ fulfillment_ref: '4938291', qty: 2 }]) },
         customer_details: { email: 'pat@example.com' },
         shipping_details: {
           name: 'Pat Crow',
@@ -186,6 +189,22 @@ test('ignores completed sessions without our checkout metadata', async (t) => {
   assert.equal(calls.length, 0);
 });
 
+test('ignores a session stamped for another site (shared Stripe account fan-out)', async (t) => {
+  const calls = stubResend(t);
+  const orders = fakeKV();
+  // A valid, fully-formed session from a different site on the same account.
+  const body = JSON.stringify(makeEvent({
+    metadata: { site: 'other-shop', items: JSON.stringify([{ fulfillment_ref: '4938291', qty: 2 }]) },
+  }));
+
+  const res = await onRequestPost(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).ignored, true);
+  assert.equal(calls.length, 0, 'must not fulfill another site\'s order');
+  assert.equal(orders.read('cs_test_abc123'), null, 'must not even record a KV order for a foreign session');
+});
+
 test('first delivery: fulfills via the provider and records completed', async (t) => {
   const calls = stubResend(t);
   const orders = fakeKV();
@@ -221,6 +240,7 @@ test('personalization fields pass through metadata to the provider verbatim', as
   const printUrl = 'https://shop.example.com/parchment/cert/' + token + '?scale=3';
   const body = JSON.stringify(makeEvent({
     metadata: {
+      site: SITE_SLUG,
       items: JSON.stringify([
         { fulfillment_ref: 'bbpp-print', qty: 1, personalization_id: token, personalization_url: printUrl },
       ]),

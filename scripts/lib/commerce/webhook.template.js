@@ -26,6 +26,11 @@
 // createOrder(order, env) keeps a single signature across providers.
 const PROVIDER_ENV = {{PROVIDER_ENV}};
 
+// This site's slug. Stripe delivers every checkout.session.completed on the
+// shared account to every site's webhook endpoint; we fulfill only sessions
+// our own checkout stamped with this slug (metadata.site).
+const SITE = {{SITE}};
+
 const STALE_MS = 10 * 60 * 1000;
 const TOLERANCE_SECONDS = 300;
 
@@ -94,6 +99,15 @@ export async function onRequestPost(context) {
   const session = event.data && event.data.object;
   if (!session || typeof session.id !== 'string' || session.id === '') {
     return Response.json({ ok: false, error: 'Malformed event' }, { status: 400 });
+  }
+
+  // Stripe fans every event out to every endpoint on the shared account. A
+  // session stamped for another site (or an unstamped legacy session) is not
+  // ours to fulfill — ack with 200 so Stripe stops retrying us, and let the
+  // owning site's webhook handle it. Without this, every commerce site on the
+  // account fulfills every order (cross-tenant fulfillment + buyer PII leak).
+  if (!session.metadata || session.metadata.site !== SITE) {
+    return Response.json({ ok: true, ignored: true });
   }
 
   // Sessions without our metadata were not created by this site's checkout.
