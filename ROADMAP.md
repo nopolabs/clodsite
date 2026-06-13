@@ -182,6 +182,43 @@ is replaced by Clodsite's managed widget provisioning (retiring the manual
 commerce/checkout worker in `mtw4/worker/` is a separate concern and may stay
 external or migrate to commerce v1 catalogs, decided at port time.
 
+### 16. Multi-tenant isolation model
+
+Define, explicitly, the trust boundary Clodsite operates within — today it is
+implicit, and that gap has already produced a live cross-tenant fulfillment +
+buyer-PII leak (a bbpp order fulfilled by anchovy's webhook because Stripe
+fans every event out to every endpoint on the shared account). The
+`metadata.site` stamp that fixed it (checkout stamps the slug, each webhook
+fulfills only its own) is a correctness guard *within a single trust
+boundary* — it assumes all sites belong to one operator who is not adversarial
+to themselves. It is **not a security boundary**: every site shares one
+`STRIPE_SECRET_KEY` and one webhook signing secret, so any site could stamp
+another's slug or forge another's events. That is fine for the current tier
+and wrong the moment two sites are two different customers.
+
+State two tiers and what each requires:
+
+- **Single-operator, multi-site (today).** One trust boundary, many sites.
+  In-account event fan-out is the operative hazard; the `metadata.site` stamp
+  is sufficient. Shared Stripe/Resend/Cloudflare/`.env` are acceptable.
+- **Customer-per-site (future).** Each site is its own trust boundary. The
+  stamp is no longer load-bearing; isolation must be enforced by separating
+  the underlying credentials across four layers, in increasing cost:
+  1. **Stripe** — a separate secret key + webhook signing secret per site, so
+     event fan-out cannot cross customers and the stamp becomes
+     belt-and-suspenders rather than the only guard.
+  2. **Resend / sender identity** — a per-customer verified domain, not the
+     shared `mastertimewaster.com` sender.
+  3. **Cloudflare** — per-customer account or at minimum scoped API tokens
+     with KV/R2/D1 partitioning, replacing today's one account + one token.
+  4. **Secrets transport** — per-site secret scoping so one customer's deploy
+     cannot read another's keys, replacing the single flat shared `.env`.
+
+This item is the isolation/trust-boundary half; the credential-plumbing half
+lives in item 12 (Per-site environments and credentials). They are entangled
+and should be designed together, but the boundary model is stated here so the
+plumbing has a target to satisfy.
+
 ---
 
 ## Completed
