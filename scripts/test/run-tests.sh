@@ -2540,6 +2540,7 @@ assert_contains "name field caps at 100" 'maxlength="100"' "$AWARD_HTML"
 assert_contains "achievement field caps at 200" 'maxlength="200"' "$AWARD_HTML"
 assert_contains "default heading is rendered" 'Present the Prize' "$AWARD_HTML"
 assert_contains "certificate-award CSS is aggregated" ".c-certificate-award" "$(cat scaffold/src/css/components.css)"
+assert_contains "hidden attribute beats display:flex in award CSS" ".c-certificate-award [hidden]" "$(cat scaffold/src/css/components.css)"
 rm -rf "${SITE_DIR}/functions"
 
 # ── JS unit tests (scripts/lib/**/*.test.mjs) ─────────────────────────────────
