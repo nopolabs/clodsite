@@ -249,6 +249,10 @@ BUNDLE=$(cat scaffold/src/css/components.css)
 assert_contains   "bundle has c-gallery rule"       ".c-gallery"      "$BUNDLE"
 assert_contains   "bundle has c-mailto-form rule"   ".c-mailto-form"  "$BUNDLE"
 assert_contains   "prose spaces content after code blocks" ".c-prose pre + *" "$BUNDLE"
+assert_contains   "prose tables have bottom spacing" "margin-block-end: 1.5rem" "$BUNDLE"
+assert_contains   "prose table cell rules are bundled" ".c-prose th," "$BUNDLE"
+assert_contains   "prose table cells have padding" "padding: 0.75rem" "$BUNDLE"
+assert_contains   "prose table rows have separators" "border-bottom: 1px solid var(--color-border)" "$BUNDLE"
 for component in hero feature-grid key-facts quote resource-cards call-to-action; do
   assert_contains "bundle has c-${component} rule" ".c-${component}" "$BUNDLE"
 done

@@ -10,3 +10,17 @@
 .c-prose pre + * {
   margin-block-start: 1.5rem;
 }
+
+.c-prose table {
+  width: 100%;
+  margin-block-end: 1.5rem;
+  border-collapse: collapse;
+}
+
+.c-prose th,
+.c-prose td {
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
