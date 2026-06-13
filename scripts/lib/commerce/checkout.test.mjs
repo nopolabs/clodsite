@@ -251,7 +251,7 @@ test('a personalized item is HEAD-verified, then carried in metadata with its pr
       fulfillment_ref: 'bbpp-print',
       qty: 1,
       personalization_id: TOKEN,
-      personalization_url: 'https://shop.example.com/parchment/cert/' + TOKEN + '?scale=3',
+      personalization_url: 'https://shop.example.com/parchment/cert/' + TOKEN + '?scale=2',
     },
   ]);
 });
