@@ -16,7 +16,7 @@ And stop.
 SITE_NAME=<site-name> bash scripts/validate-plan.sh
 ```
 
-If this exits with errors, print them clearly to the user and stop. The user should re-run `/plan <site-name>` to regenerate the build plan.
+If this exits with errors, print them clearly to the user and stop. Correct `$SITES_DIR/<site-name>/build-plan.yaml` directly to resolve them, then re-run validation.
 
 ---
 

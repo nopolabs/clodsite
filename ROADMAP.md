@@ -94,14 +94,7 @@ Cross-file checks that JSON Schema cannot express (nav/page cross-references,
 catalog slug resolution, filesystem existence) remain as a thin imperative
 layer on top of the schema.
 
-### 6. Retire the `site-spec.json` legacy bridge
-
-Make `build-plan.yaml` the only active site-authoring contract. Preserve the
-guided `/interview` experience, but have it produce and validate a complete
-plan directly; remove `/plan`, the intermediate JSON artifact, its scripts,
-tests, fixtures, and permissions. Correct current operational documentation
-while retaining dated design and implementation records as history. Design:
-`docs/superpowers/specs/2026-06-12-site-spec-retirement-design.md`.
+*(Item 6, "Retire the `site-spec.json` legacy bridge", shipped June 2026 — see Completed below. Numbering is preserved so existing references to later items stay stable.)*
 
 ### 7. Governed preview-and-revise workflow
 
@@ -223,6 +216,20 @@ plumbing has a target to satisfy.
 
 ## Completed
 
+### Retired the `site-spec.json` legacy bridge
+Shipped June 2026 (pending item 6). `build-plan.yaml` is now the only active
+site-authoring contract. `/interview` was rebuilt to write and validate a
+complete `build-plan.yaml` directly (display name and slug included) instead of
+producing an intermediate `site-spec.json`; it now calls `validate-plan.sh`.
+Removed `/plan` and the six legacy scripts/modules (`write-spec`,
+`validate-spec`, `finalize-plan` × `.sh`/`.mjs`), their tests, all six spec
+fixtures, and the obsolete `site-spec.json` setup in the deploy-finalize tests.
+Dropped the matching command permissions and corrected current operational docs
+(README, CLAUDE.md, command help, demo shot list). Dated design and
+implementation records were left intact as history. Existing sites that still
+carry a `site-spec.json` keep building — no production command reads it. Design:
+`docs/superpowers/specs/2026-06-12-site-spec-retirement-design.md`.
+
 ### Extracted embedded JavaScript from bash scripts ("extract, don't rewrite")
 
 Shipped June 2026. Eight scripts that embedded JavaScript programs inside
@@ -308,8 +315,8 @@ directory is now read-only shared infrastructure: base layout, theme CSS,
 favicon, and the Eleventy installation. Building one site never touches another.
 
 ### `/teardown` command
-Shipped May 2026. Deletes the Cloudflare Pages project by name (read from the
-spec). If the site has a custom domain configured, also deletes the CNAME record
+Shipped May 2026. Deletes the Cloudflare Pages project by name (read from
+`build-plan.yaml`). If the site has a custom domain configured, also deletes the CNAME record
 from Cloudflare DNS. Requires explicit confirmation via `--yes`; deliberately
 separate from `/setup clean` since destroying a live site is a different intent
 from clearing local build artifacts.

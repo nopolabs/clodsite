@@ -22,7 +22,7 @@ Show Clodsite quick-start help.
 | File | Written by |
 |------|-----------|
 | `.env` | `/setup` |
-| `$SITES_DIR/<site-name>/build-plan.yaml` | AI agent or `/plan <site-name>` |
+| `$SITES_DIR/<site-name>/build-plan.yaml` | AI agent (or `/interview <site-name>`) |
 | `$SITES_DIR/<site-name>/src/*.njk` + `$SITES_DIR/<site-name>/dist/` | `/build <site-name>` |
 | `$SITES_DIR/<site-name>/NEXT-STEPS.md` | `/deploy <site-name>` |
 

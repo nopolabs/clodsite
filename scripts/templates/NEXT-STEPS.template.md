@@ -40,8 +40,8 @@ it prints the exact record to add at your registrar.
 
 ## Make changes to your site
 
-- **Edit page content:** Open Claude Code in this directory and modify the `.njk` files in `scaffold/src/`
-- **Change structure or branding:** Re-run `/interview` to update the spec, then `/plan` and `/build`
+- **Edit page content:** Open Claude Code in this directory and edit `build-plan.yaml`, then re-run `/build`
+- **Change structure or branding:** Edit `build-plan.yaml` directly (or re-run `/interview`), then `/build`
 - **Re-deploy after changes:** Run `/deploy {{SITE_NAME}}` (or push to GitHub if connected)
 
 ---
