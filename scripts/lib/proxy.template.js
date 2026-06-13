@@ -87,8 +87,10 @@ export async function onRequest(context) {
     } catch {
       return Response.json({ error: 'verification failed' }, { status: 403 });
     }
-    // hostnames is the __CLODSITE_TURNSTILE_HOSTNAMES__ marker until deploy
-    // provisioning replaces it — an unprovisioned function fails closed.
+    // hostnames is a deploy-time marker string until provisioning replaces
+    // it with the real hostname list — an unprovisioned function fails
+    // closed. (Never write the literal marker here: the post-patch
+    // verifier greps for it and would refuse to deploy.)
     const hostnames = Array.isArray(CONFIG.turnstile.hostnames)
       ? CONFIG.turnstile.hostnames
       : [];
