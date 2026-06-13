@@ -125,7 +125,10 @@ export async function onRequestPost(context) {
     }
     // The print-resolution variant is what fulfillment links to (design §3);
     // resolved server-side so providers stay personalization-agnostic.
-    const printUrl = origin + resolvedPath + (resolvedPath.indexOf('?') === -1 ? '?' : '&') + 'scale=3';
+    // scale=2 (2400x1700) is the print ceiling: the parchment renderer hits
+    // Cloudflare's 128 MB Worker memory cap rasterizing scale=3 (3600x2550,
+    // 9.2M px) and returns 1102. 2x is 200 DPI at 12x8.5" / 300 DPI at 8x5.67".
+    const printUrl = origin + resolvedPath + (resolvedPath.indexOf('?') === -1 ? '?' : '&') + 'scale=2';
     resolved.push({ entry, qty, personalization_id: token, personalization_url: printUrl });
   }
   const body = new URLSearchParams();
