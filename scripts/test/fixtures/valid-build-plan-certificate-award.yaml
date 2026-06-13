@@ -12,6 +12,10 @@ pages:
         heading: The Big Test Prize
         markdown: |
           Awarded with great ceremony.
+        image:
+          src: /assets/seal.png
+          alt: Test Prize Seal
+        image_position: above
         actions:
           - label: Award the Prize
             href: "#award"
