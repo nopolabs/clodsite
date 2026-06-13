@@ -2,6 +2,13 @@
   max-width: 560px;
 }
 
+/* The award flow toggles visibility via the hidden attribute; without this
+   guard, display: flex on the form would override the UA's [hidden] rule
+   and the form (with its "Awarding…" button) lingers after success. */
+.c-certificate-award [hidden] {
+  display: none !important;
+}
+
 .c-certificate-award__form {
   display: flex;
   flex-direction: column;
