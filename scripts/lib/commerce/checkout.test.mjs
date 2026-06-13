@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { renderCheckoutSource } from '../render-functions.mjs';
 
 const PLAN = {
+  slug: 'crow-shop',
   commerce: {
     enabled: true,
     provider: 'manual',
@@ -110,6 +111,9 @@ test('valid cart creates a Stripe session and returns its url', async (t) => {
   assert.equal(calls[0].url, 'https://api.stripe.com/v1/checkout/sessions');
   assert.equal(calls[0].init.headers['Authorization'], 'Bearer sk_test_key');
   assert.equal(calls[0].init.headers['Content-Type'], 'application/x-www-form-urlencoded');
+  // The session is stamped with the originating site so each webhook on the
+  // shared Stripe account fulfills only its own orders.
+  assert.equal(calls[0].params.get('metadata[site]'), 'crow-shop');
 });
 
 test('line items carry server-resolved prices, never client prices', async (t) => {

@@ -49,6 +49,10 @@ export function buildCheckoutConfig(plan, catalog) {
   }
   const shipping = commerce.shipping || {};
   return {
+    // Stripe fans every event out to every webhook endpoint on the shared
+    // account; the session is stamped with this slug so each site's webhook
+    // fulfills only its own orders (no cross-tenant fulfillment / PII leak).
+    site: plan.slug,
     currency: commerce.currency,
     option_names: optionNames,
     items,
@@ -96,7 +100,8 @@ export function renderWebhookSource(plan) {
   }
   return fs.readFileSync(path.join(LIB_DIR, 'commerce', 'webhook.template.js'), 'utf8')
     .replace('{{CREATE_ORDER}}', () => createOrder)
-    .replace('{{PROVIDER_ENV}}', () => JSON.stringify(providerEnv));
+    .replace('{{PROVIDER_ENV}}', () => JSON.stringify(providerEnv))
+    .replace('{{SITE}}', () => JSON.stringify(plan.slug));
 }
 
 // ── proxy config ──────────────────────────────────────────────────────────────
