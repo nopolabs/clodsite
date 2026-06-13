@@ -1,5 +1,7 @@
 Conduct the Clodsite site interview. You are helping someone build a website. Be conversational, professional, and efficient. Ask one question at a time and wait for the answer before proceeding.
 
+`/interview` is an optional guided way to produce the build contract. It is not required — an AI agent may also produce `$SITES_DIR/<site-name>/build-plan.yaml` directly from a customer conversation, brief, source documents, existing copy, or any other collaboration path. The interview simply gives a structured discovery flow that ends in the same place: a complete, validated `build-plan.yaml`.
+
 ---
 
 **Get site name.** Look at what the user typed after `/interview`. That word or slug is the site name. If they typed `/interview` with nothing after it, respond:
@@ -20,7 +22,7 @@ SITE_NAME=<site-name> bash -c 'source scripts/lib/sites.sh && clodsite_init_site
 
 If it prints `EXISTS`, tell the user:
 
-> "`$SITES_DIR/<site-name>/` already exists. Use `/plan <site-name>` or `/build <site-name>` to continue it. Use `/setup clean <site-name>` to start over."
+> "`$SITES_DIR/<site-name>/` already exists. Edit `$SITES_DIR/<site-name>/build-plan.yaml` directly or run `/build <site-name>` to continue it. Use `/setup clean <site-name>` to start over."
 
 And stop.
 
@@ -34,7 +36,7 @@ SITE_NAME=<site-name> bash -c 'source scripts/lib/sites.sh && clodsite_init_site
 
 ---
 
-**Shortcut:** If the user points you to an answers file (e.g. "read from docs/demo/interview-answers.md"), read that file and synthesize the spec directly from it — skip the interactive questions entirely.
+**Shortcut:** If the user points you to an answers file (e.g. "read from docs/demo/interview-answers.md"), read that file and synthesize the plan directly from it — skip the interactive questions entirely.
 
 ---
 
@@ -55,59 +57,95 @@ SITE_NAME=<site-name> bash -c 'source scripts/lib/sites.sh && clodsite_init_site
 
 ---
 
-**[LLM]** Once all answers are collected, synthesize them into a single JSON object. The `site.name` field should be the human-readable version of the site name (may differ from the slug). Follow this schema exactly — no extra fields, no comments, no trailing commas:
+**[SCRIPT]** Generate the component catalog reference so you author against the current component vocabulary:
 
-```json
-{
-  "site": {
-    "name": "...",
-    "purpose": "...",
-    "audience": "...",
-    "tone": "professional|casual|technical|friendly",
-    "style": "minimal|professional|bold"
-  },
-  "pages": [
-    {
-      "id": "lowercase-slug",
-      "title": "Display Name",
-      "purpose": "one sentence",
-      "content_outline": "user copy or draft directive"
-    }
-  ],
-  "nav": {
-    "order": ["page-id-1", "page-id-2"]
-  },
-  "contact": {
-    "enabled": true,
-    "email": "address@example.com"
-  },
-  "domain": {
-    "custom": false,
-    "hostname": ""
-  },
-  "content_status": "provided|draft",
-  "meta": {
-    "generated_at": "ISO-8601 timestamp of right now",
-    "spec_version": "1.0"
-  }
-}
+```bash
+bash scripts/generate-catalog-md.sh
 ```
 
-Rules:
-- `pages[].id` must be lowercase, no spaces, hyphens only (e.g., `home`, `about`, `our-work`)
-- `nav.order` must list every page id
-- If `contact.enabled = false`, omit `email` or set it to `""`
-- If `domain.custom = false`, set `hostname: ""`
-- `content_status` = `"provided"` if user supplied copy; `"draft"` if Claude should write it
-
-Write the JSON to `$SITES_DIR/<site-name>/site-spec.json`. Use the Write tool. First run `mkdir -p "$SITES_DIR/<site-name>"` if the directory doesn't already exist. The file should contain only the JSON — no markdown fences, no explanation.
+**[LLM]** Read `components/CATALOG.md` before constructing component arrays. You MUST only use the component types listed there — `validate-plan.sh` rejects unknown types. Use the catalog's constrained communication patterns rather than inventing layout fields or raw HTML.
 
 ---
 
-**[SCRIPT]** Run:
+**[LLM] Confirm before writing.** Present a concise summary of what you will build — display name, slug, style, tone, the page list with one-line purposes, navigation order, and contact setting. Ask the user to confirm or correct it before you write any files.
 
-```bash
-SITE_NAME=<site-name> bash scripts/write-spec.sh
+---
+
+**[LLM]** Once confirmed, write a complete `$SITES_DIR/<site-name>/build-plan.yaml` using the Write tool. This is the build contract — the inference boundary. The YAML schema:
+
+```yaml
+slug: <site directory name — same as <site-name>, e.g. acme-corp>
+name: <human-readable display name — may differ from the slug>
+overview: >-
+  <one paragraph — purpose, audience, tone>
+style: <minimal|professional|bold>
+tone: <professional|casual|technical|friendly>
+custom_domain: <optional hostname only, e.g. www.example.com, or "">
+head: <optional site-wide metadata defaults>
+  description: <concise default search and sharing description>
+  image: <optional social sharing image>
+    src: <site-root path or absolute https:// URL>
+    alt: <accessible image description>
+pages:
+  - id: <page id>
+    title: <page title>
+    head: <optional page-specific description and/or image overrides>
+    components:
+      - type: <component name from components/CATALOG.md>
+        # ... required and optional fields per the component's schema
+nav:
+  order:
+    - <page ids in nav order — must list every page id>
+contact:
+  enabled: <true or false>
+  email: <email address — omit this key if contact.enabled is false>
+headers: <optional Cloudflare Pages static response-header rules>
+  - path: /*
+    values:
+      X-Content-Type-Options: nosniff
 ```
 
-This validates the JSON is parseable and pretty-prints it in place.
+**Rules:**
+- Write a complete plan — include both `slug` and the human-readable `name`.
+- `pages[].id` must be lowercase, no spaces, hyphens only (e.g., `home`, `about`, `our-work`).
+- `nav.order` must list every page id.
+- If `contact.enabled` is false, omit the `email` key.
+- If there is no custom domain, set `custom_domain: ""`.
+
+**Content rules for `pages[n].components`:**
+
+The default and most common component is `prose`, which accepts a `markdown`
+field containing GFM (headings, paragraphs, lists, links, fenced code blocks,
+tables). A page whose body is purely textual is a single `prose` component.
+Pages that need richer presentation compose multiple components in order;
+components stack vertically.
+
+- If the user supplied copy: use it as-is inside a `prose` component's
+  `markdown` field.
+- If you are drafting: write complete, publish-ready copy as GFM inside a
+  `prose` component's `markdown` field. Match the site tone.
+- Component fields use the appropriate YAML type (string, array, object) per
+  the component's schema.
+
+Use `head.description` for concise search and sharing copy. Add page-level
+descriptions when pages have distinct purposes. Root-relative sharing images
+become absolute when `custom_domain` is configured. Do not invent response
+headers; include `headers` only when the site has an explicit policy.
+
+Write only the YAML to the file — no markdown fences, no explanation.
+
+---
+
+**[SCRIPT]** Validate the plan:
+
+```bash
+SITE_NAME=<site-name> bash scripts/validate-plan.sh
+```
+
+If this exits with errors, print them clearly to the user, correct
+`build-plan.yaml` directly, and re-run validation. Do not proceed until the
+plan is valid.
+
+---
+
+Tell the user: "Review `$SITES_DIR/<site-name>/build-plan.yaml` — this is the build contract. Check the page content, component structure, navigation, style, and contact settings. When ready, run `/build <site-name>` (or `/deploy <site-name>`)."

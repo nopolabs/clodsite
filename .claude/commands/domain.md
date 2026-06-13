@@ -20,7 +20,7 @@ Wait for the reply. Then update `build-plan.yaml` using the Write tool:
 - Set `custom_domain` to the hostname only, with no protocol or path
 - Leave all other fields unchanged
 
-The deployed `*.pages.dev` URL is read from Cloudflare at script time. Do not write deployment URLs into `site-spec.json` or `build-plan.yaml`.
+The deployed `*.pages.dev` URL is read from Cloudflare at script time. Do not write deployment URLs into `build-plan.yaml`.
 
 If the site has not been deployed yet, `domain.sh` will report that no Cloudflare Pages project exists for the plan's `slug`. In that case tell the user:
 

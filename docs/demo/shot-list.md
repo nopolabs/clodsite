@@ -61,21 +61,21 @@ Claude Code opens with an empty prompt. **Press Shift+Tab once** — this enters
 
 ## Shot 4 (0:45–1:30) — `/interview` (the showcase)
 
-**Show:** `/interview`. Answer each of the 10 questions briskly using `interview-answers.md`. As answers land, the spec JSON gets written.
+**Show:** `/interview clodsite-demo`. Answer each question briskly using `interview-answers.md`. Claude confirms a short summary, then writes `build-plan.yaml` directly and validates it.
 
 **Voice (over the typing):**
-> "The interview. Ten questions, one at a time. This is the LLM doing what LLMs are good at — synthesizing intent from natural language into a structured JSON spec. That spec is the contract that keeps every step downstream deterministic."
+> "The interview. A handful of questions, one at a time. This is the LLM doing what LLMs are good at — synthesizing intent from natural language straight into `build-plan.yaml`. There's no intermediate format: the interview lands directly on the build contract, and a script validates it. `/interview` is optional — you can also just write `build-plan.yaml` with the agent however you like."
 
 *If typing drags, the voiceover continues smoothly while you catch up — viewers don't need to read every keystroke.*
 
 ---
 
-## Shot 5 (1:30–2:00) — `/plan`
+## Shot 5 (1:30–2:00) — Review the plan
 
-**Show:** `/plan`. validate-spec passes. Claude generates `site/build-plan.md`. Briefly open it to show real generated copy.
+**Show:** Open `build-plan.yaml`. Scroll through it to show the real generated copy, components, navigation, and contact settings.
 
 **Voice:**
-> "/plan validates the spec — that's a script — then generates the actual page copy. That's the LLM. The build-plan is a reviewable artifact. Read it, approve it, then build."
+> "`build-plan.yaml` is the inference boundary — and a reviewable artifact. Everything before it is collaboration; everything after it is deterministic scripts. Read it, correct anything inline, approve it, then build."
 
 ---
 
@@ -84,7 +84,7 @@ Claude Code opens with an empty prompt. **Press Shift+Tab once** — this enters
 **Show:** `/build` writes Nunjucks templates, Eleventy build runs, `site/dist/` populated. `/deploy` ensures the Cloudflare Pages project exists, deploys, and prints the live URL.
 
 **Voice:**
-> "/build writes the page templates — that's the LLM — and runs Eleventy — that's a script. /deploy ensures the Pages project exists and ships the build. The live URL appears."
+> "/build is pure script — it renders the page templates from `build-plan.yaml` and runs Eleventy. No LLM, no content decisions. /deploy ensures the Pages project exists and ships the build. The live URL appears."
 
 ---
 
@@ -110,7 +110,7 @@ Claude Code opens with an empty prompt. **Press Shift+Tab once** — this enters
 
 1. Upload the `.mov` to YouTube as **unlisted**.
 2. Copy your video ID from the YouTube URL (the part after `watch?v=`).
-3. In `~/dev/clodsite-demo/site/build-plan.md`, find the Demo page section and replace the video placeholder description with:
+3. In `~/dev/clodsite-demo/build-plan.yaml`, find the Demo page section and replace the video placeholder description with:
 
    ```html
    <div class="video-wrap">
@@ -123,7 +123,7 @@ Claude Code opens with an empty prompt. **Press Shift+Tab once** — this enters
    </div>
    ```
 
-   **Do not edit `scaffold/src/demo.njk` directly** — `/build` regenerates it from `build-plan.md` and will overwrite any manual edits.
+   **Do not edit the generated `src/demo.njk` directly** — `/build` regenerates it from `build-plan.yaml` and will overwrite any manual edits.
 
 4. `cd ~/dev/clodsite-demo && claude`, then `/build`, then `/deploy`.
 5. (Optional, post-hackathon) wire up the `clodsite.com` custom domain via the dashboard steps in `site/NEXT-STEPS.md`.

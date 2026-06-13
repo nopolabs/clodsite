@@ -21,7 +21,7 @@ To build and inspect `dist/` without publishing: `/build <site-name>`
 
 After deploying: `/domain <site-name>` to connect a custom domain, `/teardown <site-name>` to delete a Pages project.
 
-`SITES_DIR` defaults to `sites/` and may be set in `.env` to point at a separate private sites repo. `/interview` and `/plan` still exist as legacy scaffolding commands, but they are not the core model. The core model is: collaborate until `build-plan.yaml` is valid and approved, then build and deploy.
+`SITES_DIR` defaults to `sites/` and may be set in `.env` to point at a separate private sites repo. `/interview` is an optional guided way to produce `build-plan.yaml`, but it is not required. The core model is: collaborate until `build-plan.yaml` is valid and approved, then build and deploy.
 
 Type `/help` at any time to see this again.
 
@@ -51,22 +51,18 @@ and KV resources are created or reused during deployment.
 [SCRIPT] bash scripts/setup.sh --init-sites  (initialize SITES_DIR as a git repo)
 ```
 
-### `/interview` — `[LLM]` legacy scaffold
-Guided interview session. Produces `$SITES_DIR/<site-name>/site-spec.json`. This was the original discovery path and remains useful as a structured fallback, but it is not required by the build pipeline.
+### `/interview` — `[HYBRID]` optional
+Optional guided discovery session. Produces and validates a complete
+`$SITES_DIR/<site-name>/build-plan.yaml` — the inference boundary — directly.
+Not required: an agent may also produce `build-plan.yaml` from a customer
+brief, notes, files, or an interactive conversation.
 
 ```
-[LLM]    Conduct interview, synthesize answers into JSON
-[SCRIPT] bash scripts/write-spec.sh
-```
-
-### `/plan` — `[HYBRID]` legacy scaffold
-Validate a legacy spec. Write all page content. Produces `$SITES_DIR/<site-name>/build-plan.yaml` — the actual inference boundary. Agents may also produce `build-plan.yaml` directly from a customer brief, notes, files, or an interactive conversation.
-
-```
-[SCRIPT] bash scripts/validate-spec.sh
+[SCRIPT] create site dir
+[LLM]    Conduct interview (or read an answers file)
 [SCRIPT] bash scripts/generate-catalog-md.sh
-[LLM]    Generate $SITES_DIR/<site-name>/build-plan.yaml (reads components/CATALOG.md for the component vocabulary)
-[SCRIPT] SITE_NAME=<site-name> bash scripts/finalize-plan.sh
+[LLM]    Confirm summary, then write $SITES_DIR/<site-name>/build-plan.yaml (reads components/CATALOG.md for the component vocabulary)
+[SCRIPT] SITE_NAME=<site-name> bash scripts/validate-plan.sh
 ```
 
 User reviews `$SITES_DIR/<site-name>/build-plan.yaml` before running `/build`.
@@ -172,8 +168,7 @@ The LLM handles: collecting user input through the chat, reading source material
 | File | Written by | Purpose |
 |------|-----------|---------|
 | `.env` | `/setup` | Cloudflare credentials |
-| `$SITES_DIR/<site-name>/site-spec.json` | `/interview <site-name>` | Optional legacy discovery artifact |
-| `$SITES_DIR/<site-name>/build-plan.yaml` | AI agent or `/plan <site-name>` | Contract for the build: display name, slug, style, content, metadata, response headers, pages, nav, contact, optional custom domain, and typed component arrays |
+| `$SITES_DIR/<site-name>/build-plan.yaml` | AI agent or `/interview <site-name>` | Contract for the build: display name, slug, style, content, metadata, response headers, pages, nav, contact, optional custom domain, and typed component arrays |
 | `$SITES_DIR/<site-name>/src/_data/site.json` | `/build <site-name>` | Structural site data for Eleventy (gitignored) |
 | `$SITES_DIR/<site-name>/src/*.njk` | `/build <site-name>` (via `render-templates.sh`) | Page templates with content (gitignored) |
 | `$SITES_DIR/<site-name>/dist/` | `/build <site-name>` | Built static site |

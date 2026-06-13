@@ -116,8 +116,7 @@ Every step is labeled with its execution type:
 
 ```
 /setup       [HYBRID]  — credential prompts + bash verification
-/interview   [LLM]     — legacy guided session → site-spec.json
-/plan        [HYBRID]  — legacy bridge from site-spec.json → build-plan.yaml
+/interview   [LLM]     — optional guided session → build-plan.yaml
 /build       [SCRIPT]  — validate build-plan.yaml, render templates, run Eleventy
 /deploy      [SCRIPT]  — wrangler pages deploy + LLM error interpretation
 /domain      [HYBRID]  — script wires up DNS, LLM interprets result

@@ -1,9 +1,9 @@
 # Interview Answers — clodsite.com demo
 
-Use these to answer the 10 questions in `/interview` during the demo recording.
+Use these to answer the questions in `/interview` during the demo recording.
 Keep this open in a side window or printed; the goal is rapid, deliberate answers.
 
-> Adjust to taste — this is a starting draft. Don't agonize over wording; Claude rewrites Q9 in `/plan`.
+> Adjust to taste — this is a starting draft. Don't agonize over wording; Claude writes the real Q9 copy directly into `build-plan.yaml`.
 
 ---
 
@@ -42,7 +42,7 @@ Home, Design, Demo, Roadmap
 
 draft
 
-## Q9. Brief for each page (Claude writes the real copy in `/plan`)
+## Q9. Brief for each page (Claude writes the real copy into `build-plan.yaml`)
 
 - **Home:** Hero with a one-line tagline. One paragraph explaining the lane assignment between LLM and scripts. The five-command sequence as a code block. Pointers to Design and Demo. Link to https://github.com/nopolabs/clodsite. Quick start: git clone https://github.com/nopolabs/clodsite my-site && cd my-site && claude
 - **Design:** The architecture story. English is expressive but expensive to execute as inference. Scripts handle deterministic work; LLMs handle reasoning, generation, interpretation. Walk through where each runs in Clodsite. Note Model A (Claude orchestrates) is v1; Model B (a script driver calling `claude -p`) is the natural evolution.

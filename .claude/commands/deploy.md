@@ -32,7 +32,7 @@ Stop here — do not run the Cloudflare deploy steps below.
 bash scripts/build-deploy.sh <site-name> "<message>"
 ```
 
-This validates the plan, renders templates and Functions, builds `dist/`, deploys to Cloudflare Pages, generates `$SITES_DIR/<site-name>/NEXT-STEPS.md`, commits the deployed site inside the `SITES_DIR` git repo, and prints the production URL. It does not write back to `site-spec.json`; `build-plan.yaml` remains the build contract.
+This validates the plan, renders templates and Functions, builds `dist/`, deploys to Cloudflare Pages, generates `$SITES_DIR/<site-name>/NEXT-STEPS.md`, commits the deployed site inside the `SITES_DIR` git repo, and prints the production URL. `build-plan.yaml` remains the build contract.
 
 ---
 

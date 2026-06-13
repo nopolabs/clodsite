@@ -176,42 +176,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# ── validate-spec.sh ──────────────────────────────────────────────────────────
-echo "=== validate-spec.sh ==="
-
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
-bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "valid spec passes" 0 $?
-
-cp scripts/test/fixtures/invalid-missing-field.json "${SITE_DIR}/site-spec.json"
-bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "missing field exits 1" 1 $?
-
-cp scripts/test/fixtures/invalid-bad-enum.json "${SITE_DIR}/site-spec.json"
-bash scripts/validate-spec.sh > /dev/null 2>&1; assert_exit "bad enum exits 1" 1 $?
-
-# ── write-spec.sh ─────────────────────────────────────────────────────────────
-echo ""
-echo "=== write-spec.sh ==="
-
-# Missing spec → exits 1
-rm -f "${SITE_DIR}/site-spec.json"
-bash scripts/write-spec.sh > /dev/null 2>&1; assert_exit "missing spec exits 1" 1 $?
-
-# Invalid JSON → exits 1
-echo '{ not json' > "${SITE_DIR}/site-spec.json"
-bash scripts/write-spec.sh > /dev/null 2>&1; assert_exit "invalid JSON exits 1" 1 $?
-
-# Valid spec → exits 0 and is pretty-printed in place
-tr -d '\n ' < scripts/test/fixtures/valid-spec.json > "${SITE_DIR}/site-spec.json"  # minify first
-bash scripts/write-spec.sh > /dev/null 2>&1; assert_exit "valid spec exits 0" 0 $?
-SPEC_LINES=$(wc -l < "${SITE_DIR}/site-spec.json")
-if [ "$SPEC_LINES" -gt 1 ]; then
-  echo "  ✓ spec pretty-printed in place"
-  PASS=$((PASS + 1))
-else
-  echo "  ✗ spec not pretty-printed (still ${SPEC_LINES} line)"
-  FAIL=$((FAIL + 1))
-fi
-
 # ── write-site-json.sh ────────────────────────────────────────────────────────
 echo ""
 echo "=== write-site-json.sh ==="
@@ -364,7 +328,6 @@ rm -f "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "missing .deploy-output exits 1" 1 $?
 
 # Valid .deploy-output → exits 0, writes NEXT-STEPS.md
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
 cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with output exits 0" 0 $?
@@ -372,7 +335,6 @@ assert_file_exists "NEXT-STEPS.md created" "${SITE_DIR}/NEXT-STEPS.md"
 
 # No sites/.git → git block is skipped, exits 0
 rm -rf sites/.git
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
 cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize without sites/.git exits 0" 0 $?
@@ -385,7 +347,6 @@ mkdir -p "${SITE_DIR}"
 git init -q sites
 git -C sites config user.email "test@example.com"
 git -C sites config user.name "Test"
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
 cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with sites/.git exits 0" 0 $?
@@ -1176,50 +1137,6 @@ nav:
 contact:
   enabled: false' > "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "custom_domain URL exits 1" 1 $?
-
-# ── finalize-plan.sh ──────────────────────────────────────────────────────────
-echo ""
-echo "=== finalize-plan.sh ==="
-
-# Happy path: spec + plan without name → injects name, exits 0
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
-printf '%s\n' 'slug: nopo-labs
-overview: A portfolio site.
-style: minimal
-tone: professional
-pages:
-  - id: home
-    title: Home
-    components:
-      - type: prose
-        markdown: Hello.
-nav:
-  order:
-    - home
-contact:
-  enabled: false' > "${SITE_DIR}/build-plan.yaml"
-bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan injects name, exits 0" 0 $?
-if node -e "const yaml=require('js-yaml'); const p=yaml.load(require('fs').readFileSync('${SITE_DIR}/build-plan.yaml','utf8')); process.exit(p.name === 'Nopo Labs' ? 0 : 1);" 2>/dev/null; then
-  echo "  ✓ name correctly injected into build-plan.yaml"
-  PASS=$((PASS + 1))
-else
-  echo "  ✗ name not correctly injected"
-  FAIL=$((FAIL + 1))
-fi
-
-# Missing spec → exits 1
-rm -f "${SITE_DIR}/site-spec.json"
-bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan missing spec exits 1" 1 $?
-
-# Missing plan → exits 1
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
-rm -f "${SITE_DIR}/build-plan.yaml"
-bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan missing plan exits 1" 1 $?
-
-# Invalid plan (missing page content) → name injected but validate fails → exits 1
-cp scripts/test/fixtures/valid-spec.json "${SITE_DIR}/site-spec.json"
-cp scripts/test/fixtures/invalid-build-plan-missing-content.yaml "${SITE_DIR}/build-plan.yaml"
-bash scripts/finalize-plan.sh > /dev/null 2>&1; assert_exit "finalize-plan with invalid plan exits 1" 1 $?
 
 # ── render-functions.sh ───────────────────────────────────────────────────────
 echo ""
