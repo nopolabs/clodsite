@@ -130,12 +130,29 @@ scenario lists the owner-level input and an acceptance checklist used to define
 | 4 | Add a product catalog | "We want to sell three products with prices" | Catalog renders 3 products with prices/images |
 | 5 | Enable checkout + fulfillment | "Let people actually buy, email us each order" | Checkout works end to end; order recorded; fulfillment fires |
 | 6 | Change the theme/visual style | "Make it bolder / switch the look" | Visual style changes site-wide; content unchanged |
-| 7 | Extend a component / content shape | "Add a testimonials section to the home page" | New section present and correct; rest unchanged |
+| 7a | Compose existing components | "Add a testimonials section and a closing call-to-action to the home page" | Section renders from existing components; other pages unchanged |
+| 7b | Add an unsupported content shape | "Add an FAQ with collapsible questions and answers" | FAQ renders and behaves correctly; other pages unchanged |
 | 8 | Rebuild with no change | (none — rebuild twice from unchanged source) | Output identical across builds (determinism) |
 
-Scenarios 2, 3, 6, 7 are the **drift detectors**: each has an explicit "other
+Scenarios 2, 3, 6, 7a are the **drift detectors**: each has an explicit "other
 pages unchanged" clause, because silent collateral breakage on edit is the
 failure mode Clodsite claims to avoid.
+
+**7a vs. 7b is a deliberate split**, because they test opposite claims and must
+be accounted differently:
+
+- **7a — containment.** The requested section is expressible with components
+  that already exist, so the Clodsite arm only edits the plan. Reviewed source is
+  the plan; expect a small diff. This is ordinary revision.
+- **7b — extensibility.** The shape is *not* in the catalog, so the Clodsite arm
+  must author a **site-local component** (its schema, template, and styles) and
+  reference it from the plan — the escape hatch from the vision. The control arm
+  writes the equivalent template, styles, and any script. For 7b the review-diff
+  metric **counts all reviewed source changed in each arm, including Clodsite
+  framework/component source — not just the plan.** This is deliberately where
+  Clodsite's containment advantage is stress-tested: expect its diff to grow, and
+  report it honestly. Hiding the component-authoring cost would flatter the
+  result.
 
 ---
 
@@ -148,7 +165,7 @@ Record per scenario, per arm, per trial.
 | Input / output **tokens** | Agent session usage (note cached vs. uncached) | "Contained, less inference" — economic core |
 | **Wall-clock time** | Start→accept timer | Practical speed |
 | **Files read / changed** | Session tool log; `git` | Scope of work per change |
-| **Review diff size** | Lines changed in the *human-reviewed source* (`build-plan.yaml` for Clodsite; templates+content for control) via `git diff --stat` | "Changes confined to a small reviewable artifact" |
+| **Review diff size** | Lines changed in the *human-reviewed source* (`build-plan.yaml` for Clodsite; templates+content for control) via `git diff --stat`. For the extensibility scenario (7b), include any new site-local component source the author must write and review (schema + template + styles), not just the plan — see §4. | "Changes confined to a small reviewable artifact" |
 | **Validation failures** | Count of failed `validate-plan` runs (Clodsite) / failed builds, type/lint errors (control) before "done" | "Agents can't ship an invalid site" — governance |
 | **Human corrections** | Count + line-size of manual edits after the agent declares done | Quality of first-pass output |
 | **Regressions** | Re-run the *prior* scenarios' acceptance checklists after each edit; count previously-passing checks now failing | "No code drift" — the differentiator |
@@ -219,9 +236,12 @@ Determinism (scenario 8):
 Summary line per arm — the headline deltas:
 
 ```text
-Clodsite vs Control (median across revision scenarios 2,3,6,7):
+Clodsite vs Control (median across revision scenarios 2,3,6,7a):
   tokens:        −__%        review diff:   −__ lines
   regressions:   __ vs __    human fixes:   __ vs __
+
+Extensibility (scenario 7b, reported separately — all reviewed source counted):
+  tokens:        __ vs __    review diff:   __ vs __ lines
 ```
 
 ---
