@@ -42,6 +42,28 @@ Clodsite arm authors `build-plan.yaml`; the control arm hand-builds a small
 conventional site (default: minimal Eleventy + Markdown). See the protocol §3
 for fairness controls.
 
+## Harness substitutions
+
+Some briefs contain `.example` placeholders that can't work live — notably the
+fulfillment address `orders@ridgelinecoffee.example` in scenario 05. Before a run,
+substitute real, operator-controlled values:
+
+- An **inbox you can read** for fulfillment email, sent from a **verified sender**
+  (Resend free tier = one verified domain).
+- Any other credentials/targets a scenario needs (Stripe **test** keys, deploy
+  target).
+
+Substitute **identically for both arms** — never differently per arm:
+
+- **Placeholders that appear in the brief text** (e.g. the fulfillment address):
+  replace them in the brief copy *both* arms receive, before handing it over. The
+  agent still gets the brief verbatim — verbatim relative to that substituted copy.
+- **Credentials** (verified sender domain, Stripe **test** keys, deploy target):
+  supply through each arm's normal config/secrets channel, not in the brief.
+
+See `acceptance/ridgeline-coffee.md` §05 for the email acceptance levels (inbox
+receipt / provider delivery / API acceptance).
+
 ## Phase 0 vs Phase 1
 
 Start with the **Phase 0 Pro pilot** (N = 1 per arm) to refine these artifacts

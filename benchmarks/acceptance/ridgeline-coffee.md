@@ -58,11 +58,28 @@ previously-passing item now failing is a regression (see `../rubric.md`).
 > Clodsite arm, the commerce KV namespace). If the environment can't support a
 > live test purchase, mark the scenario **blocked** with the reason — do not fake
 > a pass.
+>
+> **Email is operator-substituted.** `orders@ridgelinecoffee.example` is a
+> placeholder and cannot receive mail. Before the run, replace it — in the brief
+> copy **both arms receive** — with an operator-controlled inbox you can read; and
+> supply a **verified sender** (Resend free tier allows one verified domain) via
+> each arm's normal secrets channel. Substitute identically for both arms, never
+> differently per arm. Decide and record the **acceptance level** for the email
+> check:
+>
+> - **inbox receipt** (preferred) — the message actually lands in the operator
+>   inbox;
+> - **provider delivery** — the email provider reports it delivered;
+> - **API acceptance** (weakest) — the provider returned 2xx for the send.
+>
+> Use the same level for both arms. "API acceptance" only proves the request was
+> made, not that fulfillment arrived — prefer inbox receipt when feasible.
 
 - [ ] Each product can be purchased and paid for by card (Stripe **test mode**).
 - [ ] A test purchase completes end to end (checkout → confirmation).
-- [ ] The order is recorded, and a fulfillment email is sent to
-      `orders@ridgelinecoffee.example` on a successful purchase.
+- [ ] The order is recorded, and a fulfillment email reaches the
+      operator-substituted inbox (from a verified sender) on a successful
+      purchase — verified at the chosen acceptance level (see the note above).
 - [ ] Shipping is restricted to the US (address collection limited to US, or
       explicitly US-only).
 - [ ] **Drift:** prior pages still navigable and unchanged in content.

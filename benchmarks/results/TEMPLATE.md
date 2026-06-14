@@ -17,7 +17,8 @@ Run branch:     <branch or worktree>
 Autonomy cap:   <tokens / turns / wall-clock>
 Token capture:  <per-request usage  |  Pro subscription report (coarse)>
 Trials (N):     <1 for Phase 0; ≥3 for Phase 1>
-Scenario order: <fixed as listed  |  randomized — record it>
+Scenario order: fixed as listed (the fixture evolves — do not randomize)
+Arm order:      <which arm ran first this trial — alternate/randomize across trials>
 Reviewer blind: <yes/no>
 ```
 
@@ -34,8 +35,11 @@ Wall-clock:             ______
 Review-diff (lines):    ______   (7b: incl. new component source)
 Validation failures:    ______
 Self-correction cycles: ______
-Delivery gap:           ______   (acceptance fails: ___  + defects: ___)
-  - failed items / defects (with severity):
+Acceptance items failed: ______   (do not sum with extra defects)
+  - failed items (with severity):
+      - [blocker|major|minor] ...
+Extra defects:          ______   (problems NO acceptance item already covers)
+  - defects (with severity):
       - [blocker|major|minor] ...
 Regressions:            ______
   - prior items now failing (scenario → item → page):

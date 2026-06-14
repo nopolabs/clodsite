@@ -108,12 +108,17 @@ The result is only as honest as these controls:
 - **Fresh context per scenario** in both arms (no carried-over conversation
   advantage), except where a scenario explicitly tests iterative revision on an
   existing site — in which case both arms keep their own prior output.
-- **"Done" is objective.** A scenario ends when its acceptance checklist passes,
-  not when the agent says it's finished.
+- **The run ends at the agent's self-declared deliverable** (or the autonomy
+  cap), and the token/time meters stop there. Acceptance is scored against that
+  frozen snapshot *afterward* (§6) — it is **never** used to extend the run or
+  trigger more agent work. (The measured boundary is the agent's "done," not
+  "when acceptance passes.")
 - **Multiple trials.** Agent runs vary; in the measured phase do **N ≥ 3** trials
   per scenario per arm and report the **median** (note spread). The Pro pilot
-  uses **N = 1** — see Execution phases below. Fix or randomize scenario order
-  consistently across arms and record which.
+  uses **N = 1** — see Execution phases below. **Scenario order is fixed** — the
+  fixture evolves, so later scenarios depend on earlier output (catalog →
+  checkout, 7b → determinism). Randomize or alternate **arm** order within each
+  trial instead, and record which.
 
 ### Run isolation and autonomous operation
 

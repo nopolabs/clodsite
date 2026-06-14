@@ -24,23 +24,31 @@ Capture into a copy of `results/TEMPLATE.md`. From the protocol §5:
 | **Review-diff size** | Lines changed in the *human-reviewed source* (`git diff --stat`): `build-plan.yaml` for Clodsite; templates + content for the control. For the extensibility scenario (7b), **include any new component source the agent wrote** (schema + template + styles) — not just the plan. |
 | **Validation failures** | Count of failed `validate-plan` (Clodsite) / failed builds, type/lint errors (control) the agent hit during the run. |
 | **Self-correction cycles** | Build/validate/preview → fix loops before "done." |
-| **Delivery gap** | Acceptance items failed **+** defects found at "done" (below). |
+| **Delivery gap** | Two separate counts, never summed: **acceptance items failed**, and **extra defects** not covered by any acceptance item (below). |
 | **Regressions** | Previously-passing acceptance items now failing (below). |
 
 ## Delivery gap
 
-At the self-declared deliverable, run the scenario's acceptance checklist.
+At the self-declared deliverable, run the scenario's acceptance checklist. Report
+the gap as **two separate counts — do not add them together**, because a single
+problem can otherwise be counted twice:
 
 ```
-delivery gap = (# acceptance items failed) + (# functional defects found)
+acceptance items failed   = # checklist items that fail
+extra defects             = # problems found that NO checklist item already covers
 ```
 
-A lower delivery gap means a more complete autonomous first delivery. Record the
-list, not just the count.
+A wrong price or an inert FAQ is already a failed acceptance item — it is **not**
+also an extra defect. "Extra defects" captures only out-of-checklist problems the
+scenario didn't anticipate (e.g. a broken link on an unrelated section, a console
+error, a leftover placeholder). A lower gap on both counts means a more complete
+autonomous first delivery. Record the lists, not just the counts.
 
-### Functional defect categories (first benchmark)
+### Defect categories (first benchmark)
 
-Count any of these found while applying the checklist:
+These describe the *kinds* of problems to look for. A problem in one of these
+categories is an **extra defect only if no acceptance item already represents it**
+— otherwise it is just that failed acceptance item.
 
 - **Broken route/link** — a nav entry or link that 404s or dead-ends.
 - **Missing requested content** — something the brief asked for that isn't there.
