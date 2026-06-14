@@ -114,6 +114,40 @@ The result is only as honest as these controls:
   and report the **median** (note spread). Fix or randomize scenario order
   consistently across arms and record which.
 
+### Run isolation and autonomous operation
+
+Two requirements shape every run:
+
+**Isolated branches — the experiment never touches the stable product.** Each
+arm works on its own branch (or git worktree) off a pinned baseline commit, and
+nothing lands on `main`:
+
+- *Clodsite arm:* branch off the pinned clodsite `main`. Any engine change a
+  scenario forces — notably the new component in 7b — lives only on that branch,
+  is archived under `benchmarks/runs/<date>/clodsite/`, and is discarded from
+  `main`. The stable catalog and product are never modified by a benchmark run.
+- *Control arm:* branch off its pinned control-repo baseline, same discipline.
+
+Each trial starts from the pinned commit, branches, runs, and keeps the branch
+as the run artifact.
+
+**Autonomous to a self-declared deliverable — no human in the loop mid-run.** In
+both arms the agent does all development *and* testing itself — authoring,
+building, validating, previewing, and iterating — until it judges the site
+deliverable. There is no human guidance or correction during the run. To make
+this possible and fair:
+
+- Both arms get an **equivalent self-service toolset**: build, local preview, and
+  validation/test commands they can run and observe (Clodsite: `validate-plan`,
+  build, local deploy; control: build, serve). Neither arm gets a capability the
+  other lacks.
+- A **bound caps runaway** — a token/turn/wall-clock budget. Record whether a run
+  hit the cap and stopped short of a deliverable (itself a result).
+- The agent signals "done"; that snapshot **is** the deliverable. Acceptance,
+  regression, and defect review are applied to it **after the fact, blind, and
+  without editing it** (§6). We measure what the agent actually shipped on its
+  own — not a human-polished version.
+
 ---
 
 ## 4. Scenarios
@@ -175,8 +209,9 @@ Record per scenario, per arm, per trial.
 | **Wall-clock time** | Start→accept timer | Practical speed |
 | **Files read / changed** | Session tool log; `git` | Scope of work per change |
 | **Review diff size** | Lines changed in the *human-reviewed source* (`build-plan.yaml` for Clodsite; templates+content for control) via `git diff --stat`. For the extensibility scenario (7b), include any new site-local component source the author must write and review (schema + template + styles), not just the plan — see §4. | "Changes confined to a small reviewable artifact" |
-| **Validation failures** | Count of failed `validate-plan` runs (Clodsite) / failed builds, type/lint errors (control) before "done" | "Agents can't ship an invalid site" — governance |
-| **Human corrections** | Count + line-size of manual edits after the agent declares done | Quality of first-pass output |
+| **Validation failures** | Count of failed `validate-plan` runs (Clodsite) / failed builds, type/lint errors (control) the agent hit during its autonomous run | "Agents can't ship an invalid site" — governance |
+| **Self-correction cycles** | Build/validate/preview→fix loops the agent ran before declaring "done" | Friction reaching a deliverable |
+| **Delivery gap** | At the self-declared deliverable: acceptance items failed + defect count, scored **blind and without editing** (no mid-run human help) | Quality of the autonomous first delivery |
 | **Regressions** | Re-run the *prior* scenarios' acceptance checklists after each edit; count previously-passing checks now failing | "No code drift" — the differentiator |
 | **Build determinism** | Build twice from unchanged source; hash `dist/` (excluding known nondeterministic fields like timestamps); compare | "Deterministic by design" — verified, not asserted |
 
@@ -195,17 +230,25 @@ Notes:
 
 For each arm:
 
-1. **Setup.** Pin the model/agent version. Create a clean working location.
-   Record environment (versions of Clodsite, Node, the control stack).
+1. **Setup.** Pin the model/agent version. For each arm, branch (or create a
+   worktree) off the pinned baseline commit — never work on `main`. Record
+   environment (versions of Clodsite, Node, the control stack) and the equivalent
+   self-service toolset and run cap given to both arms.
 2. **Per scenario, per trial:**
-   a. Reset to the post-previous-scenario state (or clean, for scenario 1).
-   b. Start the token + time meters.
+   a. Reset to the post-previous-scenario state on the arm's branch (or clean,
+      for scenario 1).
+   b. Start the token + time meters; set the run cap.
    c. Hand the agent the owner-level input verbatim.
-   d. Let it work to completion; count validation failures / failed builds.
-   e. Apply the acceptance checklist. Make the minimum human corrections needed
-      to pass; record their count and size.
-   f. Run the cumulative regression checklist; record failures.
-   g. Stop meters; record all metrics.
+   d. **The agent runs autonomously** — authoring, building, validating, and
+      previewing on its own — until it declares the site deliverable or hits the
+      cap. No human guidance or edits. Count validation failures and
+      self-correction cycles along the way.
+   e. At the self-declared deliverable, apply the acceptance checklist **blind and
+      without editing** the output. Record acceptance pass/fail and the defect
+      count (the delivery gap). Do not fix-and-continue.
+   f. Run the cumulative regression checklist against that same snapshot; record
+      failures.
+   g. Stop meters; record all metrics. Keep the branch as the run artifact.
 3. **Determinism (scenario 8):** from the final unchanged source, build twice;
    normalize and compare hashes.
 4. Repeat for N trials; compute medians and spread.
@@ -227,13 +270,13 @@ Control stack:   minimal Eleventy + Markdown
 Trials (N):      3
 ```
 
-| # | Scenario | Arm | Tokens (in/out) | Time | Review diff (lines) | Valid. fails | Human fixes | Regressions |
-|---|---|---|---|---|---|---|---|---|
-| 1 | Create | Clodsite | | | | | | |
-| 1 | Create | Control | | | | | | |
-| 2 | Reposition | Clodsite | | | | | | |
-| 2 | Reposition | Control | | | | | | |
-| … | | | | | | | | |
+| # | Scenario | Arm | Tokens (in/out) | Time | Review diff (lines) | Valid. fails | Cycles | Delivery gap | Regressions |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | Create | Clodsite | | | | | | | |
+| 1 | Create | Control | | | | | | | |
+| 2 | Reposition | Clodsite | | | | | | | |
+| 2 | Reposition | Control | | | | | | | |
+| … | | | | | | | | | |
 
 Determinism (scenario 8):
 
@@ -268,9 +311,13 @@ it.
 - **Order / learning effects.** Iterative scenarios benefit the arm that goes
   second within a session. Fix order across arms and disclose it; prefer fresh
   context except where revision is the thing under test.
-- **Reviewer subjectivity.** "Human corrections" depends on the judge. Use a
-  fixed acceptance checklist and, ideally, a reviewer blind to which arm produced
-  the output.
+- **Reviewer subjectivity.** The delivery gap depends on the judge. Score it
+  against a fixed acceptance checklist, blind to which arm produced the output,
+  and never edit the deliverable while scoring it.
+- **Autonomy caps as confounders.** A run that hits the token/turn/time cap
+  short of a deliverable is not a neutral data point — report capped runs
+  separately rather than averaging them in, and check the cap isn't quietly
+  favoring one arm.
 - **Model drift.** Re-runs on a newer model aren't comparable to old numbers.
   Pin and record the version; re-baseline when the model changes.
 - **Scenario coverage.** Eight scenarios on one site is a start, not proof.
