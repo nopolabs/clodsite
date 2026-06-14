@@ -9,6 +9,9 @@ protocol first — this directory is the concrete material it refers to.
 | Path | What it is | Who sees it |
 |---|---|---|
 | `briefs/ridgeline-coffee.md` | Owner-level briefs, one per scenario — the **shared input** handed verbatim to both arms | The agent |
+| `instructions/clodsite-arm.md` | How the Clodsite arm operates (toolset, autonomy, "done") | The agent (Clodsite arm) |
+| `instructions/control-arm.md` | How the control arm operates (toolset, autonomy, "done") | The agent (control arm) |
+| `control-repo/` | The control arm's baseline project — minimal Eleventy + Nunjucks + fair base CSS, defined in full | The control arm |
 | `acceptance/ridgeline-coffee.md` | Per-scenario acceptance checklists + the cumulative regression list | The reviewer only |
 | `rubric.md` | Site-agnostic scoring rules — delivery gap, defects, regressions, blind review | The reviewer |
 | `results/TEMPLATE.md` | Fillable per-run results sheet | The reviewer |
@@ -25,9 +28,13 @@ for robustness.
 
 ## How to run a scenario (both arms)
 
-1. Pick the scenario. Hand the agent **only that scenario's brief section** from
-   `briefs/ridgeline-coffee.md`, verbatim — nothing from `acceptance/` or
-   `rubric.md`. The agent must not see the acceptance criteria.
+1. Start each arm from its **starting state** (see the protocol → Starting
+   states): the Clodsite arm on a pinned Clodsite worktree; the control arm on a
+   pinned copy of `control-repo/`. Give each arm its instruction sheet
+   (`instructions/clodsite-arm.md` or `instructions/control-arm.md`) plus **only
+   the current scenario's brief section** from `briefs/ridgeline-coffee.md`,
+   verbatim — nothing from `acceptance/` or `rubric.md`. The agent must not see
+   the acceptance criteria.
 2. The agent works **autonomously** — authoring, building, validating,
    previewing, iterating — on its own branch off the pinned baseline, until it
    declares the site deliverable or hits the autonomy cap. No human help mid-run.

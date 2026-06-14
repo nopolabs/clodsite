@@ -99,12 +99,13 @@ The result is only as honest as these controls:
   applied identically to both arms (see §4).
 - **Fair control stack — not a strawman.** The control is a *small conventional
   site* a competent builder would actually choose, **not** a heavyweight SPA
-  framework. Default control: **minimal Eleventy + Markdown/Nunjucks, authored
-  by hand, no component system.** This shares Eleventy with Clodsite on purpose,
-  so the variable under test is "author via plan + component catalog + compiler"
-  versus "author templates and content directly" — not "which static-site
-  generator." Run a second control of plain hand-written HTML/CSS for
-  robustness if desired.
+  framework. Default control: **minimal Eleventy + Markdown/Nunjucks with a fair
+  base stylesheet, authored by hand, no component system** — defined in full and
+  ready to build at `benchmarks/control-repo/` (see Starting states below). This
+  shares Eleventy with Clodsite on purpose, so the variable under test is "author
+  via plan + component catalog + compiler" versus "author templates and content
+  directly" — not "which static-site generator." Run a second control of plain
+  hand-written HTML/CSS for robustness if desired.
 - **Fresh context per scenario** in both arms (no carried-over conversation
   advantage), except where a scenario explicitly tests iterative revision on an
   existing site — in which case both arms keep their own prior output.
@@ -153,6 +154,45 @@ this possible and fair:
   regression, and defect review are applied to it **after the fact, blind, and
   without editing it** (§6). We measure what the agent actually shipped on its
   own — not a human-polished version.
+
+### Starting states (what each arm begins with)
+
+Both arms start each scenario from a pinned baseline, the **same brief**, and a
+fixed instruction sheet. The two starting states are symmetric — same autonomy
+rules, same "done" definition, an equivalent self-service toolset, neither with a
+capability the other lacks (§ Autonomous operation above). They differ only in
+*how* a site is authored, which is the variable under test.
+
+**Clodsite arm:**
+
+- A git **worktree on a pinned Clodsite baseline commit** (never `main`); the
+  site lives at `$SITES_DIR/ridgeline/`.
+- The current scenario's brief from `benchmarks/briefs/ridgeline-coffee.md`,
+  verbatim.
+- The instruction sheet `benchmarks/instructions/clodsite-arm.md` — produce
+  deliverables by authoring `build-plan.yaml` and running the Clodsite pipeline
+  (`validate-plan`, build, local preview, deploy/provision for live features).
+
+**Control arm:**
+
+- A working copy on a **pinned commit of the control-repo baseline**
+  (`benchmarks/control-repo/` — defined in full there): a minimal Eleventy +
+  Nunjucks project with a base layout and a fair base stylesheet, one stub page,
+  and an empty `functions/` dir. No pre-built pages, products, FAQ, or commerce —
+  the agent authors those.
+- The current scenario's brief, verbatim (the *same* brief as the Clodsite arm,
+  with any placeholders substituted identically — see `benchmarks/README.md` →
+  Harness substitutions).
+- The instruction sheet `benchmarks/instructions/control-arm.md` — produce
+  deliverables by editing Eleventy/Nunjucks templates, content, and the provided
+  base CSS directly (`npm run build` / `npm run serve`), and by authoring
+  Cloudflare Pages Functions under `functions/` for live features.
+
+The control deploys to the **same platform (Cloudflare Pages + Functions + KV)**
+as Clodsite, so neither arm has a hosting advantage; the difference is built-in
+vs. hand-authored. The base stylesheet is the control's fair "amortized base" —
+the analogue of Clodsite's built-in themes — so the control isn't penalized for
+writing plumbing CSS from a blank file.
 
 ### Execution phases: Pro pilot first, then API measurement
 

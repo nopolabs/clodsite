@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or "Ridgeline Coffee Roasters" }}</title>
+    {% if description %}<meta name="description" content="{{ description }}" />{% endif %}
+    <link rel="stylesheet" href="/css/base.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Ridgeline Coffee Roasters</a>
+      <nav class="site-nav">
+        {# Add navigation links here as you create pages, e.g.:
+           <a href="/coffee/">Coffee</a> #}
+      </nav>
+    </header>
+
+    <main class="container">
+      {{ content | safe }}
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>&copy; Ridgeline Coffee Roasters</p>
+      </div>
+    </footer>
+  </body>
+</html>
