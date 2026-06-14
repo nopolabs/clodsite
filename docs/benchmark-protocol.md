@@ -145,14 +145,23 @@ be accounted differently:
   that already exist, so the Clodsite arm only edits the plan. Reviewed source is
   the plan; expect a small diff. This is ordinary revision.
 - **7b — extensibility.** The shape is *not* in the catalog, so the Clodsite arm
-  must author a **site-local component** (its schema, template, and styles) and
-  reference it from the plan — the escape hatch from the vision. The control arm
-  writes the equivalent template, styles, and any script. For 7b the review-diff
-  metric **counts all reviewed source changed in each arm, including Clodsite
-  framework/component source — not just the plan.** This is deliberately where
-  Clodsite's containment advantage is stress-tested: expect its diff to grow, and
-  report it honestly. Hiding the component-authoring cost would flatter the
-  result.
+  must author a new constrained component — its schema, template, and styles —
+  and reference it from the plan. **Today that means adding the component to the
+  shared `components/` catalog; Clodsite has no per-site "site-local" component
+  support yet** (that is part of the planned small-core-plus-libraries work, and
+  the benchmark deliberately measures the state *before* it lands). The control
+  arm writes the equivalent template, styles, and any script. For 7b the
+  review-diff metric **counts all reviewed source changed in each arm, including
+  Clodsite component/framework source — not just the plan.** This is deliberately
+  where Clodsite's containment advantage is stress-tested: expect its diff to
+  grow, and report it honestly — hiding the component-authoring cost would flatter
+  the result.
+
+  7b is also the cleanest **before/after probe** for the libraries architecture:
+  re-running it once site-local or selectable libraries land should show the
+  extensibility cost drop (a scoped component, no shared-catalog churn) — exactly
+  the payoff that work is meant to deliver. Not building site-local support first
+  is what makes 7b able to measure its value later.
 
 ---
 
