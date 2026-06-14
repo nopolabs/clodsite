@@ -148,6 +148,31 @@ this possible and fair:
   without editing it** (§6). We measure what the agent actually shipped on its
   own — not a human-polished version.
 
+### Running under a Claude Pro subscription
+
+Runs execute on a Claude Pro plan, whose usage refreshes on a rolling 5-hour
+window. That shapes scheduling:
+
+- **Start each run at the top of a fresh window, with headroom to finish.**
+  Estimate a run's usage from a pilot trial and only begin when the remaining
+  window budget comfortably exceeds that estimate. A run that trips the
+  subscription limit mid-flight is an externally imposed, nondeterministic
+  truncation — worse than the configured cap — and **must be discarded and redone
+  from the pinned baseline, never counted** (§8).
+- **Run arms sequentially, never in parallel.** Both arms use the same
+  subscription, so parallel runs contend for one quota, blur per-run usage
+  attribution, and multiply the chance of a mid-run limit. The atomic unit that
+  must fit inside one window is a single (arm × scenario × trial); spanning
+  windows *between* units is fine, *within* one is not.
+- **Size the autonomy cap to the window.** Set the token/turn/time cap below the
+  window's usable budget, so the cap — not the subscription limit — is what bounds
+  a run.
+
+Pro usage reporting can be coarser than the API's. Record how tokens were
+captured and keep that method identical across arms; if precise counts aren't
+available, lean on relative usage plus the diff, cycle, delivery-gap, and
+regression metrics, and note the limitation.
+
 ---
 
 ## 4. Scenarios
@@ -318,6 +343,12 @@ it.
   short of a deliverable is not a neutral data point — report capped runs
   separately rather than averaging them in, and check the cap isn't quietly
   favoring one arm.
+- **Subscription-limit truncation.** A run cut off mid-flight by the Pro 5-hour
+  limit is invalid — discard and redo from the pinned baseline (§3). Never
+  average a limit-truncated run in.
+- **Window-order bias.** Don't let one arm always run at a fresh window while the
+  other runs depleted. Since arms run sequentially, start every run at a fresh
+  window — or alternate which arm goes first across trials and disclose it.
 - **Model drift.** Re-runs on a newer model aren't comparable to old numbers.
   Pin and record the version; re-baseline when the model changes.
 - **Scenario coverage.** Eight scenarios on one site is a start, not proof.
