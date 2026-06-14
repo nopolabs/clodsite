@@ -12,6 +12,28 @@ libraries, schema migration) can be shown to help rather than merely differ.
 
 ---
 
+## Scope: this is the first of two benchmarks
+
+This first benchmark deliberately measures **functional correctness and
+cost/stability only** — does each arm produce a correct, working, deployable
+site, and at what cost in tokens, review-diff size, validation failures,
+regressions, and build determinism. Acceptance here is structural and
+functional (see §4).
+
+**Visual polish is intentionally out of scope.** Clodsite's themed, constrained
+components deliver spacing, rhythm, and typographic consistency that an
+unconstrained build must earn by hand — a genuine advantage, but a subjective
+one that would confound the raw cost numbers if folded in now. We capture the
+unpolished baseline first.
+
+A **planned second benchmark** will measure polish on its own terms: hold a
+visual-quality bar constant across both arms (a written rubric, blind review)
+and compare the *cost to clear it*, plus a visual-defect count to test whether
+constraint prevents visual drift across edits. That work waits until this
+benchmark's results are in.
+
+---
+
 ## 1. The two things we baseline
 
 **A. Comparative baseline — validates the headline claim.**
