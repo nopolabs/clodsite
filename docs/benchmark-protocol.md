@@ -110,8 +110,9 @@ The result is only as honest as these controls:
   existing site — in which case both arms keep their own prior output.
 - **"Done" is objective.** A scenario ends when its acceptance checklist passes,
   not when the agent says it's finished.
-- **Multiple trials.** Agent runs vary; do **N ≥ 3** trials per scenario per arm
-  and report the **median** (note spread). Fix or randomize scenario order
+- **Multiple trials.** Agent runs vary; in the measured phase do **N ≥ 3** trials
+  per scenario per arm and report the **median** (note spread). The Pro pilot
+  uses **N = 1** — see Execution phases below. Fix or randomize scenario order
   consistently across arms and record which.
 
 ### Run isolation and autonomous operation
@@ -148,30 +149,55 @@ this possible and fair:
   without editing it** (§6). We measure what the agent actually shipped on its
   own — not a human-polished version.
 
-### Running under a Claude Pro subscription
+### Execution phases: Pro pilot first, then API measurement
 
-Runs execute on a Claude Pro plan, whose usage refreshes on a rolling 5-hour
-window. That shapes scheduling:
+The benchmark runs in two phases. **Do not pay for API runs until the protocol is
+settled.**
 
-- **Start each run at the top of a fresh window, with headroom to finish.**
-  Estimate a run's usage from a pilot trial and only begin when the remaining
-  window budget comfortably exceeds that estimate. A run that trips the
-  subscription limit mid-flight is an externally imposed, nondeterministic
-  truncation — worse than the configured cap — and **must be discarded and redone
-  from the pinned baseline, never counted** (§8).
-- **Run arms sequentially, never in parallel.** Both arms use the same
-  subscription, so parallel runs contend for one quota, blur per-run usage
-  attribution, and multiply the chance of a mid-run limit. The atomic unit that
-  must fit inside one window is a single (arm × scenario × trial); spanning
-  windows *between* units is fine, *within* one is not.
-- **Size the autonomy cap to the window.** Set the token/turn/time cap below the
-  window's usable budget, so the cap — not the subscription limit — is what bounds
-  a run.
+**Phase 0 — Pro-subscription pilot.** Run the arc on a Claude Pro subscription
+to *refine the protocol cheaply*, not to produce headline numbers. Its goals:
 
-Pro usage reporting can be coarser than the API's. Record how tokens were
-captured and keep that method identical across arms; if precise counts aren't
-available, lean on relative usage plus the diff, cycle, delivery-gap, and
-regression metrics, and note the limitation.
+- Shake out the harness, scenarios, acceptance checklists, and the autonomy cap
+  — find where "done" is ambiguous, where a scenario is under- or
+  over-specified, where the control setup isn't fair.
+- Capture **rough token usage** from Pro's reporting, so the API phase can be
+  budgeted from measured numbers instead of estimates.
+- Optionally read a first *directional* signal (which arm looks cheaper/more
+  stable), treated as provisional.
+
+Scope it small: **N = 1 trial per arm** across the scenario arc, sequential.
+The Pro numbers are **not** the published result — Pro usage reporting is
+coarser than the API's, and the 5-hour window adds confounds (below).
+
+Operating rules on Pro (its usage refreshes on a rolling 5-hour window):
+
+- **Start each run at the top of a fresh window, with headroom to finish.** A run
+  that trips the subscription limit mid-flight is an externally imposed,
+  nondeterministic truncation — worse than the configured cap — and **must be
+  discarded and redone, never counted** (§8).
+- **Run arms sequentially, never in parallel.** Both arms share one quota, so
+  parallel runs contend, blur per-run attribution, and multiply mid-run-limit
+  risk. The atomic unit that must fit inside one window is a single
+  (arm × scenario × trial).
+- **Size the autonomy cap to the window** so the cap — not the subscription limit
+  — bounds a run.
+- **Record how tokens were captured** and keep the method identical across arms.
+
+**Phase 1 — API measurement.** Once Phase 0 has settled the protocol and
+produced a budget, run the real benchmark against the API (e.g. Claude Code with
+an API key / Console billing — same harness, just metered). This phase produces
+the publishable numbers:
+
+- **Pin the model** (e.g. `claude-opus-4-8`) and record it.
+- **Capture per-request `usage`** — `input_tokens`, `output_tokens`,
+  `cache_creation_input_tokens`, `cache_read_input_tokens` — the high-fidelity
+  token accounting the headline claim needs.
+- **No 5-hour window** — pay-per-token removes the truncation confound; the
+  autonomy cap (now sized in tokens) is the only bound.
+- Run the full **N ≥ 3** trials per arm.
+
+The Phase-0 token estimates feed the Phase-1 budget; the Phase-1 numbers are the
+ones reported.
 
 ---
 
