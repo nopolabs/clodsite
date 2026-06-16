@@ -166,12 +166,17 @@ capability the other lacks (§ Autonomous operation above). They differ only in
 **Clodsite arm:**
 
 - A git **worktree on a pinned Clodsite baseline commit** (never `main`); the
-  site lives at `$SITES_DIR/ridgeline/`.
+  site lives at `$SITES_DIR/ridgeline/`. Run `npm install` in the worktree once
+  before the first build (else `validate-plan` fails on a missing module).
+- The in-context authoring docs **`docs/authoring-build-plan.md` and
+  `components/CATALOG.md`** — given up front so the agent authors against
+  documented behavior instead of reverse-engineering the engine source.
 - The current scenario's brief from `benchmarks/briefs/ridgeline-coffee.md`,
   verbatim.
 - The instruction sheet `benchmarks/instructions/clodsite-arm.md` — produce
   deliverables by authoring `build-plan.yaml` and running the Clodsite pipeline
-  (`validate-plan`, build, local preview, deploy/provision for live features).
+  (`validate-plan`, the build stages, local preview, deploy/provision for live
+  features). Exact build commands are in the instruction sheet.
 
 **Control arm:**
 
@@ -193,6 +198,12 @@ as Clodsite, so neither arm has a hosting advantage; the difference is built-in
 vs. hand-authored. The base stylesheet is the control's fair "amortized base" —
 the analogue of Clodsite's built-in themes — so the control isn't penalized for
 writing plumbing CSS from a blank file.
+
+**Shared assets.** Both arms are given the same placeholder images at
+`benchmarks/assets/ridgeline/` (hero, founders, three products) and instructed to
+use them rather than fabricate their own. Asset *generation* is harness noise that
+would otherwise inflate one arm's token use and review-diff; supplying them
+identically keeps the comparison about authoring, not image fabrication.
 
 ### Execution phases: Pro pilot first, then API measurement
 
@@ -261,7 +272,7 @@ scenario lists the owner-level input and an acceptance checklist used to define
 | 5 | Enable checkout + fulfillment | "Let people actually buy, email us each order" | Checkout works end to end; order recorded; fulfillment fires |
 | 6 | Change the theme/visual style | "Make it bolder / switch the look" | Visual style changes site-wide; content unchanged |
 | 7a | Compose existing components | "Add a testimonials section and a closing call-to-action to the home page" | Section renders from existing components; other pages unchanged |
-| 7b | Add an unsupported content shape | "Add an FAQ with collapsible questions and answers" | FAQ renders and behaves correctly; other pages unchanged |
+| 7b | Add an unsupported, interactive shape | "Add a live brew calculator (cups → coffee grams + water)" | Calculator renders and recomputes live; other pages unchanged |
 | 8 | Rebuild with no change | (none — rebuild twice from unchanged source) | Output identical across builds (determinism) |
 
 Scenarios 2, 3, 6, 7a are the **drift detectors**: each has an explicit "other
@@ -274,18 +285,22 @@ be accounted differently:
 - **7a — containment.** The requested section is expressible with components
   that already exist, so the Clodsite arm only edits the plan. Reviewed source is
   the plan; expect a small diff. This is ordinary revision.
-- **7b — extensibility.** The shape is *not* in the catalog, so the Clodsite arm
-  must author a new constrained component — its schema, template, and styles —
-  and reference it from the plan. **Today that means adding the component to the
+- **7b — extensibility.** The shape (a live, interactive calculator) is *not* in
+  the catalog and needs client-side behavior. The Clodsite arm **may not inject
+  raw HTML/JS into `prose`** as an escape hatch (per the instruction sheet — `prose`
+  passing raw HTML is a universal hatch that would make this scenario measure
+  nothing; the Phase-0 pilot confirmed both arms could otherwise dodge it with
+  native `<details>`). So the Clodsite arm must author a new constrained component
+  — schema, template, styles, and any script. **Today that means adding it to the
   shared `components/` catalog; Clodsite has no per-site "site-local" component
-  support yet** (that is part of the planned small-core-plus-libraries work, and
-  the benchmark deliberately measures the state *before* it lands). The control
-  arm writes the equivalent template, styles, and any script. For 7b the
-  review-diff metric **counts all reviewed source changed in each arm, including
-  Clodsite component/framework source — not just the plan.** This is deliberately
-  where Clodsite's containment advantage is stress-tested: expect its diff to
-  grow, and report it honestly — hiding the component-authoring cost would flatter
-  the result.
+  support yet** (planned small-core-plus-libraries work; the benchmark measures
+  the state *before* it lands). The control arm writes the equivalent markup,
+  styles, and script inline. For 7b the review-diff metric **counts all reviewed
+  source changed in each arm, including Clodsite component/framework source — not
+  just the plan.** This is deliberately where Clodsite's containment advantage is
+  stress-tested: expect its diff to grow, and report it honestly — hiding the
+  component-authoring cost would flatter the result. **Interaction is verified
+  headless** (see the rubric) — not from static markup.
 
   7b is also the cleanest **before/after probe** for the libraries architecture:
   re-running it once site-local or selectable libraries land should show the
@@ -304,7 +319,7 @@ Record per scenario, per arm, per trial.
 | Input / output **tokens** | Agent session usage (note cached vs. uncached) | "Contained, less inference" — economic core |
 | **Wall-clock time** | Start→accept timer | Practical speed |
 | **Files read / changed** | Session tool log; `git` | Scope of work per change |
-| **Review diff size** | Lines changed in the *human-reviewed source* (`build-plan.yaml` for Clodsite; templates+content for control) via `git diff --stat`. For the extensibility scenario (7b), include any new site-local component source the author must write and review (schema + template + styles), not just the plan — see §4. | "Changes confined to a small reviewable artifact" |
+| **Review diff size** | Lines changed in the *human-reviewed source* (`build-plan.yaml` for Clodsite; templates+content for control) via `git diff --stat`. For the extensibility scenario (7b), include any new component source the author must write and review (schema + template + styles + any script), not just the plan — see §4. | "Changes confined to a small reviewable artifact" |
 | **Validation failures** | Count of failed `validate-plan` runs (Clodsite) / failed builds, type/lint errors (control) the agent hit during its autonomous run | "Agents can't ship an invalid site" — governance |
 | **Self-correction cycles** | Build/validate/preview→fix loops the agent ran before declaring "done" | Friction reaching a deliverable |
 | **Delivery gap** | At the self-declared deliverable: acceptance items failed + defect count, scored **blind and without editing** (no mid-run human help) | Quality of the autonomous first delivery |
@@ -341,7 +356,10 @@ For each arm:
       self-correction cycles along the way.
    e. At the self-declared deliverable, apply the acceptance checklist **blind and
       without editing** the output. Record acceptance pass/fail and the defect
-      count (the delivery gap). Do not fix-and-continue.
+      count (the delivery gap). Do not fix-and-continue. **Interactive acceptance
+      items (e.g. 7b's live calculator) are verified headless** — load the built
+      page in a headless browser and drive it; see the rubric → Interactive
+      checks. Ideally the reviewer is a different context from the runner.
    f. Run the cumulative regression checklist against that same snapshot; record
       failures.
    g. Stop meters; record all metrics. Keep the branch as the run artifact.
@@ -384,13 +402,22 @@ Determinism (scenario 8):
 Summary line per arm — the headline deltas:
 
 ```text
-Clodsite vs Control (median across revision scenarios 2,3,6,7a):
+Create (scenario 1, reported separately — cold first build):
+  tokens:        __ vs __    review diff:   __ vs __ lines
+
+Revision scenarios 2,3,6,7a (median — the containment headline):
   tokens:        −__%        review diff:   −__ lines
-  regressions:   __ vs __    human fixes:   __ vs __
+  regressions:   __ vs __    delivery gap:  __ vs __
 
 Extensibility (scenario 7b, reported separately — all reviewed source counted):
   tokens:        __ vs __    review diff:   __ vs __ lines
 ```
+
+Report **create (1)**, the **revision median (2,3,6,7a)**, and **extensibility
+(7b)** as three separate figures — they behave differently (the Phase-0 pilot
+showed create and reskin dominated by very different dynamics). Phase 1 captures
+per-request `usage`, so per-scenario token attribution is exact there; on the Pro
+pilot it is coarse (one total per arm).
 
 ---
 

@@ -12,6 +12,7 @@ protocol first — this directory is the concrete material it refers to.
 | `instructions/clodsite-arm.md` | How the Clodsite arm operates (toolset, autonomy, "done") | The agent (Clodsite arm) |
 | `instructions/control-arm.md` | How the control arm operates (toolset, autonomy, "done") | The agent (control arm) |
 | `control-repo/` | The control arm's baseline project — minimal Eleventy + Nunjucks + fair base CSS, defined in full | The control arm |
+| `assets/ridgeline/` | Shared placeholder images (hero, founders, 3 products) — both arms use these, neither fabricates its own | Both arms |
 | `acceptance/ridgeline-coffee.md` | Per-scenario acceptance checklists + the cumulative regression list | The reviewer only |
 | `rubric.md` | Site-agnostic scoring rules — delivery gap, defects, regressions, blind review | The reviewer |
 | `results/TEMPLATE.md` | Fillable per-run results sheet | The reviewer |
@@ -22,7 +23,7 @@ protocol first — this directory is the concrete material it refers to.
 A single evolving site — **Ridgeline Coffee Roasters**, a small two-person
 roaster — carried through the whole scenario arc. Using one site that grows
 (create → reposition → add page → add catalog → enable checkout → reskin → add
-section → add FAQ) is deliberate: iterative edits are where code drift
+section → add interactive calculator) is deliberate: iterative edits are where code drift
 accumulates, which is the thing the benchmark measures. Add more fixtures later
 for robustness.
 
@@ -89,5 +90,5 @@ and capture rough token usage for budgeting. The published numbers come from the
 | 5 | Enable checkout + fulfillment | `05-checkout` | New capability (heaviest) |
 | 6 | Make it bolder (reskin) | `06-reskin` | Containment / drift |
 | 7a | Add testimonials + CTA | `07a-compose` | Containment (existing components) |
-| 7b | Add a collapsible FAQ | `07b-faq` | Extensibility (unsupported shape) |
+| 7b | Add a live brew calculator | `07b-brew-calculator` | Extensibility (interactive, no component covers it) |
 | 8 | Rebuild, no change | *(none)* | Build determinism |

@@ -103,16 +103,27 @@ previously-passing item now failing is a regression (see `../rubric.md`).
 - [ ] **Drift:** all other pages unchanged.
 - [ ] The CTA link resolves; builds.
 
-## 07b-faq
+## 07b-brew-calculator
 
-- [ ] An FAQ section exists (on a sensible page) covering all three topics:
-      shipping speed, grind options, subscription.
-- [ ] Each question **expands to reveal its answer on click, and collapses on a
-      second click**, in the built/served site (verify the interaction, not just
-      that the text is present).
-- [ ] Answers match the brief's content.
+> Extensibility probe — no component in the catalog covers an interactive
+> calculator, and the Clodsite arm may not inject raw HTML/JS into `prose` (see
+> the instruction sheets), so it must author a real component. Per the rubric,
+> 07b's review-diff counts **all** reviewed source in each arm, including any new
+> Clodsite component (schema + template + styles + script). Report 07b
+> separately from the revision-scenario medians.
+
+- [ ] A brew calculator appears on the Coffee page.
+- [ ] Changing the number of cups **updates the displayed coffee grams and water
+      amount live, with no page reload** (verify the interaction, not just that the
+      control is present).
+- [ ] The math is correct at a 1:16 ratio with 250 ml/cup: e.g. **2 cups → 500 ml
+      water and ~31 g coffee** (allow sensible rounding).
 - [ ] **Drift:** all other pages unchanged.
 - [ ] Builds.
+
+> **Interaction verification is headless** (see `../rubric.md` → Interactive
+> checks): load the built page in a headless browser, set the cups input, and read
+> the computed output — do not score the interaction from static markup alone.
 
 ## 08 — rebuild (determinism)
 

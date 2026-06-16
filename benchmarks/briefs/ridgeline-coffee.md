@@ -100,18 +100,14 @@ Scenarios run in order against the same evolving site. Site name: `ridgeline`.
 
 ---
 
-## 07b-faq
+## 07b-brew-calculator
 
-> We keep getting the same questions by email. Can you add a Frequently Asked
-> Questions section where each question can be clicked to open up its answer
-> (and clicked again to close it) — so the page stays tidy? Cover these three:
->
-> - **How fast do you ship?** We roast to order and ship within 24 hours, usually
->   arriving in 2–4 business days.
-> - **Can I choose how it's ground?** Right now everything ships as whole bean —
->   grinding fresh makes a real difference. Bag-by-bag grind options are coming.
-> - **Do you offer a subscription?** Not yet, but it's the most-requested thing on
->   our list — email us and we'll let you know when it launches.
+> People always ask how much coffee to use. Can you add a little **brew
+> calculator** to the Coffee page? Someone picks how many cups they're making and
+> it instantly shows how much coffee (in grams) and how much water to use. Use a
+> 1:16 coffee-to-water ratio, and count a "cup" as 250 ml of water. So 2 cups =
+> 500 ml of water and about 31 g of coffee. It should update live as they change
+> the number of cups — no page reload.
 
 ---
 

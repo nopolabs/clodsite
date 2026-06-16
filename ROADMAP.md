@@ -212,6 +212,25 @@ lives in item 12 (Per-site environments and credentials). They are entangled
 and should be designed together, but the boundary model is stated here so the
 plumbing has a target to satisfy.
 
+### 17. Component-schema papercuts (from benchmark authoring)
+
+Small catalog ergonomics surfaced while authoring a real site under the Phase-0
+benchmark (`benchmarks/`). Each made the agent reach for a workaround:
+
+- **`catalog` is image-forward.** No first-class image-less product listing (a
+  plain "name + price + description" request still wants an image), and no
+  structured weight/size field — "12 oz bag" has to live in free-text
+  `description`.
+- **`quote` mandates an image.** A short attributed quotation often wants to
+  stand alone; the required image pushes authors toward `prose` blockquotes for
+  multi-quote sections.
+- **No FAQ / disclosure component.** Collapsible Q&A is common; today it's either
+  raw `<details>` in `prose` (an escape hatch the constrained model would rather
+  not bless) or nothing.
+
+None are blockers; all are quality-of-authoring improvements. Consider them when
+next touching the component catalog.
+
 ---
 
 ## Completed

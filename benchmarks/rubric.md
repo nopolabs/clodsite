@@ -89,6 +89,23 @@ regressions = # of previously-passing acceptance items that now fail
 Regressions are the **code-drift signal** — the thing the constrained-plan
 approach claims to suppress. Record which prior items broke and on which page.
 
+## Interactive checks (headless, not static markup)
+
+Some acceptance items assert *behavior*, not just presence — e.g. the brew
+calculator (07b) must recompute live as the input changes. Score these by
+loading the **built** page in a headless browser and driving it, never by reading
+the markup:
+
+1. Serve or open the built output (`$SITES_DIR/<site>/dist/` or control `_site/`).
+2. Drive the interaction (set the input, click the control) and read the rendered
+   result — e.g. via the Chrome DevTools MCP, the `web-perf` skill's browser, or a
+   small Playwright/Puppeteer script.
+3. Score the acceptance item from the observed behavior.
+
+If no headless check is available for a run, mark the interactive item
+**unverified** (not pass/fail) and record why — do not infer a pass from static
+HTML. Apply the same method to both arms.
+
 ## Capped & truncated runs (don't average them in)
 
 - If a run hits the **autonomy cap** before a deliverable, record it as

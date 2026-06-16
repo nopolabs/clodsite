@@ -16,6 +16,10 @@ stylesheet. Work autonomously to a deliverable site.
   its `README.md` — it's a minimal Eleventy project: `src/` (Nunjucks/Markdown),
   `src/_includes/base.njk` (base layout), `src/css/base.css` (your starting
   stylesheet), and an empty `functions/` directory.
+- **Placeholder images are provided** at `benchmarks/assets/ridgeline/` (hero,
+  founders, and three product images). Use these where a page needs an image —
+  copy them into `src/assets/` (passthrough-copied to the build). Do not fabricate
+  your own images.
 - A customer brief follows these instructions. Treat it as the site owner's
   request.
 
