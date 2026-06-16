@@ -31,7 +31,10 @@ for robustness.
 
 1. Start each arm from its **starting state** (see the protocol → Starting
    states): the Clodsite arm on a pinned Clodsite worktree; the control arm on a
-   pinned copy of `control-repo/`. Give each arm its instruction sheet
+   pinned copy of `control-repo/`. **Run `npm install` in both workspaces and
+   confirm each does a probe build before launching either arm** (a missing
+   `node_modules` otherwise costs scenario 01 a spurious failure). Give each arm
+   its instruction sheet
    (`instructions/clodsite-arm.md` or `instructions/control-arm.md`) plus **only
    the current scenario's brief section** from `briefs/ridgeline-coffee.md`,
    verbatim — nothing from `acceptance/` or `rubric.md`. The agent must not see

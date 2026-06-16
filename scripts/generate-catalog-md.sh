@@ -9,4 +9,8 @@ if [ ! -d "$COMPONENTS_DIR" ]; then
   exit 1
 fi
 
-node "${SCRIPT_DIR}/lib/generate-catalog-md.mjs" "$COMPONENTS_DIR"
+# Writes the catalog reference to CATALOG.md (override the target with CATALOG_OUT,
+# e.g. to generate into a temp file without touching the tracked copy).
+OUT="${CATALOG_OUT:-${COMPONENTS_DIR}/CATALOG.md}"
+node "${SCRIPT_DIR}/lib/generate-catalog-md.mjs" "$COMPONENTS_DIR" > "$OUT"
+echo "✓ ${OUT} written"

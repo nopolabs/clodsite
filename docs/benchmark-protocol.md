@@ -342,9 +342,12 @@ Notes:
 For each arm:
 
 1. **Setup.** Pin the model/agent version. For each arm, branch (or create a
-   worktree) off the pinned baseline commit — never work on `main`. Record
-   environment (versions of Clodsite, Node, the control stack) and the equivalent
-   self-service toolset and run cap given to both arms.
+   worktree) off the pinned baseline commit — never work on `main`. **Run
+   `npm install` in *both* workspaces (the Clodsite worktree and the control
+   copy) and verify each with a probe build before launching either arm** — a
+   missing `node_modules` is an easy setup miss that costs the first scenario a
+   spurious failure. Record environment (versions of Clodsite, Node, the control
+   stack) and the equivalent self-service toolset and run cap given to both arms.
 2. **Per scenario, per trial:**
    a. Reset to the post-previous-scenario state on the arm's branch (or clean,
       for scenario 1).

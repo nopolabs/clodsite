@@ -74,12 +74,9 @@ done
   built-in theme applied site-wide. Changing the visual look is a one-line edit;
   you never write CSS in the plan.
 - **`catalog` renders display-only when there is no top-level `commerce:` block.**
-  You can show products (image, name, price, description) with no checkout simply
-  by providing `commerce/catalog.json` and using the `catalog` component. Add a
-  `commerce:` block only when you want live Stripe checkout (which also needs
-  deploy-time KV provisioning).
-- **Prices in `commerce/catalog.json` are integer minor units** (e.g. `1600` =
-  $16.00); currency defaults to `usd`.
+  Provide `commerce/catalog.json` and use the `catalog` component to show products
+  with no checkout (see "The commerce catalog" below). Add a `commerce:` block only
+  for live Stripe checkout (which also needs deploy-time KV provisioning).
 - **Assets live with the site:** general images under `<site>/assets/`, product
   images under `<site>/commerce/assets/`, favicons auto-detected under
   `<site>/assets/favicons/`. Reference them by site-root path.
@@ -87,17 +84,104 @@ done
 - **`nav.order` must list every page id**; nav appears on every page.
 - Root-relative social images become absolute when `custom_domain` is set.
 
+## The commerce catalog (`commerce/catalog.json`)
+
+Products are defined in `<site>/commerce/catalog.json`. The top-level shape is
+`{ "products": [ ... ] }`. Each product:
+
+| Field | Required | Notes |
+|---|---|---|
+| `slug` | yes | `[A-Za-z0-9][A-Za-z0-9_-]*`, unique |
+| `name` | yes | non-empty string |
+| `description` | yes | non-empty string (put weight/size here — there's no size field) |
+| `price_minor` | yes | non-negative **integer minor units** (`1600` = $16.00; currency defaults to `usd`) |
+| `active` | yes | boolean |
+| `images.main` | yes | local path — `commerce/assets/…` or a site-root `/…` (no URLs) |
+| `images.gallery` | no | array of local paths |
+| `options`, `variants` | no | **omit for display-only**; needed only for live checkout with variant choices |
+| `size_guide`, `personalization` | no | advanced; see the commerce design spec |
+
+Minimal display-only catalog:
+
+```json
+{
+  "products": [
+    {
+      "slug": "ridgeline-blend",
+      "name": "Ridgeline Blend",
+      "description": "Everyday cup: balanced, smooth, a little chocolatey. 12 oz whole-bean bag.",
+      "price_minor": 1600,
+      "active": true,
+      "images": { "main": "commerce/assets/ridgeline-blend.svg" }
+    }
+  ]
+}
+```
+
 ## Extending the vocabulary (when the catalog can't express it)
 
 If a request needs a shape no component covers — an interactive widget, a
 structured layout the catalog lacks — **author a component**, do not inject raw
-code into a page:
+code into a page.
 
-1. Create `components/<name>/` with `schema.json` (its fields + validation),
-   `component.njk` (template), and `component.css` (styles). Interactive
-   components may include their own script via the component's template/assets.
-2. Regenerate the catalog reference: `bash scripts/generate-catalog-md.sh`.
-3. Reference the new `type` from a page's `components` array and build.
+**1. Create `components/<name>/` with three files:**
+
+- `schema.json` — declares the component's fields. Top-level keys:
+  `description` (string), `required` (object of field → descriptor), `optional`
+  (object of field → descriptor), and `example` (a YAML string shown in the
+  catalog). A **descriptor** is either a type-name string
+  (`"string" | "array" | "object" | "number" | "boolean"`) or an object
+  `{ "type": <name>, ...rules }`. Available rules:
+
+  | Rule | Applies to | Meaning |
+  |---|---|---|
+  | `non_empty: true` | string | reject empty/whitespace |
+  | `enum: [...]` | string | value must be one of |
+  | `format: "href"` | string | safe link (site-root `/…`, `https://`, `#frag`, or `mailto:`) |
+  | `items: <descriptor>` | array | shape of each element |
+  | `min_items` / `max_items` | array | element-count bounds |
+  | `required` / `optional` | object | nested field descriptors |
+
+  (`number`/`boolean` take no extra rules.) Example:
+
+  ```json
+  {
+    "description": "Live brew-ratio calculator.",
+    "required": {},
+    "optional": {
+      "heading": { "type": "string", "non_empty": true },
+      "default_cups": "number",
+      "ratio": "number"
+    },
+    "example": "type: brew-calculator\nheading: Brew calculator\ndefault_cups: 2\nratio: 16\n"
+  }
+  ```
+
+- `component.njk` — the template. Read plan fields from `component.<field>`.
+  **Interactive components carry their own inline `<script>`** using the
+  `document.currentScript` convention (see `components/mailto-form/component.njk`):
+
+  ```njk
+  <div class="c-brew-calculator" data-ratio="{{ component.ratio or 16 }}">
+    ...inputs and output nodes...
+    <script>
+      (function () {
+        var root = document.currentScript.closest('.c-brew-calculator');
+        // read data-* config, bind input listeners, recompute on change
+      })();
+    </script>
+  </div>
+  ```
+
+  This keeps the JS scoped to the component instance — not raw script in `prose`.
+
+- `component.css` — styles, ideally themed via the same CSS variables the
+  built-in components use so it adapts to `style`.
+
+**2. Regenerate the catalog reference:** `bash scripts/generate-catalog-md.sh`
+(it writes `components/CATALOG.md`).
+
+**3. Reference the new `type`** from a page's `components` array and build.
 
 The component stays a typed, validated, reusable contract — the same governance
 every built-in component has. (Per-site "site-local" libraries are planned but
