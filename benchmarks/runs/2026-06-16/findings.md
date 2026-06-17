@@ -94,6 +94,18 @@ formula is visible (`ratio 16`, `water = cups×250`, `coffee = water/16`). This
 round had no headless driver wired, so the live recompute is **verified by code
 inspection only**; a real run needs the headless check the rubric now specifies.
 
+## Visual quality (operator review of the live sites)
+
+On reviewing both built sites, the **control arm looked notably nicer** than the
+Clodsite arm. Expected, and out of scope for this benchmark (functional/cost
+only) — but an important signal: the control wrote bespoke per-brand CSS
+(display font, coffee palette, accents) while Clodsite was capped by its fixed
+`bold` theme. This is the real competitive weak spot the cost/containment wins
+don't address. Captured as **ROADMAP item 18** (raise the theme ceiling via brand
+tokens / richer themes — not arbitrary CSS) and is the motivating question for
+**benchmark 2** (the polish benchmark): can Clodsite clear a brand-specific
+visual bar at all today, and at what cost vs. the control?
+
 ## Determinism
 
 Both arms: building twice from unchanged final source → byte-identical output. ✓
