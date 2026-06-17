@@ -212,6 +212,53 @@ lives in item 12 (Per-site environments and credentials). They are entangled
 and should be designed together, but the boundary model is stated here so the
 plumbing has a target to satisfy.
 
+### 17. Component-schema papercuts (from benchmark authoring)
+
+Small catalog ergonomics surfaced while authoring a real site under the Phase-0
+benchmark (`benchmarks/`). Each made the agent reach for a workaround:
+
+- **`catalog` is image-forward.** No first-class image-less product listing (a
+  plain "name + price + description" request still wants an image), and no
+  structured weight/size field — "12 oz bag" has to live in free-text
+  `description`.
+- **`quote` mandates an image.** A short attributed quotation often wants to
+  stand alone; the required image pushes authors toward `prose` blockquotes for
+  multi-quote sections.
+- **No FAQ / disclosure component.** Collapsible Q&A is common; today it's either
+  raw `<details>` in `prose` (an escape hatch the constrained model would rather
+  not bless) or nothing.
+
+None are blockers; all are quality-of-authoring improvements. Consider them when
+next touching the component catalog.
+
+### 18. Raise the theme ceiling (brand tokens / richer themes)
+
+The most important qualitative finding from the Phase-0 benchmark: an
+unconstrained agent (the control arm) produced a **visibly nicer-looking site**
+than Clodsite's fixed `bold` theme — because it wrote bespoke per-brand CSS (a
+display font pairing, a coffee-brand palette, accent bars, pill buttons,
+shadows). Clodsite's visual quality is **capped by its three built-in themes**;
+the control's ceiling is unbounded (at the cost of paying bespoke CSS every
+project and risking cross-page inconsistency).
+
+This matters because the product leads with the *maker outcome* — "a real site
+you're proud of." Cheap edits and a small review surface don't help if the
+visual ceiling sits below "looks bespoke."
+
+The small-core-friendly fix is **not** to allow arbitrary per-site CSS (that
+breaks the no-raw-escape-hatch principle), but to raise the ceiling within the
+contract:
+
+- **Theme tokens in the plan** — a bounded, governed way to set brand palette
+  and font pairing (perhaps accent + density) without writing CSS.
+- **Richer / more opinionated built-in themes** — more than three, and less
+  generic.
+
+Quantify the gap with **benchmark 2** (the polish benchmark): hold a
+visual-quality bar constant and measure each arm's cost to clear it — and whether
+Clodsite's themes can clear a *brand-specific* bar at all today. Design before
+building; the theme model is the lever, the benchmark is the evidence.
+
 ---
 
 ## Completed

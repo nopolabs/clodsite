@@ -660,8 +660,9 @@ echo ""
 echo "=== generate-catalog-md.sh ==="
 
 TMP_CATALOG=$(mktemp)
-bash scripts/generate-catalog-md.sh > "$TMP_CATALOG" 2>&1
+CATALOG_OUT="$TMP_CATALOG" bash scripts/generate-catalog-md.sh > /dev/null 2>&1
 assert_exit "generate-catalog-md exits 0" 0 $?
+assert_file_exists "generate-catalog-md writes the catalog file" "$TMP_CATALOG"
 CATALOG=$(cat "$TMP_CATALOG")
 assert_contains "catalog lists prose"           "## prose"        "$CATALOG"
 assert_contains "catalog lists gallery"         "## gallery"      "$CATALOG"

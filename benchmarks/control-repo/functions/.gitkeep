@@ -1,0 +1,3 @@
+# Cloudflare Pages Functions go here.
+# Empty at baseline — the control arm authors functions (e.g. checkout/webhook)
+# only when a scenario requires dynamic behavior. See ../README.md.
