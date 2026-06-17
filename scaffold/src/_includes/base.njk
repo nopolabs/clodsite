@@ -70,6 +70,9 @@
   {% if site.style == "bold" or (site.theme_selector.enabled and "bold" in site.theme_selector.options) %}
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
   {% endif %}
+  {% if site.style == "warm" or (site.theme_selector.enabled and "warm" in site.theme_selector.options) %}
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&display=swap" rel="stylesheet">
+  {% endif %}
 </head>
 <body class="theme-{{ site.style | escape }}">
 {% if site.theme_selector.enabled %}
