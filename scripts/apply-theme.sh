@@ -17,7 +17,7 @@ THEME_FILE="scaffold/src/css/themes/${STYLE}.css"
 
 if [ ! -f "$THEME_FILE" ]; then
   echo "Error: Theme file not found: $THEME_FILE"
-  echo "Valid styles: minimal, professional, bold"
+  echo "Valid styles: minimal, professional, bold, warm"
   exit 1
 fi
 

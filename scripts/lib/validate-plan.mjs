@@ -19,7 +19,7 @@ if (!plan.slug)     errors.push('slug is required');
 if (!plan.name)     errors.push('name is required');
 if (!plan.overview) errors.push('overview is required');
 
-const validStyles = ['minimal', 'professional', 'bold'];
+const validStyles = ['minimal', 'professional', 'bold', 'warm'];
 if (!validStyles.includes(plan.style))
   errors.push('style must be one of: ' + validStyles.join(', ') + ' (got: ' + plan.style + ')');
 
