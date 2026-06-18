@@ -137,7 +137,18 @@ provisioning and secret installation, but arbitrary generated Functions and
 per-component secrets are not yet expressible. BBPP remains the driving
 example: authenticated proxying and a separate rendering/email service.
 
-### 12. Per-site environments and credentials
+### 11a. Shared author environment discovery
+
+Today every checkout expects a repo-local `.env`, which makes multi-worktree and
+multi-agent development clumsy even when all work is happening under one trusted
+operator account. Add first-class shared environment discovery: preserve
+already-exported shell variables, honor an explicit `CLODSITE_ENV=/path/to/env`,
+fall back to the repo-local `.env`, then fall back to
+`~/.config/clodsite/env`. Centralize this in one shell helper used by deploy,
+setup verification, domain, teardown, status, and provisioning scripts, and
+report the loaded env path without printing secret values.
+
+### 12. Per-site environments and credential layers
 
 `.env` is scoped to the Clodsite repository, so every site in `SITES_DIR`
 shares one set of credentials: one Cloudflare account, one Resend key, one
@@ -150,6 +161,12 @@ its own commerce keys and mode without affecting its neighbors. Keep the
 existing single-file setup as the default for single-tenant use; per-site
 files must be covered by the same never-committed and test-isolation
 guarantees as the repo `.env`.
+
+This should split credential layers explicitly: a global author/operator env for
+Cloudflare account access and local defaults, plus per-site overlays for site
+providers, checkout mode, sender identity, fulfillment, and generated platform
+secrets. Shared credentials remain acceptable for the current single-operator
+workflow; customer-per-site use requires this layer split before it is safe.
 
 ### 13. MCP HTTP transport
 

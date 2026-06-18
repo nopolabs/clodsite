@@ -53,6 +53,22 @@ When changing Clodsite, preserve this boundary:
 | Tests | `scripts/test/run-tests.sh`, `scripts/lib/*.test.mjs`, `mcp/*.test.js` |
 | Current authoring docs | `docs/agent-authoring.md`, `docs/authoring-build-plan.md` |
 
+## Local Credentials Across Worktrees
+
+The current scripts expect a repo-local `.env`. For multiple local checkouts or
+agent worktrees that share one trusted operator account, use one private file at
+`~/.config/clodsite/env` and symlink each checkout's `.env` to it:
+
+```bash
+mkdir -p ~/.config/clodsite
+cp /path/to/existing/clodsite/.env ~/.config/clodsite/env
+chmod 600 ~/.config/clodsite/env
+ln -sf ~/.config/clodsite/env /path/to/clodsite-worktree/.env
+```
+
+Do not paste secrets into chat or commit `.env`. This is a local single-operator
+convenience, not a multi-customer isolation model.
+
 ## Component Change Checklist
 
 When adding or changing a component:
