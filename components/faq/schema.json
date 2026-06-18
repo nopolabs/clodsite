@@ -1,0 +1,21 @@
+{
+  "description": "A list of frequently asked questions. Each question expands to reveal its answer (native disclosure, no JavaScript). Answers are plain text.",
+  "required": {
+    "items": {
+      "type": "array",
+      "min_items": 1,
+      "max_items": 20,
+      "items": {
+        "type": "object",
+        "required": {
+          "question": { "type": "string", "non_empty": true },
+          "answer": { "type": "string", "non_empty": true }
+        }
+      }
+    }
+  },
+  "optional": {
+    "heading": { "type": "string", "non_empty": true }
+  },
+  "example": "type: faq\nheading: Frequently asked questions   # optional\nitems:\n  - question: How fast do you ship?\n    answer: We ship within 24 hours, usually arriving in 2-4 business days.\n  - question: Do you offer a subscription?\n    answer: Not yet, but it's the most-requested thing on our list.\n"
+}

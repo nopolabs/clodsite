@@ -288,7 +288,7 @@ export function validateCatalog(catalog) {
       return;
     }
     checkUnknownFields(product, new Set([
-      'slug', 'name', 'description', 'price_minor', 'active',
+      'slug', 'name', 'description', 'price_minor', 'active', 'size',
       'images', 'options', 'variants', 'size_guide', 'personalization'
     ]), tag, errors);
 
@@ -314,10 +314,18 @@ export function validateCatalog(catalog) {
     if (typeof product.active !== 'boolean') {
       errors.push(tag + '.active must be a boolean');
     }
+    // Optional short product spec shown as catalog metadata (e.g. "12 oz",
+    // "500 ml", "Set of 4") — a fixed label, not a selectable option/variant.
+    if ('size' in product && !isNonEmptyString(product.size)) {
+      errors.push(tag + '.size must be a non-empty string');
+    }
 
-    if (!isObject(product.images)) {
-      errors.push(tag + '.images must be an object');
-    } else {
+    // Images are optional — a display-only listing (name + price + description)
+    // needs no image. When present, images.main must be a valid local path.
+    if ('images' in product) {
+      if (!isObject(product.images)) {
+        errors.push(tag + '.images must be an object');
+      } else {
       checkUnknownFields(product.images, new Set(['main', 'gallery']), tag + '.images', errors);
       if (!isLocalImagePath(product.images.main)) {
         errors.push(tag + '.images.main must be a local commerce/assets/ or site-root path');
@@ -332,6 +340,7 @@ export function validateCatalog(catalog) {
             }
           });
         }
+      }
       }
     }
 

@@ -666,6 +666,7 @@ assert_file_exists "generate-catalog-md writes the catalog file" "$TMP_CATALOG"
 CATALOG=$(cat "$TMP_CATALOG")
 assert_contains "catalog lists prose"           "## prose"        "$CATALOG"
 assert_contains "catalog lists gallery"         "## gallery"      "$CATALOG"
+assert_contains "catalog lists faq"             "## faq"          "$CATALOG"
 assert_contains "catalog lists mailto-form"     "## mailto-form"  "$CATALOG"
 assert_contains "catalog lists media-section"   "## media-section" "$CATALOG"
 assert_contains "catalog lists resend-form"      "## resend-form"  "$CATALOG"

@@ -53,10 +53,16 @@ function resolveProduct(product, currency) {
     description: product.description,
     price_minor: product.price_minor,
     price_display: formatPrice(product.price_minor, currency),
-    images: {
-      main: assetUrl(product.images.main),
-      gallery: (product.images.gallery || []).map(assetUrl),
-    },
+    // Images are optional (display-only listings may omit them); only include
+    // the resolved images object when the catalog actually provides a main image.
+    ...(product.images && product.images.main ? {
+      images: {
+        main: assetUrl(product.images.main),
+        gallery: (product.images.gallery || []).map(assetUrl),
+      },
+    } : {}),
+    // Optional short product spec (e.g. "12 oz") shown as catalog metadata.
+    ...(product.size ? { size: product.size } : {}),
     options: (product.options || []).map((option) => ({
       name: option.name,
       values: option.values.map((entry) => ({

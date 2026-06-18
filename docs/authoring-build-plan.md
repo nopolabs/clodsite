@@ -93,10 +93,11 @@ Products are defined in `<site>/commerce/catalog.json`. The top-level shape is
 |---|---|---|
 | `slug` | yes | `[A-Za-z0-9][A-Za-z0-9_-]*`, unique |
 | `name` | yes | non-empty string |
-| `description` | yes | non-empty string (put weight/size here — there's no size field) |
+| `description` | yes | non-empty string |
 | `price_minor` | yes | non-negative **integer minor units** (`1600` = $16.00; currency defaults to `usd`) |
 | `active` | yes | boolean |
-| `images.main` | yes | local path — `commerce/assets/…` or a site-root `/…` (no URLs) |
+| `size` | no | short fixed spec label shown as catalog metadata, e.g. `"12 oz"`, `"500 ml"`, `"Set of 4"` (not a selectable option) |
+| `images.main` | no | local path — `commerce/assets/…` or a site-root `/…` (no URLs). Omit `images` entirely for an image-less display listing |
 | `images.gallery` | no | array of local paths |
 | `options`, `variants` | no | **omit for display-only**; needed only for live checkout with variant choices |
 | `size_guide`, `personalization` | no | advanced; see the commerce design spec |

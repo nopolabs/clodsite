@@ -83,6 +83,33 @@ markdown: |                 # optional intro under the heading
   Fill in the details below, preview the certificate, then send it.
 ```
 
+## faq
+
+A list of frequently asked questions. Each question expands to reveal its answer (native disclosure, no JavaScript). Answers are plain text.
+
+**Required fields:**
+
+- `items` (array; minimum 1 items; maximum 20 items)
+- `items[]` (object)
+- `items[].question` (non-empty string)
+- `items[].answer` (non-empty string)
+
+**Optional fields:**
+
+- `heading` (non-empty string)
+
+**Example:**
+
+```yaml
+type: faq
+heading: Frequently asked questions   # optional
+items:
+  - question: How fast do you ship?
+    answer: We ship within 24 hours, usually arriving in 2-4 business days.
+  - question: Do you offer a subscription?
+    answer: Not yet, but it's the most-requested thing on our list.
+```
+
 ## feature-grid
 
 A compact grid of two to six features or benefits.

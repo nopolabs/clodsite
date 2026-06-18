@@ -212,24 +212,8 @@ lives in item 12 (Per-site environments and credentials). They are entangled
 and should be designed together, but the boundary model is stated here so the
 plumbing has a target to satisfy.
 
-### 17. Component-schema papercuts (from benchmark authoring)
-
-Small catalog ergonomics surfaced while authoring a real site under the Phase-0
-benchmark (`benchmarks/`). Each made the agent reach for a workaround:
-
-- **`catalog` is image-forward.** No first-class image-less product listing (a
-  plain "name + price + description" request still wants an image), and no
-  structured weight/size field — "12 oz bag" has to live in free-text
-  `description`.
-- **`quote` mandates an image.** A short attributed quotation often wants to
-  stand alone; the required image pushes authors toward `prose` blockquotes for
-  multi-quote sections.
-- **No FAQ / disclosure component.** Collapsible Q&A is common; today it's either
-  raw `<details>` in `prose` (an escape hatch the constrained model would rather
-  not bless) or nothing.
-
-None are blockers; all are quality-of-authoring improvements. Consider them when
-next touching the component catalog.
+*(Item 17, "Component-schema papercuts", shipped June 2026 — see Completed below.
+Numbering preserved.)*
 
 ### 18. Raise the theme ceiling (brand tokens / richer themes)
 
@@ -262,6 +246,17 @@ building; the theme model is the lever, the benchmark is the evidence.
 ---
 
 ## Completed
+
+### Component-schema papercuts
+Shipped June 2026 (pending item 17). Catalog products may now **omit images**
+(display-only listings render a no-media card; the cart and checkout already
+tolerate a missing image) and carry an optional **`size`** label (a fixed spec
+like "12 oz", shown as catalog metadata — distinct from selectable
+options/variants). Added a **`faq`** component (native `<details>` disclosure, no
+JS). The third reported papercut — "`quote` mandates an image" — was a misread:
+the `quote` image was already optional. Backward-compatible (all existing
+catalogs validate unchanged); regression tests added for image-less + size; suite
+852.
 
 ### Retired the `site-spec.json` legacy bridge
 Shipped June 2026 (pending item 6). `build-plan.yaml` is now the only active
