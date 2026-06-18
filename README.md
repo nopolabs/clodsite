@@ -38,16 +38,21 @@ and contact forms. Goal-oriented components add common communication patterns:
 
 The generated [`components/CATALOG.md`](components/CATALOG.md) is the complete
 authoring contract, including required fields, nested objects, item limits,
-safe links, and examples.
+safe links, and examples. Agent-specific entry points live in
+[`docs/README.md`](docs/README.md): use
+[`docs/agent-authoring.md`](docs/agent-authoring.md) when building sites and
+[`docs/agent-development.md`](docs/agent-development.md) when changing
+Clodsite itself.
 
-Sites normally use one of the `minimal`, `professional`, or `bold` themes. A
-site may optionally enable a live selector for two or more built-in themes:
+Sites normally use one of the built-in themes: `minimal`, `professional`,
+`bold`, or `warm`. A site may optionally enable a live selector for two or more
+built-in themes:
 
 ```yaml
 style: bold
 theme_selector:
   enabled: true
-  options: [minimal, professional, bold]
+  options: [minimal, professional, bold, warm]
 ```
 
 The selector changes the whole site, persists the visitor's choice, and
@@ -141,6 +146,8 @@ override their description or sharing image. Canonical URLs are derived from
 - A [Cloudflare account](https://dash.cloudflare.com/) (free tier works)
 - A Cloudflare API token with:
   - **Cloudflare Pages: Edit** — required
+  - **Account > Workers KV Storage: Edit** — required for live commerce checkout
+  - **Account > Turnstile > Edit** — required for protected `resend-form`
   - **Zone > DNS: Edit** — optional; enables `/domain` to create CNAME records automatically
 - Your Cloudflare Account ID (the 32-character hex ID in `dash.cloudflare.com/<account-id>`)
 
@@ -148,7 +155,7 @@ override their description or sharing image. Canonical URLs are derived from
 
 ## Output
 
-A static site built with [Eleventy](https://www.11ty.dev/) and deployed to Cloudflare Pages. Three visual personalities: minimal, professional, bold. 1–5 pages. Your copy, or Claude drafts it.
+A static site built with [Eleventy](https://www.11ty.dev/) and deployed to Cloudflare Pages. Built-in visual personalities: minimal, professional, bold, warm. 1–5 pages. Your copy, or Claude drafts it.
 
 ---
 

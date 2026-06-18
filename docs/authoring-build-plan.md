@@ -13,7 +13,7 @@ slug: acme                      # site dir name (matches <site-name>)
 name: Acme Co.                  # human-readable display name
 overview: >-                    # one paragraph: purpose, audience, tone
   ...
-style: minimal                  # minimal | professional | bold  → selects a theme
+style: minimal                  # minimal | professional | bold | warm  → selects a theme
 tone: friendly                  # professional | casual | technical | friendly
 custom_domain: ""               # hostname only, or "" for none
 head:                           # optional site-wide metadata defaults
@@ -70,9 +70,9 @@ done
 
 ## Non-obvious behaviors (the things you'd otherwise have to discover)
 
-- **Reskin = change `style`.** `minimal` / `professional` / `bold` select a
-  built-in theme applied site-wide. Changing the visual look is a one-line edit;
-  you never write CSS in the plan.
+- **Reskin = change `style`.** `minimal` / `professional` / `bold` / `warm`
+  select a built-in theme applied site-wide. Changing the visual look is a
+  one-line edit; you never write CSS in the plan.
 - **`catalog` renders display-only when there is no top-level `commerce:` block.**
   Provide `commerce/catalog.json` and use the `catalog` component to show products
   with no checkout (see "The commerce catalog" below). Add a `commerce:` block only

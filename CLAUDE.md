@@ -27,6 +27,14 @@ Type `/help` at any time to see this again.
 
 ---
 
+## Agent Documentation
+
+- If you are changing Clodsite itself, read `docs/agent-development.md`.
+- If you are using Clodsite to create or modify a site, read
+  `docs/agent-authoring.md` and `components/CATALOG.md`.
+
+---
+
 ## Commands
 
 ### `/setup` — `[HYBRID]`
@@ -90,7 +98,7 @@ For a site-wide live comparison of built-in themes, opt in explicitly:
 style: bold
 theme_selector:
   enabled: true
-  options: [minimal, professional, bold]
+  options: [minimal, professional, bold, warm]
 ```
 
 Keep ordinary customer sites fixed-theme unless the user asks for a selector.
@@ -179,7 +187,7 @@ The LLM handles: collecting user input through the chat, reading source material
 
 ## Scope (v2.0)
 
-Static content sites, 1–5 pages (or one), three visual styles, `mailto:` contact, Cloudflare Pages deploy, custom domain automation, per-site version control.
+Static content sites, 1–5 pages (or one), built-in visual styles, `mailto:` contact, Cloudflare Pages deploy, custom domain automation, per-site version control.
 
 The inference boundary is `$SITES_DIR/<site-name>/build-plan.yaml`. Everything before it is customer-agent collaboration; everything after it is deterministic scripts.
 
