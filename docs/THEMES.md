@@ -51,6 +51,7 @@ Two scripts hold a hardcoded list of valid theme names. A new theme must be adde
 | `minimal` | Clean white, Inter everywhere, blue accent, quiet shadows — gets out of the way. |
 | `professional` | Off-white with navy accent, Merriweather serif headings — trustworthy and formal. |
 | `bold` | Near-black background, orange accent, uppercase Space Grotesk headings, hard offset shadows — loud on purpose. |
+| `warm` | Cream and terracotta, Fraunces display serif, editorial and handmade without going full rustic. |
 
 ## Theme ideas
 
