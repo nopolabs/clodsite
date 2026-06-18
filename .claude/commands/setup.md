@@ -111,6 +111,16 @@ Replace `<path-to-file>` with the path the user gave (e.g. `~/clodsite-demo.env`
 
 If the user typed credentials directly into chat instead, write them to `.env` using the Write tool. Preserve any existing `SITES_DIR=...` line if present. If the user asks where sites should live, add a `SITES_DIR` line pointing at that directory; otherwise omit it and Clodsite defaults to `sites/`.
 
+For multiple trusted local worktrees, prefer one shared private file and symlink
+each checkout's `.env` to it:
+
+```bash
+mkdir -p ~/.config/clodsite
+cp .env ~/.config/clodsite/env
+chmod 600 ~/.config/clodsite/env
+ln -sf ~/.config/clodsite/env .env
+```
+
 ```
 CLOUDFLARE_API_TOKEN=<token>
 CLOUDFLARE_ACCOUNT_ID=<account-id>

@@ -107,6 +107,23 @@ Command workflows pass `SITE_NAME=<site-name>` and resolve the site as
 `$SITES_DIR/<site-name>`. Low-level scripts also continue to accept an explicit
 `SITE_DIR` override, primarily for tests and direct scripting.
 
+### Shared local credentials across worktrees
+
+Clodsite currently reads credentials from a repo-local `.env`. When several
+local checkouts or agent worktrees share the same trusted operator account, keep
+one private env file and symlink each checkout's `.env` to it:
+
+```bash
+mkdir -p ~/.config/clodsite
+cp /path/to/existing/clodsite/.env ~/.config/clodsite/env
+chmod 600 ~/.config/clodsite/env
+
+ln -sf ~/.config/clodsite/env /path/to/clodsite-worktree/.env
+```
+
+This avoids copying Cloudflare, Stripe, Resend, or fulfillment secrets between
+worktrees. The `.env` symlink is still local-only and ignored by git.
+
 ---
 
 ## Architecture
