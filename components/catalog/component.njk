@@ -3,9 +3,10 @@
    variants and fulfillment refs never reach the page. #}
 <div class="c-catalog">
   {% for product in component.products %}
-  <article class="c-catalog__product" data-slug="{{ product.slug | escape }}"
+  <article class="c-catalog__product{% if not (product.images and product.images.main) %} c-catalog__product--no-media{% endif %}" data-slug="{{ product.slug | escape }}"
            data-name="{{ product.name | escape }}" data-price-minor="{{ product.price_minor }}"
-           data-image="{{ product.images.main | escape }}">
+           {% if product.images and product.images.main %}data-image="{{ product.images.main | escape }}"{% endif %}>
+    {% if product.images and product.images.main %}
     <figure class="c-catalog__media">
       <img class="c-catalog__image" src="{{ product.images.main | escape }}" alt="{{ product.name | escape }}" loading="lazy">
       {% if product.images.gallery and product.images.gallery.length > 0 %}
@@ -21,9 +22,10 @@
       </div>
       {% endif %}
     </figure>
+    {% endif %}
     <div class="c-catalog__body">
       <h3 class="c-catalog__name">{{ product.name | escape }}</h3>
-      <p class="c-catalog__price">{{ product.price_display | escape }}</p>
+      <p class="c-catalog__price">{{ product.price_display | escape }}{% if product.size %} <span class="c-catalog__size">{{ product.size | escape }}</span>{% endif %}</p>
       <p class="c-catalog__description">{{ product.description | escape }}</p>
       {% for option in product.options %}
       <div class="c-catalog__option" data-option-name="{{ option.name | escape }}">

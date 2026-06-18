@@ -1,0 +1,9 @@
+<section class="c-faq">
+{% if component.heading %}  <h2 class="c-faq__heading">{{ component.heading | escape }}</h2>
+{% endif %}  <div class="c-faq__list">
+{% for item in component.items %}    <details class="c-faq__item">
+      <summary class="c-faq__question">{{ item.question | escape }}</summary>
+      <div class="c-faq__answer"><p>{{ item.answer | escape }}</p></div>
+    </details>
+{% endfor %}  </div>
+</section>

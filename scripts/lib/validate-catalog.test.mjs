@@ -71,6 +71,30 @@ test('accepts a product with a size guide', () => {
   assert.deepEqual(validateCatalog({ products: [product] }), []);
 });
 
+test('accepts a product with no images (display-only listing)', () => {
+  const product = makeProduct();
+  delete product.images;
+  delete product.options;
+  delete product.variants;
+  assert.deepEqual(validateCatalog({ products: [product] }), []);
+});
+
+test('still rejects an invalid images.main when images are present', () => {
+  const errors = validateCatalog({ products: [makeProduct({ images: { main: 'https://cdn.example/x.png' } })] });
+  assert.ok(errors.some((e) => e.includes('.images.main must be a local')));
+});
+
+test('accepts an optional size label', () => {
+  assert.deepEqual(validateCatalog({ products: [makeProduct({ size: '12 oz' })] }), []);
+});
+
+test('rejects a non-string or empty size', () => {
+  assert.ok(validateCatalog({ products: [makeProduct({ size: 12 })] })
+    .some((e) => e.includes('.size must be a non-empty string')));
+  assert.ok(validateCatalog({ products: [makeProduct({ size: '   ' })] })
+    .some((e) => e.includes('.size must be a non-empty string')));
+});
+
 test('rejects a non-object catalog', () => {
   assert.deepEqual(validateCatalog(null), ['catalog must be an object']);
   assert.deepEqual(validateCatalog([]), ['catalog must be an object']);

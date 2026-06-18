@@ -253,3 +253,22 @@ test('resolves size guides with rooted diagram images', () => {
   assert.deepEqual(guide.tables[0].rows[0].values, { S: '25.5', M: '26' });
   assert.equal(resolved.products[1].size_guide, undefined);
 });
+
+test('resolves a display-only product with no images and a size label', () => {
+  const catalog = { products: [
+    { slug: 'house-blend', name: 'House Blend', description: 'Everyday.', price_minor: 1600, active: true, size: '12 oz' },
+  ] };
+  const p = resolveCatalogComponent({ type: 'catalog' }, catalog).products[0];
+  assert.equal('images' in p, false); // no images key when the catalog provides none
+  assert.equal(p.size, '12 oz');      // size passes through to the display shape
+  assert.equal(p.price_display, '$16.00');
+});
+
+test('omits size when not provided; resolves images when present', () => {
+  const catalog = { products: [
+    { slug: 'x', name: 'X', description: 'd', price_minor: 100, active: true, images: { main: 'commerce/assets/x.png' } },
+  ] };
+  const p = resolveCatalogComponent({ type: 'catalog' }, catalog).products[0];
+  assert.equal('size' in p, false);
+  assert.equal(p.images.main, '/commerce/assets/x.png');
+});

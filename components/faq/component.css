@@ -1,0 +1,40 @@
+.c-faq__heading {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-heading);
+}
+.c-faq__list {
+  border-top: 1px solid var(--color-border);
+}
+.c-faq__item {
+  border-bottom: 1px solid var(--color-border);
+}
+.c-faq__question {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+/* Hide the default disclosure triangle (both engines). */
+.c-faq__question::-webkit-details-marker { display: none; }
+.c-faq__question::after {
+  content: "+";
+  color: var(--color-accent);
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.c-faq__item[open] > .c-faq__question::after {
+  content: "\2212"; /* minus sign */
+}
+.c-faq__answer {
+  padding: 0 0 1.25rem;
+  color: var(--color-muted);
+}
+.c-faq__answer p {
+  margin: 0;
+}
