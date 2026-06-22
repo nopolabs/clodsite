@@ -59,6 +59,14 @@ export function buildCheckoutConfig(plan, catalog) {
     personalization,
     shipping: {
       flat_rate_minor: typeof shipping.flat_rate_minor === 'number' ? shipping.flat_rate_minor : null,
+      base_rate_minor: typeof shipping.base_rate_minor === 'number' ? shipping.base_rate_minor : null,
+      per_additional_item_minor: typeof shipping.per_additional_item_minor === 'number'
+        ? shipping.per_additional_item_minor
+        : null,
+      display_name: typeof shipping.display_name === 'string' && shipping.display_name.trim() !== ''
+        ? shipping.display_name
+        : 'Flat rate shipping',
+      delivery_estimate: shipping.delivery_estimate || null,
       countries: Array.isArray(shipping.countries) && shipping.countries.length > 0
         ? shipping.countries
         : ['US'],

@@ -67,6 +67,25 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clodsite-checkout-'));
 const modulePath = path.join(tmpDir, 'checkout.mjs');
 fs.writeFileSync(modulePath, renderCheckoutSource(PLAN, CATALOG));
 const { onRequestPost } = await import(pathToFileURL(modulePath).href);
+const itemCountModulePath = path.join(tmpDir, 'checkout-item-count.mjs');
+const ITEM_COUNT_PLAN = {
+  ...PLAN,
+  commerce: {
+    ...PLAN.commerce,
+    shipping: {
+      base_rate_minor: 475,
+      per_additional_item_minor: 220,
+      display_name: 'Standard Shipping',
+      countries: ['US'],
+      delivery_estimate: {
+        minimum: { unit: 'business_day', value: 5 },
+        maximum: { unit: 'business_day', value: 10 },
+      },
+    },
+  },
+};
+fs.writeFileSync(itemCountModulePath, renderCheckoutSource(ITEM_COUNT_PLAN, CATALOG));
+const { onRequestPost: onRequestPostItemCount } = await import(pathToFileURL(itemCountModulePath).href);
 test.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
 function makeContext(body, env = {}) {
@@ -153,8 +172,42 @@ test('shipping countries and flat rate come from the plan', async (t) => {
   const params = calls[0].params;
   assert.equal(params.get('shipping_address_collection[allowed_countries][0]'), 'US');
   assert.equal(params.get('shipping_address_collection[allowed_countries][1]'), 'CA');
+  assert.equal(params.get('shipping_options[0][shipping_rate_data][display_name]'), 'Flat rate shipping');
   assert.equal(params.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]'), '500');
   assert.equal(params.get('shipping_options[0][shipping_rate_data][fixed_amount][currency]'), 'usd');
+});
+
+test('item-count shipping computes amount from resolved server-side quantities', async (t) => {
+  const calls = stubStripe(t);
+
+  await onRequestPostItemCount(makeContext({
+    items: [
+      { slug: 'crow-tee', optionValues: { Color: 'White', Size: 'S' }, qty: 2 },
+      { slug: 'logo-cap', optionValues: {}, qty: 1 },
+    ],
+  }));
+
+  const params = calls[0].params;
+  assert.equal(params.get('shipping_address_collection[allowed_countries][0]'), 'US');
+  assert.equal(params.get('shipping_options[0][shipping_rate_data][display_name]'), 'Standard Shipping');
+  assert.equal(params.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]'), '915');
+  assert.equal(params.get('shipping_options[0][shipping_rate_data][fixed_amount][currency]'), 'usd');
+  assert.equal(
+    params.get('shipping_options[0][shipping_rate_data][delivery_estimate][minimum][unit]'),
+    'business_day',
+  );
+  assert.equal(
+    params.get('shipping_options[0][shipping_rate_data][delivery_estimate][minimum][value]'),
+    '5',
+  );
+  assert.equal(
+    params.get('shipping_options[0][shipping_rate_data][delivery_estimate][maximum][unit]'),
+    'business_day',
+  );
+  assert.equal(
+    params.get('shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]'),
+    '10',
+  );
 });
 
 test('success and cancel URLs derive from the request origin', async (t) => {
