@@ -77,6 +77,10 @@ done
   Provide `commerce/catalog.json` and use the `catalog` component to show products
   with no checkout (see "The commerce catalog" below). Add a `commerce:` block only
   for live Stripe checkout (which also needs deploy-time KV provisioning).
+- **Live commerce supports two shipping price shapes.** Use either a single
+  `shipping.flat_rate_minor`, or item-count shipping with
+  `shipping.base_rate_minor` plus `shipping.per_additional_item_minor`. Do not
+  mix both shapes in one plan.
 - **Assets live with the site:** general images under `<site>/assets/`, product
   images under `<site>/commerce/assets/`, favicons auto-detected under
   `<site>/assets/favicons/`. Reference them by site-root path.
@@ -117,6 +121,35 @@ Minimal display-only catalog:
     }
   ]
 }
+```
+
+Minimal live-commerce shipping examples:
+
+```yaml
+commerce:
+  enabled: true
+  provider: manual
+  currency: usd
+  checkout: stripe
+  shipping:
+    flat_rate_minor: 500
+    countries: [US]
+```
+
+```yaml
+commerce:
+  enabled: true
+  provider: printful
+  currency: usd
+  checkout: stripe
+  shipping:
+    base_rate_minor: 475
+    per_additional_item_minor: 220
+    display_name: Standard Shipping
+    countries: [US]
+    delivery_estimate:
+      minimum: { unit: business_day, value: 5 }
+      maximum: { unit: business_day, value: 10 }
 ```
 
 ## Extending the vocabulary (when the catalog can't express it)

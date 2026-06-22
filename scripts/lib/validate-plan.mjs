@@ -457,19 +457,75 @@ if ('commerce' in plan) {
       if (!isObject(commerce.shipping)) {
         errors.push('commerce.shipping must be an object');
       } else {
-        const allowedShipping = new Set(['flat_rate_minor', 'countries']);
+        const allowedShipping = new Set([
+          'flat_rate_minor',
+          'base_rate_minor',
+          'per_additional_item_minor',
+          'display_name',
+          'countries',
+          'delivery_estimate',
+        ]);
         for (const field of Object.keys(commerce.shipping)) {
           if (!allowedShipping.has(field))
             errors.push('commerce.shipping has unknown field "' + field + '"');
         }
-        if (!Number.isInteger(commerce.shipping.flat_rate_minor) || commerce.shipping.flat_rate_minor < 0)
+        const hasFlatRate = 'flat_rate_minor' in commerce.shipping;
+        const hasBaseRate = 'base_rate_minor' in commerce.shipping;
+        const hasAdditionalRate = 'per_additional_item_minor' in commerce.shipping;
+        if (hasFlatRate && (hasBaseRate || hasAdditionalRate)) {
+          errors.push('commerce.shipping must use either flat_rate_minor or base_rate_minor + per_additional_item_minor, not both');
+        }
+        if (!hasFlatRate && !hasBaseRate && !hasAdditionalRate) {
+          errors.push('commerce.shipping must define flat_rate_minor or base_rate_minor + per_additional_item_minor');
+        }
+        if (hasFlatRate && (!Number.isInteger(commerce.shipping.flat_rate_minor) || commerce.shipping.flat_rate_minor < 0))
           errors.push('commerce.shipping.flat_rate_minor must be a non-negative integer (minor currency units)');
+        if (hasBaseRate !== hasAdditionalRate) {
+          errors.push('commerce.shipping.base_rate_minor and commerce.shipping.per_additional_item_minor must be provided together');
+        }
+        if (hasBaseRate && (!Number.isInteger(commerce.shipping.base_rate_minor) || commerce.shipping.base_rate_minor < 0))
+          errors.push('commerce.shipping.base_rate_minor must be a non-negative integer (minor currency units)');
+        if (hasAdditionalRate && (!Number.isInteger(commerce.shipping.per_additional_item_minor) || commerce.shipping.per_additional_item_minor < 0))
+          errors.push('commerce.shipping.per_additional_item_minor must be a non-negative integer (minor currency units)');
+        if ('display_name' in commerce.shipping &&
+            !(typeof commerce.shipping.display_name === 'string' && commerce.shipping.display_name.trim() !== ''))
+          errors.push('commerce.shipping.display_name must be a non-empty string');
         if ('countries' in commerce.shipping) {
           // Stripe shipping_address_collection needs explicit allowed_countries.
           const countries = commerce.shipping.countries;
           if (!Array.isArray(countries) || countries.length === 0 ||
               !countries.every(function(c) { return typeof c === 'string' && /^[A-Z]{2}$/.test(c); }))
             errors.push('commerce.shipping.countries must be a non-empty array of two-letter uppercase country codes, e.g. [US, CA]');
+        }
+        if ('delivery_estimate' in commerce.shipping) {
+          const estimate = commerce.shipping.delivery_estimate;
+          if (!isObject(estimate)) {
+            errors.push('commerce.shipping.delivery_estimate must be an object');
+          } else {
+            for (const field of Object.keys(estimate)) {
+              if (field !== 'minimum' && field !== 'maximum')
+                errors.push('commerce.shipping.delivery_estimate has unknown field "' + field + '"');
+            }
+            ['minimum', 'maximum'].forEach(function(bound) {
+              if (!(bound in estimate)) {
+                errors.push('commerce.shipping.delivery_estimate.' + bound + ' is required');
+                return;
+              }
+              const value = estimate[bound];
+              if (!isObject(value)) {
+                errors.push('commerce.shipping.delivery_estimate.' + bound + ' must be an object');
+                return;
+              }
+              for (const field of Object.keys(value)) {
+                if (field !== 'unit' && field !== 'value')
+                  errors.push('commerce.shipping.delivery_estimate.' + bound + ' has unknown field "' + field + '"');
+              }
+              if (!['business_day', 'day', 'week', 'month'].includes(value.unit))
+                errors.push('commerce.shipping.delivery_estimate.' + bound + '.unit must be one of: business_day, day, week, month');
+              if (!Number.isInteger(value.value) || value.value <= 0)
+                errors.push('commerce.shipping.delivery_estimate.' + bound + '.value must be a positive integer');
+            });
+          }
         }
       }
     }

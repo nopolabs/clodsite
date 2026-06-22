@@ -18,7 +18,14 @@
 //   option_names: { '<slug>': ['Color', 'Size'], ... },   // declared option order
 //   items: { '<slug>:<val>:<val>': { name, price_minor, fulfillment_ref }, ... },
 //   personalization: { '<slug>': '/parchment/cert/{id}', ... },  // origin-relative url templates
-//   shipping: { flat_rate_minor: 500 | null, countries: ['US', ...] },
+//   shipping: {
+//     flat_rate_minor: 500 | null,
+//     base_rate_minor: 475 | null,
+//     per_additional_item_minor: 220 | null,
+//     display_name: 'Standard Shipping',
+//     countries: ['US', ...],
+//     delivery_estimate: { minimum: { unit, value }, maximum: { unit, value } } | null,
+//   },
 // }
 
 export async function onRequestPost(context) {
@@ -144,11 +151,36 @@ export async function onRequestPost(context) {
   CONFIG.shipping.countries.forEach(function (country, i) {
     body.set('shipping_address_collection[allowed_countries][' + i + ']', country);
   });
+  const totalQty = resolved.reduce((sum, line) => sum + line.qty, 0);
+  let shippingAmount = null;
   if (typeof CONFIG.shipping.flat_rate_minor === 'number') {
+    shippingAmount = CONFIG.shipping.flat_rate_minor;
+  } else if (
+    typeof CONFIG.shipping.base_rate_minor === 'number' &&
+    typeof CONFIG.shipping.per_additional_item_minor === 'number'
+  ) {
+    shippingAmount =
+      CONFIG.shipping.base_rate_minor +
+      Math.max(0, totalQty - 1) * CONFIG.shipping.per_additional_item_minor;
+  }
+  if (typeof shippingAmount === 'number') {
     body.set('shipping_options[0][shipping_rate_data][type]', 'fixed_amount');
-    body.set('shipping_options[0][shipping_rate_data][display_name]', 'Flat rate shipping');
-    body.set('shipping_options[0][shipping_rate_data][fixed_amount][amount]', String(CONFIG.shipping.flat_rate_minor));
+    body.set('shipping_options[0][shipping_rate_data][display_name]', CONFIG.shipping.display_name || 'Flat rate shipping');
+    body.set('shipping_options[0][shipping_rate_data][fixed_amount][amount]', String(shippingAmount));
     body.set('shipping_options[0][shipping_rate_data][fixed_amount][currency]', CONFIG.currency);
+    const estimate = CONFIG.shipping.delivery_estimate;
+    if (estimate && estimate.minimum && estimate.maximum) {
+      for (const bound of ['minimum', 'maximum']) {
+        body.set(
+          'shipping_options[0][shipping_rate_data][delivery_estimate][' + bound + '][unit]',
+          estimate[bound].unit,
+        );
+        body.set(
+          'shipping_options[0][shipping_rate_data][delivery_estimate][' + bound + '][value]',
+          String(estimate[bound].value),
+        );
+      }
+    }
   }
   // The webhook fulfills from this metadata — server-resolved refs only.
   // Personalized lines carry the token and the resolved print URL (opaque to

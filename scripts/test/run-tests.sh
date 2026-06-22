@@ -1820,6 +1820,32 @@ COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
 assert_exit "bad shipping countries exits 1" 1 $?
 assert_contains "shipping countries format is named" "commerce.shipping.countries must be a non-empty array of two-letter uppercase country codes" "$COMMERCE_OUTPUT"
 
+commerce_live_mutation "p.commerce.shipping={base_rate_minor:475,per_additional_item_minor:220,display_name:'Standard Shipping',countries:['US'],delivery_estimate:{minimum:{unit:'business_day',value:5},maximum:{unit:'business_day',value:10}}};"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "item-count shipping exits 0" 0 $?
+
+commerce_live_mutation "p.commerce.shipping={flat_rate_minor:500,base_rate_minor:475,per_additional_item_minor:220};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "mixed shipping price shapes exit 1" 1 $?
+assert_contains "mixed shipping price shapes are rejected" "must use either flat_rate_minor or base_rate_minor + per_additional_item_minor, not both" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.shipping={base_rate_minor:475};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "partial item-count shipping exits 1" 1 $?
+assert_contains "partial item-count shipping names paired fields" "base_rate_minor and commerce.shipping.per_additional_item_minor must be provided together" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.shipping={base_rate_minor:475,per_additional_item_minor:-1};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "negative additional shipping exits 1" 1 $?
+assert_contains "negative additional shipping is rejected" "commerce.shipping.per_additional_item_minor must be a non-negative integer" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.shipping={base_rate_minor:475,per_additional_item_minor:220,display_name:'',delivery_estimate:{minimum:{unit:'hour',value:5},maximum:{unit:'business_day',value:0}}};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "bad item-count shipping metadata exits 1" 1 $?
+assert_contains "empty shipping display name is rejected" "commerce.shipping.display_name must be a non-empty string" "$COMMERCE_OUTPUT"
+assert_contains "bad delivery estimate unit is rejected" "commerce.shipping.delivery_estimate.minimum.unit must be one of" "$COMMERCE_OUTPUT"
+assert_contains "bad delivery estimate value is rejected" "commerce.shipping.delivery_estimate.maximum.value must be a positive integer" "$COMMERCE_OUTPUT"
+
 # printful block validation (plan-side product curation, spec §1)
 commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment;"
 COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
@@ -1874,6 +1900,15 @@ assert_contains "live HTML clears the cart after checkout success" 'params.get("
 assert_not_contains "live HTML drops the preview note" "Checkout is coming soon." "$LIVE_HTML"
 assert_not_contains "live HTML never carries fulfillment refs" "4938291" "$LIVE_HTML"
 assert_contains "cart stylesheet styles the checkout error" ".cart-drawer__error" "$(cat "${SITE_DIR}/dist/css/cart.css")"
+
+commerce_live_mutation "p.commerce.shipping={base_rate_minor:475,per_additional_item_minor:220,display_name:'Standard Shipping',countries:['US'],delivery_estimate:{minimum:{unit:'business_day',value:5},maximum:{unit:'business_day',value:10}}};"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "render-functions with item-count shipping exits 0" 0 $?
+CHECKOUT_FUNCTION=$(cat "${SITE_DIR}/functions/api/checkout.js")
+assert_contains "checkout CONFIG carries item-count base rate" '"base_rate_minor":475' "$CHECKOUT_FUNCTION"
+assert_contains "checkout CONFIG carries item-count additional rate" '"per_additional_item_minor":220' "$CHECKOUT_FUNCTION"
+assert_contains "checkout CONFIG carries shipping display name" '"display_name":"Standard Shipping"' "$CHECKOUT_FUNCTION"
+assert_contains "checkout CONFIG carries delivery estimate" '"delivery_estimate":{"minimum":{"unit":"business_day","value":5},"maximum":{"unit":"business_day","value":10}}' "$CHECKOUT_FUNCTION"
 
 # printful provider: the webhook embeds the store id from the plan's
 # printful block, so rendering without one fails loudly
