@@ -16,6 +16,7 @@ pages:
     title: Tees
     components:
       - type: catalog
+        randomize_initial_color: true
         products: [crow-tee]
 nav:
   order: [home, tees]

@@ -87,6 +87,11 @@ test('resolves all active products by default, in catalog order', () => {
   assert.deepEqual(resolved.products.map((p) => p.slug), ['crow-tee', 'logo-cap']);
 });
 
+test('preserves random initial color setting on catalog components', () => {
+  const resolved = resolveCatalogComponent({ type: 'catalog', randomize_initial_color: true }, makeCatalog());
+  assert.equal(resolved.randomize_initial_color, true);
+});
+
 test('applies the products filter in filter order', () => {
   const resolved = resolveCatalogComponent(
     { type: 'catalog', products: ['logo-cap', 'crow-tee'] },

@@ -69,6 +69,13 @@ ln -sf ~/.config/clodsite/env /path/to/clodsite-worktree/.env
 Do not paste secrets into chat or commit `.env`. This is a local single-operator
 convenience, not a multi-customer isolation model.
 
+In v1, Clodsite does not support per-site secret overlays. The shared env is the
+operator credential set; individual sites choose provider resources through
+validated plan fields such as `commerce.printful.store_id`. Do not put secret
+values in `build-plan.yaml` or generated site files. If a future site needs
+hard isolation by provider account or operator, add a designed per-site secret
+overlay instead of ad hoc env loading.
+
 ## Component Change Checklist
 
 When adding or changing a component:

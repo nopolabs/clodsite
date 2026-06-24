@@ -50,6 +50,7 @@ _(none)_
 
 **Optional fields:**
 
+- `randomize_initial_color` (boolean)
 - `products` (array; minimum 1 items)
 - `products[]` (non-empty string)
 
@@ -57,6 +58,7 @@ _(none)_
 
 ```yaml
 type: catalog
+randomize_initial_color: true
 products: [crow-tee, logo-cap]
 ```
 

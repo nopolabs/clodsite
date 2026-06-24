@@ -124,6 +124,15 @@ ln -sf ~/.config/clodsite/env /path/to/clodsite-worktree/.env
 This avoids copying Cloudflare, Stripe, Resend, or fulfillment secrets between
 worktrees. The `.env` symlink is still local-only and ignored by git.
 
+This is a **single trusted operator** model. In v1, Clodsite does not load
+per-site secret overlays; all scripts and deploys read the same operator env.
+Site-specific provider resources should be selected by site configuration, such
+as `commerce.printful.store_id`, not by putting secrets in `build-plan.yaml`.
+For example, one `PRINTFUL_API_KEY` may be shared locally while each site points
+at its own Printful store for fulfillment/accounting. Per-site secret overlays
+are a future hardening option if Clodsite needs stronger isolation between
+sites, operators, or provider accounts.
+
 ---
 
 ## Architecture
