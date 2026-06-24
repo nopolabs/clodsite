@@ -406,7 +406,8 @@ Verify:
 
 - duplicate delivery returns 200;
 - ORDERS KV remains `completed`;
-- Printful provider treats the same session ID as idempotent;
+- Printful provider treats the same session-derived compact external ID as
+  idempotent;
 - no duplicate Printful order is created.
 
 If a failure-path test requires a fresh session, stop first and re-enter the

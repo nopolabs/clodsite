@@ -85,7 +85,7 @@ test('createOrder looks up, creates, and confirms a new order', async (t) => {
   assert.deepEqual(result, { provider_order_id: '77001' });
   assert.deepEqual(
     calls.map((c) => `${c.method} ${c.pathname}`),
-    ['GET /orders/@cs_test_abc123', 'POST /orders', 'POST /orders/77001/confirm'],
+    ['GET /orders/@cs_71d330da3cfb1ee326a53caf', 'POST /orders', 'POST /orders/77001/confirm'],
   );
 });
 
@@ -106,7 +106,7 @@ test('createOrder builds the Printful order payload from the fulfillment order',
   await createOrder(makeOrder(), ENV);
 
   const body = JSON.parse(calls[1].init.body);
-  assert.equal(body.external_id, 'cs_test_abc123');
+  assert.equal(body.external_id, 'cs_71d330da3cfb1ee326a53caf');
   assert.deepEqual(body.recipient, {
     name: 'Pat Crow',
     address1: '1 Roost Ln',
@@ -118,8 +118,24 @@ test('createOrder builds the Printful order payload from the fulfillment order',
     email: 'pat@example.com',
   });
   assert.deepEqual(body.items, [
-    { external_id: 'cs_test_abc123-1', sync_variant_id: 5270106491, quantity: 2 },
-    { external_id: 'cs_test_abc123-2', sync_variant_id: 5270106489, quantity: 1 },
+    { external_id: 'cs_71d330da3cfb1ee326a53caf-1', sync_variant_id: 5270106491, quantity: 2 },
+    { external_id: 'cs_71d330da3cfb1ee326a53caf-2', sync_variant_id: 5270106489, quantity: 1 },
+  ]);
+});
+
+test('createOrder compacts real Stripe session ids into Printful-safe external ids', async (t) => {
+  const calls = stubFetch(t, HAPPY_ROUTES);
+
+  await createOrder(makeOrder({
+    idempotency_key: 'cs_test_a1hN3Cm2INvwtwG9nLMd3j79kprmDpx9So59yc2Pq2ojiU6x7VqBkTeMdd',
+  }), ENV);
+
+  assert.equal(calls[0].pathname, '/orders/@cs_eb82d71d6ae3019bd5a3966c');
+  const body = JSON.parse(calls[1].init.body);
+  assert.equal(body.external_id, 'cs_eb82d71d6ae3019bd5a3966c');
+  assert.deepEqual(body.items.map((item) => item.external_id), [
+    'cs_eb82d71d6ae3019bd5a3966c-1',
+    'cs_eb82d71d6ae3019bd5a3966c-2',
   ]);
 });
 
@@ -167,7 +183,7 @@ test('createOrder confirms an existing draft without creating a duplicate', asyn
   assert.deepEqual(result, { provider_order_id: '66005' });
   assert.deepEqual(
     calls.map((c) => `${c.method} ${c.pathname}`),
-    ['GET /orders/@cs_test_abc123', 'POST /orders/66005/confirm'],
+    ['GET /orders/@cs_71d330da3cfb1ee326a53caf', 'POST /orders/66005/confirm'],
   );
 });
 
@@ -186,12 +202,12 @@ test('createOrder treats an existing non-draft order as already fulfilled', asyn
   assert.equal(calls.length, 1, 'lookup only — no create, no confirm');
 });
 
-test('createOrder URL-encodes the idempotency key in the lookup path', async (t) => {
+test('createOrder uses a deterministic compact lookup path for unusual idempotency keys', async (t) => {
   const calls = stubFetch(t, HAPPY_ROUTES);
 
   await createOrder(makeOrder({ idempotency_key: 'cs test/odd' }), ENV);
 
-  assert.ok(calls[0].url.includes('/orders/@cs%20test%2Fodd'));
+  assert.ok(calls[0].url.includes('/orders/@cs_7606c21e4198715cd84ed715'));
 });
 
 test('createOrder throws with provider_detail when env config is missing', async (t) => {
