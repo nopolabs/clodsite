@@ -41,7 +41,7 @@ headers:                        # optional Cloudflare Pages response headers
 
 ## Build and verify (exact commands)
 
-From the Clodsite repo root, build the whole pipeline for a site:
+From the Clodsite repo root, build the local verification pipeline for a site:
 
 ```bash
 for s in validate-plan write-site-json apply-theme render-templates \
@@ -56,6 +56,18 @@ done
   Do **not** start a dev server to check — it blocks.
 - First-time setup in a fresh checkout/worktree: run `npm install` in the repo
   root once, or `validate-plan` fails with `ERR_MODULE_NOT_FOUND`.
+
+For a real deploy, use the wrapper instead of reconstructing the pipeline:
+
+```bash
+SITES_DIR=/path/to/clodsite-sites bash scripts/build-deploy.sh <site-name> "reason for deploy"
+```
+
+`build-deploy.sh` runs validation, all render/build steps, deployment, and
+finalization. Finalization writes `NEXT-STEPS.md` and commits the deployed site
+snapshot to the sites repo when `SITES_DIR` is a git repo. Use the lower-level
+`deploy.sh` and `deploy-finalize.sh` scripts directly only when debugging a
+deploy failure or intentionally running a partial pipeline.
 
 ## Components
 

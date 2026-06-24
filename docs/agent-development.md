@@ -127,7 +127,7 @@ node --test scripts/lib/*.test.mjs mcp/pipeline.test.js
 bash scripts/test/run-tests.sh
 ```
 
-For a real site build:
+For local verification of a real site build:
 
 ```bash
 for s in validate-plan write-site-json apply-theme render-templates \
@@ -135,6 +135,30 @@ for s in validate-plan write-site-json apply-theme render-templates \
   SITE_NAME=<site-name> bash scripts/$s.sh || { echo "BUILD FAILED at $s"; break; }
 done
 ```
+
+For a real deployment, prefer the wrapper:
+
+```bash
+SITES_DIR=/path/to/clodsite-sites bash scripts/build-deploy.sh <site-name> "reason for deploy"
+```
+
+Do not manually run `deploy.sh` plus `deploy-finalize.sh` unless you are
+debugging a failed deploy or intentionally running a partial pipeline.
+`build-deploy.sh` runs the full deterministic sequence:
+
+1. `validate-plan`
+2. `write-site-json`
+3. `apply-theme`
+4. `render-templates`
+5. `render-functions`
+6. `build-site`
+7. `render-headers`
+8. `deploy`
+9. `deploy-finalize`
+
+`deploy-finalize.sh` writes `NEXT-STEPS.md` and auto-commits the deployed site
+snapshot to the sites repo when `SITES_DIR` is a git repo. Treat that as part of
+the deploy workflow, not as a separate manual cleanup step.
 
 If `run-tests.sh` or a build needs dependencies in a fresh checkout, run
 `npm install` in the repository root first.
