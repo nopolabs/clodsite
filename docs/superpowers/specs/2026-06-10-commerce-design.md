@@ -234,8 +234,8 @@ Two routes, rendered by `render-functions.sh` from function templates (the
   Because KV reads are eventually consistent, the state machine is
   best-effort dedup only; the **authoritative** duplicate guard is the
   provider idempotency key (§7): `createOrder` always receives the Stripe
-  session ID and providers must dedupe on it, so even a double-fired
-  fulfillment call cannot create a duplicate order.
+  session ID and providers must derive a stable provider-safe dedupe key from
+  it, so even a double-fired fulfillment call cannot create a duplicate order.
 
 Deploy pipeline additions, all following the Turnstile provision-or-reuse
 pattern:
@@ -277,9 +277,9 @@ export async function createOrder(order, env)
 ```
 
 `idempotency_key` is the authoritative duplicate guard (the KV state machine
-in §6 is best-effort): Printful sets it as the order `external_id` and treats
-an existing order with that ID as success; manual passes it as the Resend
-`Idempotency-Key` header.
+in §6 is best-effort): Printful derives a compact deterministic `external_id`
+from it and treats an existing order with that ID as success; manual passes it
+as the Resend `Idempotency-Key` header.
 
 Everything between those moments — display, cart, Stripe session, signature
 verification, idempotency — is provider-agnostic.

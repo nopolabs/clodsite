@@ -9,11 +9,11 @@
 // Throws on failure; the thrown error carries provider_detail for the
 // webhook's KV last_error record.
 //
-// Idempotency: the Stripe session ID (idempotency_key) is the Printful order
-// external_id — the authoritative duplicate guard (spec §7). Every delivery
-// first looks the order up by external_id; an existing order is treated as
-// success (drafts get confirmed), so a double-fired fulfillment call cannot
-// create a duplicate order.
+// Idempotency: a compact deterministic hash of the Stripe session ID
+// (idempotency_key) is the Printful order external_id — the authoritative
+// duplicate guard (spec §7). Every delivery first looks the order up by that
+// external_id; an existing order is treated as success (drafts get confirmed),
+// so a double-fired fulfillment call cannot create a duplicate order.
 //
 // env (Pages secret + render-time PROVIDER_ENV overlay):
 //   PRINTFUL_API_KEY    pushed by deploy.sh
@@ -65,6 +65,17 @@ async function confirmPrintfulOrder(env, orderId) {
   );
 }
 
+async function printfulExternalId(idempotencyKey) {
+  const bytes = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(String(idempotencyKey)),
+  );
+  const hex = Array.from(new Uint8Array(bytes), function (byte) {
+    return byte.toString(16).padStart(2, '0');
+  }).join('');
+  return 'cs_' + hex.slice(0, 24);
+}
+
 export async function createOrder(order, env) {
   if (!env.PRINTFUL_API_KEY || !env.PRINTFUL_STORE_ID) {
     const missing = [
@@ -76,11 +87,13 @@ export async function createOrder(order, env) {
     throw error;
   }
 
+  const externalId = await printfulExternalId(order.idempotency_key);
+
   // A prior delivery may already have created this order — external_id lookup
   // is the authoritative dedup. Drafts (created but not confirmed before a
   // crash) are confirmed; anything further along is already in fulfillment.
   const existing = await printfulOrderRequest(
-    env, 'GET', '/orders/@' + encodeURIComponent(order.idempotency_key), null,
+    env, 'GET', '/orders/@' + encodeURIComponent(externalId), null,
     'printful order lookup failed',
   );
   if (existing) {
@@ -97,7 +110,7 @@ export async function createOrder(order, env) {
   }
   const address = order.shipping.address;
   const created = await printfulOrderRequest(env, 'POST', '/orders', {
-    external_id: order.idempotency_key,
+    external_id: externalId,
     recipient: {
       name: order.shipping.name || '',
       address1: address.line1 || '',
@@ -110,7 +123,7 @@ export async function createOrder(order, env) {
     },
     items: order.lineItems.map(function (item, index) {
       return {
-        external_id: order.idempotency_key + '-' + (index + 1),
+        external_id: externalId + '-' + (index + 1),
         sync_variant_id: Number(item.fulfillment_ref),
         quantity: item.qty,
       };

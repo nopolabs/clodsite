@@ -361,9 +361,9 @@ test('printful provider: fulfills end-to-end with the store id overlaid from the
     assert.equal(call.init.headers['Authorization'], 'Bearer pf_test_key');
   }
   const created = JSON.parse(calls[1].init.body);
-  assert.equal(created.external_id, 'cs_test_abc123');
+  assert.equal(created.external_id, 'cs_71d330da3cfb1ee326a53caf');
   assert.deepEqual(created.items, [
-    { external_id: 'cs_test_abc123-1', sync_variant_id: 4938291, quantity: 2 },
+    { external_id: 'cs_71d330da3cfb1ee326a53caf-1', sync_variant_id: 4938291, quantity: 2 },
   ]);
   const record = orders.read('cs_test_abc123');
   assert.equal(record.state, 'completed');
