@@ -124,6 +124,7 @@ export function resolveCatalogComponent(component, catalog, currency = 'usd') {
 
   return {
     type: 'catalog',
+    ...(component.randomize_initial_color === true ? { randomize_initial_color: true } : {}),
     products: selected.map((product) => resolveProduct(product, currency)),
   };
 }

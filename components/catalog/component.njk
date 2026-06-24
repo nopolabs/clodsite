@@ -1,7 +1,7 @@
 {# Receives component.products: resolved product objects embedded at render
    time by render-templates (catalog.json ⋈ plan filter). Display fields only —
    variants and fulfillment refs never reach the page. #}
-<div class="c-catalog">
+<div class="c-catalog" data-randomize-initial-color="{% if component.randomize_initial_color %}true{% else %}false{% endif %}">
   {% for product in component.products %}
   <article class="c-catalog__product{% if not (product.images and product.images.main) %} c-catalog__product--no-media{% endif %}" data-slug="{{ product.slug | escape }}"
            data-name="{{ product.name | escape }}" data-price-minor="{{ product.price_minor }}"
@@ -9,18 +9,6 @@
     {% if product.images and product.images.main %}
     <figure class="c-catalog__media">
       <img class="c-catalog__image" src="{{ product.images.main | escape }}" alt="{{ product.name | escape }}" loading="lazy">
-      {% if product.images.gallery and product.images.gallery.length > 0 %}
-      <div class="c-catalog__thumbs">
-        <button type="button" class="c-catalog__thumb" data-src="{{ product.images.main | escape }}" aria-pressed="true">
-          <img src="{{ product.images.main | escape }}" alt="" loading="lazy">
-        </button>
-        {% for src in product.images.gallery %}
-        <button type="button" class="c-catalog__thumb" data-src="{{ src | escape }}" aria-pressed="false">
-          <img src="{{ src | escape }}" alt="" loading="lazy">
-        </button>
-        {% endfor %}
-      </div>
-      {% endif %}
     </figure>
     {% endif %}
     <div class="c-catalog__body">
@@ -33,8 +21,13 @@
         {% if loop.index0 == 0 and option.has_swatches %}
         <div class="c-catalog__swatches" role="group" aria-labelledby="catalog-{{ product.slug | escape }}-opt-{{ loop.index0 }}">
           {% for value in option.values %}
+          {% set swatchImage = product.images and product.images.main %}
+          {% if not loop.first and product.images and product.images.gallery and product.images.gallery[loop.index0 - 1] %}
+          {% set swatchImage = product.images.gallery[loop.index0 - 1] %}
+          {% endif %}
           <button type="button" class="c-catalog__swatch" title="{{ value.value | escape }}"
                   aria-label="{{ value.value | escape }}" aria-pressed="{% if loop.first %}true{% else %}false{% endif %}"
+                  {% if swatchImage %}data-src="{{ swatchImage | escape }}"{% endif %}
                   style="background-color: {{ value.hex | escape }}"></button>
           {% endfor %}
         </div>
@@ -115,18 +108,22 @@
       for (var card of catalog.querySelectorAll('.c-catalog__product')) {
         (function (card) {
           var mainImage = card.querySelector('.c-catalog__image');
-          var thumbs = card.querySelectorAll('.c-catalog__thumb');
-          for (var thumb of thumbs) {
-            thumb.addEventListener('click', function (e) {
-              mainImage.src = e.currentTarget.dataset.src;
-              for (var t of thumbs) t.setAttribute('aria-pressed', String(t === e.currentTarget));
-            });
-          }
           var swatches = card.querySelectorAll('.c-catalog__swatch');
+          function selectSwatch(swatch) {
+            if (!swatch) return;
+            for (var s of swatches) s.setAttribute('aria-pressed', String(s === swatch));
+            if (mainImage && swatch.dataset.src) {
+              mainImage.src = swatch.dataset.src;
+              card.dataset.image = swatch.dataset.src;
+            }
+          }
           for (var swatch of swatches) {
             swatch.addEventListener('click', function (e) {
-              for (var s of swatches) s.setAttribute('aria-pressed', String(s === e.currentTarget));
+              selectSwatch(e.currentTarget);
             });
+          }
+          if (catalog.dataset.randomizeInitialColor === 'true' && swatches.length > 1) {
+            selectSwatch(swatches[Math.floor(Math.random() * swatches.length)]);
           }
           var addButton = card.querySelector('.c-catalog__add-button');
           if (addButton) {

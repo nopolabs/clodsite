@@ -1624,10 +1624,12 @@ assert_contains "home includes catalog component" "catalog/component.njk" "$CATA
 assert_contains "prices are formatted at render time" '"price_display":"$20.00"' "$CATALOG_HOME"
 assert_contains "asset paths are rooted" '"/commerce/assets/crow-tee-white-front.png"' "$CATALOG_HOME"
 assert_contains "active products resolve by default" '"slug":"logo-cap"' "$CATALOG_HOME"
+assert_not_contains "catalog random color defaults off" '"randomize_initial_color":true' "$CATALOG_HOME"
 assert_not_contains "inactive products are dropped" "retired-tee" "$CATALOG_HOME"
 assert_not_contains "fulfillment refs never reach the page" "fulfillment_ref" "$CATALOG_HOME"
 assert_contains "cart cached price reaches the page" '"price_minor":2000' "$CATALOG_HOME"
 assert_contains "filtered page keeps the filtered product" '"slug":"crow-tee"' "$CATALOG_TEES"
+assert_contains "filtered page keeps random color setting" '"randomize_initial_color":true' "$CATALOG_TEES"
 assert_not_contains "filtered page drops other products" "logo-cap" "$CATALOG_TEES"
 
 # render-templates fails loudly when a filter resolves to zero products
@@ -1654,12 +1656,17 @@ SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
 assert_exit "catalog fixture builds" 0 $?
 CATALOG_HTML=$(cat "${SITE_DIR}/dist/index.html")
 assert_contains "HTML has catalog grid" 'class="c-catalog"' "$CATALOG_HTML"
+assert_contains "HTML marks random color default off" 'data-randomize-initial-color="false"' "$CATALOG_HTML"
 assert_contains "HTML has product card" 'data-slug="crow-tee"' "$CATALOG_HTML"
 assert_contains "HTML has formatted price" '$20.00' "$CATALOG_HTML"
 assert_contains "HTML has color swatches" 'c-catalog__swatch' "$CATALOG_HTML"
+assert_contains "color swatches carry image choices" 'data-src="/commerce/assets/crow-tee-white-front.png"' "$CATALOG_HTML"
 assert_contains "HTML has size dropdown" 'c-catalog__select' "$CATALOG_HTML"
 assert_contains "HTML has size-guide dialog" 'c-catalog__size-guide' "$CATALOG_HTML"
 assert_contains "HTML has size-guide measurement" '25.5' "$CATALOG_HTML"
+assert_contains "color swatches update product image" 'mainImage.src = swatch.dataset.src' "$CATALOG_HTML"
+assert_contains "catalog supports optional random color" 'Math.random() * swatches.length' "$CATALOG_HTML"
+assert_not_contains "HTML omits catalog thumbnails" 'c-catalog__thumb' "$CATALOG_HTML"
 assert_not_contains "HTML never carries fulfillment refs" "4938291" "$CATALOG_HTML"
 assert_contains "catalog CSS is aggregated" ".c-catalog" "$(cat scaffold/src/css/components.css)"
 assert_file_exists "commerce assets copied into dist" "${SITE_DIR}/dist/commerce/assets/crow-tee-white-front.png"

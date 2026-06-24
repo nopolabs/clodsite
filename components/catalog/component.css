@@ -21,30 +21,6 @@
   object-fit: cover;
   display: block;
 }
-.c-catalog__thumbs {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  overflow-x: auto;
-}
-.c-catalog__thumb {
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: var(--border-radius);
-  background: none;
-  cursor: pointer;
-  flex: 0 0 3.5rem;
-}
-.c-catalog__thumb[aria-pressed="true"] {
-  border-color: var(--color-accent);
-}
-.c-catalog__thumb img {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  display: block;
-  border-radius: calc(var(--border-radius) - 2px);
-}
 .c-catalog__body {
   padding: 1.25rem;
   display: flex;

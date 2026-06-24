@@ -246,6 +246,14 @@ pattern:
 | `provision-stripe-webhook.sh` — create/reuse the webhook endpoint via Stripe API, capture the signing secret | `provision-turnstile.sh` |
 | Push `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, provider secrets (e.g. `PRINTFUL_API_KEY`) | `RESEND_API_KEY` push in `deploy.sh` |
 
+**Secret scope in v1.** Commerce follows Clodsite's single trusted operator
+environment: deploy and sync scripts read one local `.env`, and provider
+resources are selected by validated site config such as
+`commerce.printful.store_id`. This is sufficient for one operator managing
+multiple sites where store/accounting boundaries live inside the provider.
+Per-site secret overlays are intentionally deferred until Clodsite needs
+stronger isolation between sites, provider accounts, or operators.
+
 **Payment is not abstracted in v1.** Stripe only. The seam where a payment
 abstraction would go is the checkout function; it stays visible and
 recoverable. One abstraction at a time — fulfillment is the one this spec

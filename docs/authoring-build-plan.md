@@ -81,6 +81,11 @@ done
   `shipping.flat_rate_minor`, or item-count shipping with
   `shipping.base_rate_minor` plus `shipping.per_additional_item_minor`. Do not
   mix both shapes in one plan.
+- **Secrets stay out of plans.** Clodsite v1 assumes one trusted operator
+  `.env` for Cloudflare, Stripe, Resend, and provider API keys. A site may select
+  provider resources through plan fields such as `commerce.printful.store_id`,
+  but must not contain secret values. Per-site secret overlays are not part of
+  v1.
 - **Assets live with the site:** general images under `<site>/assets/`, product
   images under `<site>/commerce/assets/`, favicons auto-detected under
   `<site>/assets/favicons/`. Reference them by site-root path.
