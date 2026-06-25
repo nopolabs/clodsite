@@ -68,7 +68,10 @@ commerce:
   enabled: true
   provider: printful        # selects the fulfillment provider module
   currency: usd
-  checkout: stripe          # the only v1 value
+  checkout:
+    provider: stripe        # the only v1 provider
+    success_url: /success/?session_id={CHECKOUT_SESSION_ID}
+    cancel_url: /
   preview: true             # optional: cart works, checkout button disabled
   shipping:
     flat_rate_minor: 500    # integer minor units ($5.00); passed to Stripe Checkout
@@ -84,8 +87,8 @@ Three activation states, each a shippable milestone:
 | State | Plan | Renders |
 |---|---|---|
 | Lookbook | no `checkout:` (or no `commerce:` at all) | products only — no cart, no buy buttons |
-| Preview | `checkout: stripe` + `preview: true` | full cart chrome; checkout button disabled with "Coming soon" (hmc's `preview` flag, promoted into the plan) |
-| Live | `checkout: stripe` | everything |
+| Preview | `checkout.provider: stripe` + `preview: true` | full cart chrome; checkout button disabled with "Coming soon" (hmc's `preview` flag, promoted into the plan) |
+| Live | `checkout.provider: stripe` | everything |
 
 Cart chrome is injected whenever `checkout:` is present, independent of
 `preview` — preview only disables the final button.
@@ -328,7 +331,7 @@ provider (Shopify fulfillment, digital downloads) slots in later.
 ### 8. Validation
 
 `validate-plan.mjs` grows commerce rules: `commerce.provider` must name a
-known provider, `checkout: stripe` is the only accepted value, a `catalog`
+known provider, `checkout.provider: stripe` is the only accepted value, a `catalog`
 component requires `commerce/catalog.json` to exist and validate, plan
 product filters must reference catalog slugs, and all money fields
 (`price_minor`, `flat_rate_minor`) must be non-negative integers. The catalog

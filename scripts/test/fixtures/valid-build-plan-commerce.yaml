@@ -7,7 +7,10 @@ commerce:
   enabled: true
   provider: printful
   currency: usd
-  checkout: stripe
+  checkout:
+    provider: stripe
+    success_url: /success/?session_id={CHECKOUT_SESSION_ID}
+    cancel_url: /
   preview: true
   shipping:
     flat_rate_minor: 500

@@ -1714,10 +1714,40 @@ COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
 assert_exit "unknown provider exits 1" 1 $?
 assert_contains "unknown provider is rejected" "commerce.provider must be one of" "$COMMERCE_OUTPUT"
 
-commerce_plan_mutation "p.commerce.checkout='paypal';"
+commerce_plan_mutation "p.commerce.checkout={provider:'paypal',success_url:'/success/?session_id={CHECKOUT_SESSION_ID}',cancel_url:'/'};"
 COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
 assert_exit "non-stripe checkout exits 1" 1 $?
-assert_contains "non-stripe checkout is rejected" "commerce.checkout must be stripe" "$COMMERCE_OUTPUT"
+assert_contains "non-stripe checkout is rejected" "commerce.checkout.provider must be stripe" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "p.commerce.checkout='stripe';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "string checkout exits 1" 1 $?
+assert_contains "string checkout is rejected" "commerce.checkout must be an object" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "delete p.commerce.checkout.success_url;"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "missing success_url exits 1" 1 $?
+assert_contains "missing success_url is rejected" "commerce.checkout.success_url is required" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "p.commerce.checkout.success_url='https://example.com/success/';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "external success_url exits 1" 1 $?
+assert_contains "external success_url is rejected" "commerce.checkout.success_url must be site-root-relative" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "p.commerce.checkout.success_url='/success/?order={ORDER_ID}';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "unsupported success_url placeholder exits 1" 1 $?
+assert_contains "unsupported success_url placeholder is rejected" "commerce.checkout.success_url contains unsupported placeholder {ORDER_ID}" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "p.commerce.checkout.success_url='/success/';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "success_url without session placeholder exits 1" 1 $?
+assert_contains "success_url session placeholder is required" "commerce.checkout.success_url must include {CHECKOUT_SESSION_ID}" "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "p.commerce.checkout.cancel_url='/cancelled/?session_id={CHECKOUT_SESSION_ID}';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "cancel_url placeholder exits 1" 1 $?
+assert_contains "cancel_url placeholder is rejected" "commerce.checkout.cancel_url contains unsupported placeholder {CHECKOUT_SESSION_ID}" "$COMMERCE_OUTPUT"
 
 commerce_plan_mutation "delete p.commerce.checkout;"
 COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
@@ -1751,6 +1781,7 @@ COMMERCE_SITE_JSON=$(cat "${SITE_DIR}/src/_data/site.json")
 assert_contains "site.json enables the cart" '"cart_enabled": true' "$COMMERCE_SITE_JSON"
 assert_contains "site.json carries preview" '"preview": true' "$COMMERCE_SITE_JSON"
 assert_contains "site.json carries the currency" '"currency": "usd"' "$COMMERCE_SITE_JSON"
+assert_contains "site.json carries checkout success path" '"success_path": "/success/"' "$COMMERCE_SITE_JSON"
 assert_contains "catalog set keys variants in option order" '"crow-tee:White:S"' "$COMMERCE_SITE_JSON"
 assert_contains "catalog set keys simple products as bare slugs" '"logo-cap"' "$COMMERCE_SITE_JSON"
 assert_not_contains "catalog set drops inactive products" "retired-tee" "$COMMERCE_SITE_JSON"
@@ -1904,6 +1935,7 @@ LIVE_HTML=$(cat "${SITE_DIR}/dist/index.html")
 assert_contains "live HTML wires checkout to the API" "/api/checkout" "$LIVE_HTML"
 assert_contains "live HTML has the checkout error element" "cart-drawer__error" "$LIVE_HTML"
 assert_contains "live HTML clears the cart after checkout success" 'params.get("checkout") === "success"' "$LIVE_HTML"
+assert_contains "live HTML clears the cart on configured success page" 'window.location.pathname === config.success_path' "$LIVE_HTML"
 assert_not_contains "live HTML drops the preview note" "Checkout is coming soon." "$LIVE_HTML"
 assert_not_contains "live HTML never carries fulfillment refs" "4938291" "$LIVE_HTML"
 assert_contains "cart stylesheet styles the checkout error" ".cart-drawer__error" "$(cat "${SITE_DIR}/dist/css/cart.css")"
@@ -2178,7 +2210,7 @@ fs.writeFileSync(file, yaml.dump(p));
 personalized_plan_mutation "delete p.commerce;"
 PERSONALIZED_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
 assert_exit "personalized-product without commerce exits 1" 1 $?
-assert_contains "checkout requirement is named" "requires commerce.enabled: true with checkout: stripe" "$PERSONALIZED_OUTPUT"
+assert_contains "checkout requirement is named" "requires commerce.enabled: true with commerce.checkout.provider: stripe" "$PERSONALIZED_OUTPUT"
 
 # product must reference a known, personalization-declaring catalog slug
 personalized_plan_mutation "p.pages[1].components[0].product='no-such-product';"

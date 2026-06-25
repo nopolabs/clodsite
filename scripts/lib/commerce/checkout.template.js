@@ -140,8 +140,8 @@ export async function onRequestPost(context) {
   }
   const body = new URLSearchParams();
   body.set('mode', 'payment');
-  body.set('success_url', origin + '/?checkout=success&session_id={CHECKOUT_SESSION_ID}');
-  body.set('cancel_url', origin + '/?checkout=cancelled');
+  body.set('success_url', origin + CONFIG.checkout.success_url);
+  body.set('cancel_url', origin + CONFIG.checkout.cancel_url);
   resolved.forEach(function (line, i) {
     body.set('line_items[' + i + '][quantity]', String(line.qty));
     body.set('line_items[' + i + '][price_data][currency]', CONFIG.currency);

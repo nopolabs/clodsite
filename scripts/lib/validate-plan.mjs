@@ -429,6 +429,25 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
 // integer minor-unit money.
 const KNOWN_PROVIDERS = ['printful', 'manual'];
 let commerceCheckoutEnabled = false;
+function isStripeCheckout(checkout) {
+  return isObject(checkout) && checkout.provider === 'stripe';
+}
+function validateCheckoutUrl(value, field, allowSessionPlaceholder) {
+  if (!(typeof value === 'string' && value.trim() !== '')) {
+    errors.push(field + ' must be a non-empty site-root-relative path, e.g. /success/');
+    return;
+  }
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    errors.push(field + ' must be site-root-relative and start with exactly one "/"');
+  }
+  const placeholders = value.match(/\{[^}]+\}/g) || [];
+  placeholders.forEach(function(placeholder) {
+    if (!(allowSessionPlaceholder && placeholder === '{CHECKOUT_SESSION_ID}'))
+      errors.push(field + ' contains unsupported placeholder ' + placeholder);
+  });
+  if (allowSessionPlaceholder && !placeholders.includes('{CHECKOUT_SESSION_ID}'))
+    errors.push(field + ' must include {CHECKOUT_SESSION_ID}');
+}
 if ('commerce' in plan) {
   const commerce = plan.commerce;
   if (!isObject(commerce)) {
@@ -445,8 +464,27 @@ if ('commerce' in plan) {
       errors.push('commerce.provider must be one of: ' + KNOWN_PROVIDERS.join(', ') + ' (got: ' + commerce.provider + ')');
     if (!(typeof commerce.currency === 'string' && /^[a-z]{3}$/.test(commerce.currency)))
       errors.push('commerce.currency must be a lowercase three-letter currency code, e.g. usd');
-    if ('checkout' in commerce && commerce.checkout !== 'stripe')
-      errors.push('commerce.checkout must be stripe (the only v1 value)');
+    if ('checkout' in commerce) {
+      if (!isObject(commerce.checkout)) {
+        errors.push('commerce.checkout must be an object ({ provider: stripe, success_url, cancel_url })');
+      } else {
+        const allowedCheckout = new Set(['provider', 'success_url', 'cancel_url']);
+        for (const field of Object.keys(commerce.checkout)) {
+          if (!allowedCheckout.has(field))
+            errors.push('commerce.checkout has unknown field "' + field + '"');
+        }
+        if (commerce.checkout.provider !== 'stripe')
+          errors.push('commerce.checkout.provider must be stripe (the only v1 value)');
+        if (!('success_url' in commerce.checkout))
+          errors.push('commerce.checkout.success_url is required');
+        else
+          validateCheckoutUrl(commerce.checkout.success_url, 'commerce.checkout.success_url', true);
+        if (!('cancel_url' in commerce.checkout))
+          errors.push('commerce.checkout.cancel_url is required');
+        else
+          validateCheckoutUrl(commerce.checkout.cancel_url, 'commerce.checkout.cancel_url', false);
+      }
+    }
     if ('preview' in commerce) {
       if (typeof commerce.preview !== 'boolean')
         errors.push('commerce.preview must be a boolean');
@@ -605,7 +643,7 @@ if ('commerce' in plan) {
     } else if (commerce.provider === 'printful') {
       errors.push('commerce.printful ({ store_id, products }) is required when provider is printful — commerce-sync.sh reads it to sync the catalog');
     }
-    commerceCheckoutEnabled = commerce.enabled === true && commerce.checkout === 'stripe';
+    commerceCheckoutEnabled = commerce.enabled === true && isStripeCheckout(commerce.checkout);
   }
 }
 
@@ -627,7 +665,7 @@ const personalizedComponents = [];
 // live checkout to send the token to (bbpp design §3).
 if (personalizedComponents.length > 0 && !commerceCheckoutEnabled) {
   personalizedComponents.forEach(function(entry) {
-    errors.push(entry.tag + ' (personalized-product) requires commerce.enabled: true with checkout: stripe');
+    errors.push(entry.tag + ' (personalized-product) requires commerce.enabled: true with commerce.checkout.provider: stripe');
   });
 }
 
@@ -835,9 +873,13 @@ if (!plan.nav || !Array.isArray(plan.nav.order) || plan.nav.order.length < 1)
 
 if (plan.nav && Array.isArray(plan.nav.order)) {
   const pageIds = (plan.pages || []).map(function(p) { return p.id; });
+  const seenNavIds = new Set();
   plan.nav.order.forEach(function(id) {
     if (!pageIds.includes(id))
       errors.push('nav.order references unknown page id: ' + id);
+    if (seenNavIds.has(id))
+      errors.push('nav.order contains duplicate page id: ' + id);
+    seenNavIds.add(id);
   });
 }
 

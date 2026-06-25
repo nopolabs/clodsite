@@ -60,12 +60,21 @@ const hasCustomFavicons = favicons.length > 0;
 // validates stored items against; validate-plan has already guaranteed the
 // catalog exists and is valid when checkout is enabled.
 const commerce = plan.commerce;
-const cartEnabled = !!(commerce && commerce.enabled === true && commerce.checkout === 'stripe');
+const cartEnabled = !!(
+  commerce &&
+  commerce.enabled === true &&
+  commerce.checkout &&
+  commerce.checkout.provider === 'stripe'
+);
+function checkoutPath(url) {
+  return new URL(url, 'https://clodsite.local').pathname;
+}
 const commerceData = cartEnabled
   ? {
       cart_enabled: true,
       preview: commerce.preview === true,
       currency: commerce.currency,
+      success_path: checkoutPath(commerce.checkout.success_url),
       catalog_set: buildCatalogSet(readCatalog(path.join(siteDir, 'commerce', 'catalog.json')))
     }
   : { cart_enabled: false };
