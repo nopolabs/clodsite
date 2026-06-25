@@ -46,6 +46,24 @@ function resolveSizeGuide(guide) {
   };
 }
 
+function resolveImages(images) {
+  const resolved = {
+    main: assetUrl(images.main),
+    gallery: (images.gallery || []).map(assetUrl),
+  };
+  if (images.by_color) {
+    resolved.by_color = Object.fromEntries(Object.entries(images.by_color).map(([color, views]) => [
+      color,
+      {
+        front: assetUrl(views.front),
+        ...(views.back ? { back: assetUrl(views.back) } : {}),
+      },
+    ]));
+    resolved.has_views = Object.values(resolved.by_color).some((views) => Boolean(views.back));
+  }
+  return resolved;
+}
+
 function resolveProduct(product, currency) {
   return {
     slug: product.slug,
@@ -56,10 +74,7 @@ function resolveProduct(product, currency) {
     // Images are optional (display-only listings may omit them); only include
     // the resolved images object when the catalog actually provides a main image.
     ...(product.images && product.images.main ? {
-      images: {
-        main: assetUrl(product.images.main),
-        gallery: (product.images.gallery || []).map(assetUrl),
-      },
+      images: resolveImages(product.images),
     } : {}),
     // Optional short product spec (e.g. "12 oz") shown as catalog metadata.
     ...(product.size ? { size: product.size } : {}),

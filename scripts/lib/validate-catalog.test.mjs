@@ -153,6 +153,46 @@ test('accepts site-root image paths alongside commerce/assets paths', () => {
   assert.deepEqual(validateCatalog({ products: [product] }), []);
 });
 
+test('accepts color-specific front and back images', () => {
+  const product = makeProduct({
+    images: {
+      main: 'commerce/assets/crow-tee-white-front.png',
+      gallery: ['commerce/assets/crow-tee-black-front.png'],
+      by_color: {
+        White: {
+          front: 'commerce/assets/crow-tee-white-front.png',
+          back: 'commerce/assets/crow-tee-white-back.png',
+        },
+        Black: {
+          front: 'commerce/assets/crow-tee-black-front.png',
+          back: 'commerce/assets/crow-tee-black-back.png',
+        },
+      },
+    },
+  });
+  assert.deepEqual(validateCatalog({ products: [product] }), []);
+});
+
+test('rejects malformed color-specific images', () => {
+  const product = makeProduct({
+    images: {
+      main: 'commerce/assets/crow-tee-white-front.png',
+      by_color: {
+        White: {
+          front: 'https://cdn.example/white-front.png',
+          back: 'commerce/assets/crow-tee-white-back.png',
+          zoom: 'commerce/assets/crow-tee-white-zoom.png',
+        },
+        Black: {},
+      },
+    },
+  });
+  const errors = validateCatalog({ products: [product] });
+  assert.ok(errors.some((e) => e.includes('images.by_color.White.front must be a local')));
+  assert.ok(errors.some((e) => e.includes('images.by_color.White has unknown field "zoom"')));
+  assert.ok(errors.some((e) => e.includes('images.by_color.Black.front must be a local')));
+});
+
 test('rejects more than two option dimensions', () => {
   const product = makeProduct({
     options: [
