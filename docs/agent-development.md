@@ -118,7 +118,8 @@ per-site CSS escapes.
 ## Verification
 
 Run the narrowest useful checks first, then broaden when the change touches
-shared behavior.
+shared behavior. For a fuller map of the test suite, fixtures, result format,
+and where to add coverage, read [`testing.md`](testing.md).
 
 Common checks:
 
