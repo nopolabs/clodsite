@@ -208,11 +208,14 @@
 
       var items = load();
 
-      // Returning from a completed Stripe Checkout — success_url carries
-      // ?checkout=success (spec §6). The order is placed, so empty the cart
-      // and drop the marker from the address bar.
+      // Returning from a completed Stripe Checkout. Older sites used
+      // ?checkout=success; current sites configure a success page and Stripe
+      // appends session_id. In both cases the order is placed, so empty the cart.
       var params = new URLSearchParams(window.location.search);
-      if (params.get("checkout") === "success") {
+      if (
+        params.get("checkout") === "success" ||
+        (config.success_path && window.location.pathname === config.success_path && params.has("session_id"))
+      ) {
         items = [];
         params.delete("checkout");
         params.delete("session_id");

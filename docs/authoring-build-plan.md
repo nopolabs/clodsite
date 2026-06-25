@@ -147,7 +147,10 @@ commerce:
   enabled: true
   provider: manual
   currency: usd
-  checkout: stripe
+  checkout:
+    provider: stripe
+    success_url: /success/?session_id={CHECKOUT_SESSION_ID}
+    cancel_url: /
   shipping:
     flat_rate_minor: 500
     countries: [US]
@@ -158,7 +161,10 @@ commerce:
   enabled: true
   provider: printful
   currency: usd
-  checkout: stripe
+  checkout:
+    provider: stripe
+    success_url: /success/?session_id={CHECKOUT_SESSION_ID}
+    cancel_url: /
   shipping:
     base_rate_minor: 475
     per_additional_item_minor: 220
@@ -168,6 +174,13 @@ commerce:
       minimum: { unit: business_day, value: 5 }
       maximum: { unit: business_day, value: 10 }
 ```
+
+`checkout.success_url` and `checkout.cancel_url` are site-root-relative paths.
+`success_url` must include `{CHECKOUT_SESSION_ID}` so Stripe returns a session
+marker and Clodsite can clear the cart on the success page. Use a page such as
+`/success/` for a clear post-purchase acknowledgement. Pages omitted from
+`nav.order` are still built, which is the right shape for utility pages like
+checkout success pages.
 
 ## Extending the vocabulary (when the catalog can't express it)
 

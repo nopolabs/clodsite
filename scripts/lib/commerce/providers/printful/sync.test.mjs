@@ -20,7 +20,11 @@ function commerceConfig(productOverrides = {}, printfulOverrides = {}) {
     enabled: true,
     provider: 'printful',
     currency: 'usd',
-    checkout: 'stripe',
+    checkout: {
+      provider: 'stripe',
+      success_url: '/success/?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: '/',
+    },
     printful: {
       store_id: 17828143,
       products: [{

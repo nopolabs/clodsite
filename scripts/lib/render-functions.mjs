@@ -26,6 +26,7 @@ const LIB_DIR = path.dirname(fileURLToPath(import.meta.url));
 // lives here, embedded at render time.
 export function buildCheckoutConfig(plan, catalog) {
   const commerce = plan.commerce;
+  const checkout = commerce.checkout || {};
   const optionNames = {};
   const items = {};
   const personalization = {};
@@ -54,6 +55,10 @@ export function buildCheckoutConfig(plan, catalog) {
     // fulfills only its own orders (no cross-tenant fulfillment / PII leak).
     site: plan.slug,
     currency: commerce.currency,
+    checkout: {
+      success_url: checkout.success_url,
+      cancel_url: checkout.cancel_url,
+    },
     option_names: optionNames,
     items,
     personalization,
@@ -218,7 +223,8 @@ export function renderFunctions(siteDir, componentsDir) {
   const commerceLive = !!(
     commerce &&
     commerce.enabled === true &&
-    commerce.checkout === 'stripe' &&
+    commerce.checkout &&
+    commerce.checkout.provider === 'stripe' &&
     commerce.preview !== true
   );
 

@@ -196,7 +196,7 @@ Plan requirements:
 - `custom_domain: next-gen.hmc-cycling.org`
 - `commerce.enabled: true`
 - `commerce.provider: printful`
-- `commerce.checkout: stripe`
+- `commerce.checkout.provider: stripe`
 - start with `commerce.preview: true` until checkout testing begins
 - `commerce.printful.store_id: 17828143`
 - six Printful products from existing HMC `products-config.json`

@@ -19,7 +19,11 @@ const PLAN = {
     enabled: true,
     provider: 'manual',
     currency: 'usd',
-    checkout: 'stripe',
+    checkout: {
+      provider: 'stripe',
+      success_url: '/success/?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: '/',
+    },
     fulfillment: { to: 'orders@example.com', from: 'shop@example.com' },
   },
 };
@@ -30,7 +34,11 @@ const PRINTFUL_PLAN = {
     enabled: true,
     provider: 'printful',
     currency: 'usd',
-    checkout: 'stripe',
+    checkout: {
+      provider: 'stripe',
+      success_url: '/success/?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: '/',
+    },
     printful: {
       store_id: 17828143,
       products: [

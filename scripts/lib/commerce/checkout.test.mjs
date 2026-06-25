@@ -15,7 +15,11 @@ const PLAN = {
     enabled: true,
     provider: 'manual',
     currency: 'usd',
-    checkout: 'stripe',
+    checkout: {
+      provider: 'stripe',
+      success_url: '/success/?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: '/',
+    },
     shipping: { flat_rate_minor: 500, countries: ['US', 'CA'] },
     fulfillment: { to: 'orders@example.com', from: 'shop@example.com' },
   },
@@ -220,9 +224,9 @@ test('success and cancel URLs derive from the request origin', async (t) => {
   const params = calls[0].params;
   assert.equal(
     params.get('success_url'),
-    'https://shop.example.com/?checkout=success&session_id={CHECKOUT_SESSION_ID}',
+    'https://shop.example.com/success/?session_id={CHECKOUT_SESSION_ID}',
   );
-  assert.equal(params.get('cancel_url'), 'https://shop.example.com/?checkout=cancelled');
+  assert.equal(params.get('cancel_url'), 'https://shop.example.com/');
 });
 
 test('unknown slug, unknown variant, and inactive product are 400s', async (t) => {
