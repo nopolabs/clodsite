@@ -1,0 +1,45 @@
+slug: nopo-labs
+name: Nopo Labs
+overview: nopo-labs is a portfolio site for a software engineer.
+style: minimal
+tone: professional
+custom_domain: ""
+not_found:
+  title: This page wandered off
+  components:
+    - type: hero
+      heading: Nothing here
+      markdown: |
+        The page you wanted could not be found.
+    - type: call-to-action
+      heading: Back on track
+      markdown: |
+        Head back to a page that exists.
+      actions:
+        - label: Go home
+          href: /
+          style: primary
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          # Welcome
+
+          This is the home page.
+  - id: about
+    title: About
+    components:
+      - type: prose
+        markdown: |
+          # About
+
+          About this site.
+nav:
+  order:
+    - home
+    - about
+contact:
+  enabled: true
+  email: hello@nopolabs.com

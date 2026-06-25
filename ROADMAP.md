@@ -106,12 +106,8 @@ This evolves the planned `/modify` command around current build-plan-first
 usage, preserves stable page IDs, and keeps revision governed rather than
 silently regenerating the site.
 
-### 8. Generated not-found page
-
-Generate a top-level `404.html` for every site, with useful navigation back to
-known content. This disables Cloudflare Pages' implicit single-page-application
-fallback, so unknown URLs return an honest `404` response instead of serving
-the home page with `200`.
+*(Item 8, "Generated not-found page", shipped June 2026 — see Completed below.
+Numbering preserved.)*
 
 ### 9. Explicit redirects
 
@@ -263,6 +259,18 @@ building; the theme model is the lever, the benchmark is the evidence.
 ---
 
 ## Completed
+
+### Generated not-found page
+Shipped June 2026 (pending item 8). Every site now builds a top-level
+`dist/404.html`, which turns Cloudflare Pages' soft-`200` fallback into an
+honest `404` for unknown URLs. The default page is synthesized for every site —
+site chrome plus a "page not found" message and links back to every nav page —
+and is `noindex` with no canonical/social metadata. Authors may override it with
+a top-level `not_found` block in `build-plan.yaml` (`title?` + `components`)
+drawn from the normal component vocabulary; the `catalog`,
+`personalized-product`, and `certificate-award` types are disallowed on the 404
+slot. Unblocks item 9 (explicit redirects). Design:
+`docs/superpowers/specs/2026-06-25-not-found-page-design.md`.
 
 ### Component-schema papercuts
 Shipped June 2026 (pending item 17). Catalog products may now **omit images**

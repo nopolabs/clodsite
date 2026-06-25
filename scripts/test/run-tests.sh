@@ -475,6 +475,63 @@ META_UNSAFE_HTML=$(cat "${SITE_DIR}/dist/index.html")
 assert_not_contains "JSON-LD blocks script termination" '</script><script>alert(1)</script>' "$META_UNSAFE_HTML"
 assert_contains "JSON-LD escapes less-than characters" '\u003c/script>' "$META_UNSAFE_HTML"
 
+# ── not-found (404) page ──────────────────────────────────────────────────────
+echo ""
+echo "=== not-found (404) page ==="
+
+# Default 404: synthesized for every site, noindexed, links back to nav pages.
+cp scripts/test/fixtures/valid-build-plan-metadata.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist"
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+assert_file_exists "render emits 404.njk" "${SITE_DIR}/src/404.njk"
+NF_TEMPLATE=$(cat "${SITE_DIR}/src/404.njk")
+assert_contains "404 template permalinks to /404.html" "permalink: /404.html" "$NF_TEMPLATE"
+assert_contains "404 template sets noindex" "noindex: true" "$NF_TEMPLATE"
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_file_exists "build emits dist/404.html" "${SITE_DIR}/dist/404.html"
+NF_HTML=$(cat "${SITE_DIR}/dist/404.html")
+assert_contains "default 404 has robots noindex meta" '<meta name="robots" content="noindex">' "$NF_HTML"
+assert_contains "default 404 has not-found heading" "Page not found" "$NF_HTML"
+assert_contains "default 404 links back to home" 'href="/"' "$NF_HTML"
+assert_not_contains "default 404 has no canonical link" '<link rel="canonical"' "$NF_HTML"
+assert_not_contains "default 404 has no Open Graph image" 'property="og:image"' "$NF_HTML"
+
+# Custom 404: a top-level not_found block overrides the default page.
+cp scripts/test/fixtures/valid-build-plan-not-found.yaml "${SITE_DIR}/build-plan.yaml"
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist"
+bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "custom not_found plan validates" 0 $?
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+NF_CUSTOM_HTML=$(cat "${SITE_DIR}/dist/404.html")
+assert_contains "custom 404 uses override title" "This page wandered off" "$NF_CUSTOM_HTML"
+assert_contains "custom 404 renders override hero" "c-component--hero" "$NF_CUSTOM_HTML"
+assert_contains "custom 404 stays noindex" '<meta name="robots" content="noindex">' "$NF_CUSTOM_HTML"
+
+# not_found validation: malformed override blocks are rejected.
+for mutation in disallowed-type unknown-field empty-title bad-component hero-not-first not-object; do
+  cp scripts/test/fixtures/valid-build-plan-not-found.yaml "${SITE_DIR}/build-plan.yaml"
+  MUTATION="$mutation" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+switch (process.env.MUTATION) {
+  case 'disallowed-type': p.not_found.components.push({type:'catalog', products:['x']}); break;
+  case 'unknown-field': p.not_found.label='x'; break;
+  case 'empty-title': p.not_found.title='   '; break;
+  case 'bad-component': p.not_found.components[0].heading=''; break;
+  case 'hero-not-first': p.not_found.components.reverse(); break;
+  case 'not-object': p.not_found=true; break;
+}
+fs.writeFileSync(file, yaml.dump(p));
+"
+  bash scripts/validate-plan.sh > /dev/null 2>&1
+  assert_exit "not_found mutation ${mutation} exits 1" 1 $?
+done
+
 # ── render-headers.sh ─────────────────────────────────────────────────────────
 echo ""
 echo "=== render-headers.sh ==="

@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% if pageTitle %}{{ pageTitle | escape }} | {% endif %}{{ site.name | escape }}</title>
+{% if noindex %}
+  <meta name="robots" content="noindex">
+{% endif %}
 {% if pageHead %}
   <meta name="description" content="{{ pageHead.description | escape }}">
 {% if pageHead.canonical_url %}

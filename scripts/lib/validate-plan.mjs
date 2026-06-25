@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { readCatalog, validateCatalog } from './validate-catalog.mjs';
+import { NOT_FOUND_DISALLOWED_TYPES } from './not-found.mjs';
 
 const [planPath, componentsDir] = process.argv.slice(2);
 if (!planPath || !componentsDir) {
@@ -368,6 +369,56 @@ function validateValue(value, descriptor, fieldPath) {
   }
 }
 
+// validateComponents checks a component array (a page's, or the not_found
+// page's) against the catalog: hero-first / at-most-one-hero, known types, and
+// each component's required/optional/unknown fields. `tag` is the array's path
+// (e.g. "pages[0].components" or "not_found.components").
+function validateComponents(components, tag) {
+  if (!Array.isArray(components) || components.length === 0) {
+    errors.push(tag + ' must be a non-empty array');
+    return;
+  }
+  let heroCount = 0;
+  components.forEach(function(c, j) {
+    const ctag = tag + '[' + j + ']';
+    if (!c.type) {
+      errors.push(ctag + '.type is required');
+      return;
+    }
+    if (c.type === 'hero') {
+      heroCount += 1;
+      if (j !== 0)
+        errors.push(ctag + ' hero must be the first component');
+    }
+    const schema = catalog[c.type];
+    if (!schema) {
+      errors.push(ctag + '.type "' + c.type + '" is not a known component (see ' + componentsDir + '/CATALOG.md)');
+      return;
+    }
+    const required = schema.required || {};
+    for (const [field, descriptor] of Object.entries(required)) {
+      if (!(field in c)) {
+        errors.push(ctag + '.' + field + ' is required');
+      } else {
+        validateValue(c[field], descriptor, ctag + '.' + field);
+      }
+    }
+    const optional = schema.optional || {};
+    for (const [field, descriptor] of Object.entries(optional)) {
+      if (field in c)
+        validateValue(c[field], descriptor, ctag + '.' + field);
+    }
+    const allowed = new Set(['type', ...Object.keys(required), ...Object.keys(optional)]);
+    for (const key of Object.keys(c)) {
+      if (!allowed.has(key)) {
+        errors.push(ctag + ' has unknown field "' + key + '" for component type "' + c.type + '"');
+      }
+    }
+  });
+  if (heroCount > 1)
+    errors.push(tag + ' may contain at most one hero component');
+}
+
 if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
   errors.push('pages must be a non-empty array');
 } else {
@@ -379,50 +430,36 @@ if (!Array.isArray(plan.pages) || plan.pages.length < 1) {
       validateHead(p.head, tag + '.head');
     if ('content' in p)
       errors.push(tag + '.content is no longer supported — use components: [{ type: prose, markdown: ... }]');
-    if (!Array.isArray(p.components) || p.components.length === 0) {
-      errors.push(tag + '.components must be a non-empty array');
-    } else {
-      let heroCount = 0;
-      p.components.forEach(function(c, j) {
-        const ctag = tag + '.components[' + j + ']';
-        if (!c.type) {
-          errors.push(ctag + '.type is required');
-          return;
-        }
-        if (c.type === 'hero') {
-          heroCount += 1;
-          if (j !== 0)
-            errors.push(ctag + ' hero must be the first component on the page');
-        }
-        const schema = catalog[c.type];
-        if (!schema) {
-          errors.push(ctag + '.type "' + c.type + '" is not a known component (see ' + componentsDir + '/CATALOG.md)');
-          return;
-        }
-        const required = schema.required || {};
-        for (const [field, descriptor] of Object.entries(required)) {
-          if (!(field in c)) {
-            errors.push(ctag + '.' + field + ' is required');
-          } else {
-            validateValue(c[field], descriptor, ctag + '.' + field);
-          }
-        }
-        const optional = schema.optional || {};
-        for (const [field, descriptor] of Object.entries(optional)) {
-          if (field in c)
-            validateValue(c[field], descriptor, ctag + '.' + field);
-        }
-        const allowed = new Set(['type', ...Object.keys(required), ...Object.keys(optional)]);
-        for (const key of Object.keys(c)) {
-          if (!allowed.has(key)) {
-            errors.push(ctag + ' has unknown field "' + key + '" for component type "' + c.type + '"');
-          }
-        }
-      });
-      if (heroCount > 1)
-        errors.push(tag + ' may contain at most one hero component');
-    }
+    validateComponents(p.components, tag + '.components');
   });
+}
+
+// Optional per-site 404 override (not-found design): a top-level `not_found`
+// block declaring its own components, rendered to /404.html instead of the
+// default synthesized page. It is a standalone slot — never listed in pages or
+// nav — so it is validated here rather than in the pages loop.
+if ('not_found' in plan) {
+  const nf = plan.not_found;
+  if (!isObject(nf)) {
+    errors.push('not_found must be an object ({ title?, components })');
+  } else {
+    const allowed = new Set(['title', 'components']);
+    for (const field of Object.keys(nf)) {
+      if (!allowed.has(field))
+        errors.push('not_found has unknown field "' + field + '"');
+    }
+    if ('title' in nf)
+      validateNonEmptyString(nf.title, 'not_found.title');
+    validateComponents(nf.components, 'not_found.components');
+    // The 404 slot has no commerce/proxy wiring, so reject components that
+    // depend on it (see NOT_FOUND_DISALLOWED_TYPES).
+    if (Array.isArray(nf.components)) {
+      nf.components.forEach(function(c, j) {
+        if (c && NOT_FOUND_DISALLOWED_TYPES.includes(c.type))
+          errors.push('not_found.components[' + j + '] type "' + c.type + '" is not allowed on the not-found page');
+      });
+    }
+  }
 }
 
 // Commerce block (spec §2, §8): known provider, stripe-only checkout,

@@ -92,6 +92,38 @@ small plan diff, that is usually good: the compiler is doing its job.
 - Reference local assets by site-root paths such as `/assets/hero.jpg`.
 - Root-relative social images become absolute when `custom_domain` is set.
 
+## Not-Found (404) Page
+
+- Every site automatically gets a generated `404.html` with the site's chrome, a
+  "page not found" message, and links back to every nav page. Unknown URLs then
+  return an honest `404` instead of silently serving the home page. No authoring
+  is required for this default.
+- To customize it, add a top-level `not_found` block to `build-plan.yaml` with an
+  optional `title` and a `components` array drawn from the normal catalog:
+
+  ```yaml
+  not_found:
+    title: This page wandered off
+    components:
+      - type: hero
+        heading: Nothing here
+        markdown: |
+          The page you wanted could not be found.
+      - type: call-to-action
+        heading: Back on track
+        markdown: |
+          Head back to a page that exists.
+        actions:
+          - label: Go home
+            href: /
+            style: primary
+  ```
+
+- The not-found page is always `noindex` and is never listed in `pages` or
+  `nav`. The `catalog`, `personalized-product`, and `certificate-award`
+  components are not allowed on it (they need commerce/proxy wiring the 404 slot
+  has no use for).
+
 ## Commerce And Forms
 
 - `contact.enabled: true` with `email` adds a site-wide footer mailto link.
