@@ -21,6 +21,33 @@
   object-fit: cover;
   display: block;
 }
+.c-catalog__view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.c-catalog__view-button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.c-catalog__view-button[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+.c-catalog__view-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 .c-catalog__body {
   padding: 1.25rem;
   display: flex;

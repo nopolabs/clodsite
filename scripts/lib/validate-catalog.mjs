@@ -266,6 +266,52 @@ function validateVariants(variants, declaredOptions, tag, errors) {
   });
 }
 
+function validateImages(images, tag, errors) {
+  if (!isObject(images)) {
+    errors.push(tag + ' must be an object');
+    return;
+  }
+  checkUnknownFields(images, new Set(['main', 'gallery', 'by_color']), tag, errors);
+  if (!isLocalImagePath(images.main)) {
+    errors.push(tag + '.main must be a local commerce/assets/ or site-root path');
+  }
+  if ('gallery' in images) {
+    if (!Array.isArray(images.gallery)) {
+      errors.push(tag + '.gallery must be an array');
+    } else {
+      images.gallery.forEach(function (src, g) {
+        if (!isLocalImagePath(src)) {
+          errors.push(tag + '.gallery[' + g + '] must be a local commerce/assets/ or site-root path');
+        }
+      });
+    }
+  }
+  if ('by_color' in images) {
+    if (!isObject(images.by_color) || Object.keys(images.by_color).length === 0) {
+      errors.push(tag + '.by_color must be a non-empty object');
+    } else {
+      for (const [color, views] of Object.entries(images.by_color)) {
+        const ctag = tag + '.by_color.' + color;
+        if (!isNonEmptyString(color)) {
+          errors.push(tag + '.by_color contains an empty color name');
+          continue;
+        }
+        if (!isObject(views)) {
+          errors.push(ctag + ' must be an object');
+          continue;
+        }
+        checkUnknownFields(views, new Set(['front', 'back']), ctag, errors);
+        if (!isLocalImagePath(views.front)) {
+          errors.push(ctag + '.front must be a local commerce/assets/ or site-root path');
+        }
+        if ('back' in views && !isLocalImagePath(views.back)) {
+          errors.push(ctag + '.back must be a local commerce/assets/ or site-root path');
+        }
+      }
+    }
+  }
+}
+
 export function validateCatalog(catalog) {
   const errors = [];
 
@@ -323,25 +369,7 @@ export function validateCatalog(catalog) {
     // Images are optional — a display-only listing (name + price + description)
     // needs no image. When present, images.main must be a valid local path.
     if ('images' in product) {
-      if (!isObject(product.images)) {
-        errors.push(tag + '.images must be an object');
-      } else {
-      checkUnknownFields(product.images, new Set(['main', 'gallery']), tag + '.images', errors);
-      if (!isLocalImagePath(product.images.main)) {
-        errors.push(tag + '.images.main must be a local commerce/assets/ or site-root path');
-      }
-      if ('gallery' in product.images) {
-        if (!Array.isArray(product.images.gallery)) {
-          errors.push(tag + '.images.gallery must be an array');
-        } else {
-          product.images.gallery.forEach(function (src, g) {
-            if (!isLocalImagePath(src)) {
-              errors.push(tag + '.images.gallery[' + g + '] must be a local commerce/assets/ or site-root path');
-            }
-          });
-        }
-      }
-      }
+      validateImages(product.images, tag + '.images', errors);
     }
 
     const declaredOptions = ('options' in product)

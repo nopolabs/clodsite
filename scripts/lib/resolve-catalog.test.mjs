@@ -20,6 +20,15 @@ function makeCatalog() {
         images: {
           main: 'commerce/assets/crow-tee-front.png',
           gallery: ['commerce/assets/crow-tee-back.png'],
+          by_color: {
+            White: {
+              front: 'commerce/assets/crow-tee-white-front.png',
+              back: 'commerce/assets/crow-tee-white-back.png',
+            },
+            Black: {
+              front: 'commerce/assets/crow-tee-black-front.png',
+            },
+          },
         },
         options: [
           { name: 'Color', values: [{ value: 'White', hex: '#FFFFFF' }, { value: 'Black', hex: '#000000' }] },
@@ -137,6 +146,16 @@ test('formats prices and roots image paths in the resolved shape', () => {
   assert.equal(cap.price_display, '$15.00');
   assert.equal(tee.images.main, '/commerce/assets/crow-tee-front.png');
   assert.deepEqual(tee.images.gallery, ['/commerce/assets/crow-tee-back.png']);
+  assert.deepEqual(tee.images.by_color, {
+    White: {
+      front: '/commerce/assets/crow-tee-white-front.png',
+      back: '/commerce/assets/crow-tee-white-back.png',
+    },
+    Black: {
+      front: '/commerce/assets/crow-tee-black-front.png',
+    },
+  });
+  assert.equal(tee.images.has_views, true);
   assert.deepEqual(cap.images.gallery, []);
 });
 

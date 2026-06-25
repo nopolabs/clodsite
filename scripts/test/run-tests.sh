@@ -1664,7 +1664,7 @@ assert_contains "color swatches carry image choices" 'data-src="/commerce/assets
 assert_contains "HTML has size dropdown" 'c-catalog__select' "$CATALOG_HTML"
 assert_contains "HTML has size-guide dialog" 'c-catalog__size-guide' "$CATALOG_HTML"
 assert_contains "HTML has size-guide measurement" '25.5' "$CATALOG_HTML"
-assert_contains "color swatches update product image" 'mainImage.src = swatch.dataset.src' "$CATALOG_HTML"
+assert_contains "color swatches update product image" 'mainImage.src = src' "$CATALOG_HTML"
 assert_contains "catalog supports optional random color" 'Math.random() * swatches.length' "$CATALOG_HTML"
 assert_not_contains "HTML omits catalog thumbnails" 'c-catalog__thumb' "$CATALOG_HTML"
 assert_not_contains "HTML never carries fulfillment refs" "4938291" "$CATALOG_HTML"

@@ -9,6 +9,12 @@
     {% if product.images and product.images.main %}
     <figure class="c-catalog__media">
       <img class="c-catalog__image" src="{{ product.images.main | escape }}" alt="{{ product.name | escape }}" loading="lazy">
+      {% if product.images.has_views %}
+      <div class="c-catalog__view-toggle" role="group" aria-label="{{ product.name | escape }} view">
+        <button type="button" class="c-catalog__view-button" data-view="front" aria-pressed="true">Front</button>
+        <button type="button" class="c-catalog__view-button" data-view="back" aria-pressed="false">Back</button>
+      </div>
+      {% endif %}
     </figure>
     {% endif %}
     <div class="c-catalog__body">
@@ -25,9 +31,12 @@
           {% if not loop.first and product.images and product.images.gallery and product.images.gallery[loop.index0 - 1] %}
           {% set swatchImage = product.images.gallery[loop.index0 - 1] %}
           {% endif %}
+          {% set swatchViews = product.images and product.images.by_color and product.images.by_color[value.value] %}
           <button type="button" class="c-catalog__swatch" title="{{ value.value | escape }}"
                   aria-label="{{ value.value | escape }}" aria-pressed="{% if loop.first %}true{% else %}false{% endif %}"
                   {% if swatchImage %}data-src="{{ swatchImage | escape }}"{% endif %}
+                  {% if swatchViews and swatchViews.front %}data-view-front="{{ swatchViews.front | escape }}"{% endif %}
+                  {% if swatchViews and swatchViews.back %}data-view-back="{{ swatchViews.back | escape }}"{% endif %}
                   style="background-color: {{ value.hex | escape }}"></button>
           {% endfor %}
         </div>
@@ -109,19 +118,52 @@
         (function (card) {
           var mainImage = card.querySelector('.c-catalog__image');
           var swatches = card.querySelectorAll('.c-catalog__swatch');
+          var viewButtons = card.querySelectorAll('.c-catalog__view-button');
+          var selectedView = 'front';
+          function viewImage(swatch, view) {
+            if (!swatch) return '';
+            if (view === 'back' && swatch.dataset.viewBack) return swatch.dataset.viewBack;
+            return swatch.dataset.viewFront || swatch.dataset.src || '';
+          }
+          function activeSwatch() {
+            return card.querySelector('.c-catalog__swatch[aria-pressed="true"]');
+          }
+          function syncViewButtons(swatch) {
+            for (var button of viewButtons) {
+              var view = button.dataset.view;
+              var available = Boolean(viewImage(swatch, view));
+              button.disabled = !available;
+              button.setAttribute('aria-pressed', String(view === selectedView && available));
+            }
+          }
+          function showImage(swatch) {
+            if (!mainImage || !swatch) return;
+            if (!viewImage(swatch, selectedView)) selectedView = 'front';
+            var src = viewImage(swatch, selectedView);
+            if (src) {
+              mainImage.src = src;
+              card.dataset.image = src;
+            }
+            syncViewButtons(swatch);
+          }
           function selectSwatch(swatch) {
             if (!swatch) return;
             for (var s of swatches) s.setAttribute('aria-pressed', String(s === swatch));
-            if (mainImage && swatch.dataset.src) {
-              mainImage.src = swatch.dataset.src;
-              card.dataset.image = swatch.dataset.src;
-            }
+            showImage(swatch);
           }
           for (var swatch of swatches) {
             swatch.addEventListener('click', function (e) {
               selectSwatch(e.currentTarget);
             });
           }
+          for (var viewButton of viewButtons) {
+            viewButton.addEventListener('click', function (e) {
+              if (e.currentTarget.disabled) return;
+              selectedView = e.currentTarget.dataset.view;
+              showImage(activeSwatch());
+            });
+          }
+          syncViewButtons(activeSwatch());
           if (catalog.dataset.randomizeInitialColor === 'true' && swatches.length > 1) {
             selectSwatch(swatches[Math.floor(Math.random() * swatches.length)]);
           }
