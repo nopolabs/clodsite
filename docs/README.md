@@ -24,6 +24,7 @@ only after the plan is reviewable.
 |---|---|
 | [`authoring-build-plan.md`](authoring-build-plan.md) | Detailed `build-plan.yaml` authoring contract |
 | [`../components/CATALOG.md`](../components/CATALOG.md) | Generated component vocabulary and examples |
+| [`testing.md`](testing.md) | Test layout, commands, result interpretation, fixtures, and where to add coverage |
 | [`THEMES.md`](THEMES.md) | Theme contract and theme-authoring notes |
 | [`theme-system-notes.md`](theme-system-notes.md) | Current theme-system experiments and findings |
 | [`clodsite_vision_brief-final.md`](clodsite_vision_brief-final.md) | Product thesis, architecture direction, and claims discipline |
