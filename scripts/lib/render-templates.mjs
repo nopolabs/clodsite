@@ -6,6 +6,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { readCatalog } from './validate-catalog.mjs';
 import { resolveCatalogComponent, resolvePersonalizedProductComponent } from './resolve-catalog.mjs';
+import { notFoundComponents, notFoundTitle } from './not-found.mjs';
 
 const [planPath, siteDir] = process.argv.slice(2);
 if (!planPath || !siteDir) {
@@ -23,6 +24,24 @@ function getCommerceCatalog() {
     commerceCatalog = readCatalog(path.join(siteDir, 'commerce', 'catalog.json'));
   }
   return commerceCatalog;
+}
+
+// renderComponentBody turns a resolved component array into the Nunjucks body
+// that {% include %}s each component template against `pageComponents`. `label`
+// names the source (e.g. "page about", "not-found page") for error messages.
+function renderComponentBody(components, label) {
+  let body = '';
+  for (const [componentIndex, component] of components.entries()) {
+    if (!component.type) {
+      console.error('Error: ' + label + ' has a component with no type');
+      process.exit(1);
+    }
+    body += '<div class="c-component c-component--' + component.type + '">\n';
+    body += '{% set component = pageComponents[' + componentIndex + '] %}\n';
+    body += '{% include "' + component.type + '/component.njk" %}\n';
+    body += '</div>\n';
+  }
+  return body;
 }
 
 function resolvePageComponents(page) {
@@ -111,17 +130,7 @@ for (const page of plan.pages) {
 
   const components = resolvePageComponents(page);
 
-  let body = '';
-  for (const [componentIndex, component] of components.entries()) {
-    if (!component.type) {
-      console.error('Error: page ' + page.id + ' has a component with no type');
-      process.exit(1);
-    }
-    body += '<div class="c-component c-component--' + component.type + '">\n';
-    body += '{% set component = pageComponents[' + componentIndex + '] %}\n';
-    body += '{% include "' + component.type + '/component.njk" %}\n';
-    body += '</div>\n';
-  }
+  const body = renderComponentBody(components, 'page ' + page.id);
 
   const out =
     '---\n' +
@@ -137,4 +146,23 @@ for (const page of plan.pages) {
   console.log('  ✓ ' + filename);
 }
 
-console.log('✓ Rendered ' + plan.pages.length + ' page template(s) to ' + siteDir + '/src/');
+// Not-found page → dist/404.html. Shipping this disables Cloudflare Pages'
+// implicit soft-200 fallback so unknown URLs return an honest 404. The page is
+// noindexed and carries no canonical/social metadata (pageHead omitted), since
+// it is not real content. Authors may override the default via a top-level
+// `not_found` block; otherwise a default page with nav links is synthesized.
+const notFoundComps = notFoundComponents(plan);
+const notFoundOut =
+  '---\n' +
+  'layout: base.njk\n' +
+  'pageTitle: ' + escapeForYaml(notFoundTitle(plan)) + '\n' +
+  'noindex: true\n' +
+  'pageComponents: ' + JSON.stringify(notFoundComps) + '\n' +
+  'permalink: /404.html\n' +
+  '---\n' +
+  renderComponentBody(notFoundComps, 'not-found page');
+
+fs.writeFileSync(path.join(siteDir, 'src', '404.njk'), notFoundOut);
+console.log('  ✓ 404.njk');
+
+console.log('✓ Rendered ' + plan.pages.length + ' page template(s) + 404 to ' + siteDir + '/src/');
