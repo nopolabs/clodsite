@@ -135,6 +135,46 @@ test('colors are ordered White-first with hex swatches; sizes sorted', async (t)
   });
 });
 
+test('unisex teal and aqua swatches match the mirrored product photos', async (t) => {
+  const siteDir = makeSiteDir(t);
+  const fixture = structuredClone(PRODUCT_FIXTURE);
+  fixture.sync_variants = ['Teal', 'Aqua'].map((color, index) => ({
+    ...PRODUCT_FIXTURE.sync_variants[0],
+    id: 9000000 + index,
+    external_id: 'swatch-' + color.toLowerCase(),
+    name: 'Unisex T-Shirt / ' + color + ' / S',
+    color,
+    size: 'S',
+    product: {
+      ...PRODUCT_FIXTURE.sync_variants[0].product,
+      product_id: 849,
+    },
+    files: [
+      {
+        type: 'preview',
+        filename: color.toLowerCase() + '-front.png',
+        preview_url: 'https://files.cdn.printful.com/files/' + color.toLowerCase() + '-front.png',
+      },
+    ],
+  }));
+  stubFetch(t, [], {
+    '/store/products/428417969': jsonResponse({ code: 200, result: fixture }),
+  });
+
+  await syncCatalog({
+    siteDir,
+    commerce: commerceConfig({ color_order: ['Teal', 'Aqua'] }),
+  }, ENV);
+
+  assert.deepEqual(readCatalog(siteDir).products[0].options[0], {
+    name: 'Color',
+    values: [
+      { value: 'Teal', hex: '#12DBC9' },
+      { value: 'Aqua', hex: '#128EB2' },
+    ],
+  });
+});
+
 test('variants carry the sync variant id as an opaque fulfillment_ref, in display order', async (t) => {
   const siteDir = makeSiteDir(t);
   stubFetch(t, []);
