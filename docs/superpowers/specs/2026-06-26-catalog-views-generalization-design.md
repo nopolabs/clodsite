@@ -285,9 +285,9 @@ Promote these to ROADMAP items when this spec is implemented.
   shape with no `views`, so the hand-curated multi-view data is lost with no
   warning. Decide a durable fix: either (a) teach the sync to fetch and emit
   real placement mockups as `views` (the next follow-up), or (b) make the sync
-  preserve/merge existing hand-authored `by_color` data instead of replacing
-  the whole catalog. Until then, do not re-sync hmc-next-gen without re-applying
-  the back views.
+  preserve/merge existing hand-authored `images.views` / `images.by_option`
+  data instead of replacing the whole catalog. Until then, do not re-sync
+  hmc-next-gen without re-applying the multi-view data.
 - **Optional:** teach the Printful sync to emit multiple placement mockups
   (front/back/sleeve) as `views` when the provider exposes them, replacing the
   current single-front-per-color behavior. This subsumes fix (a) above.
