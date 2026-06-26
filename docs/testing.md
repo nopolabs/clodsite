@@ -151,6 +151,17 @@ When a task requires live commerce validation:
 - coordinate Printful order cancellation before creating an order;
 - record what was tested in the relevant plan, PR, or deployment notes.
 
+For post-checkout diagnostics, use:
+
+```bash
+SITES_DIR=/path/to/clodsite-sites SITE_NAME=<site> \
+  bash scripts/commerce-debug.sh <stripe-checkout-session-id>
+```
+
+The command reads the site's local webhook state, Stripe session metadata,
+Cloudflare `ORDERS` KV record, and Printful external order id. It touches live
+APIs but does not create Stripe sessions or Printful orders.
+
 ## Maintenance Notes
 
 - Keep section names in `run-tests.sh` clear; they are the fastest way to find

@@ -23,6 +23,40 @@ one provider, no personalized artwork, no multiple catalogs.
 Because of that last point, the first mug test should not try to sell Anchovy's
 manual treat and a Printful mug in the same live catalog.
 
+## Validation Result
+
+Status: validated on 2026-06-26 with a separate `anchovy-mug` site at
+`anchovy-mug.nopolabs.com`.
+
+The completed smoke test proved:
+
+- one-variant Printful mug syncs to a no-option catalog product with
+  `size: "11 oz"`;
+- catalog rendering and cart checkout work without color or size controls;
+- Stripe live checkout creates a Checkout Session with `metadata.site` and the
+  Printful `sync_variant_id`;
+- Stripe webhook delivery reaches the Pages Function;
+- the Pages Function creates the Printful order in the Anchovy store;
+- the Printful order can be cancelled/refunded through the Printful UI.
+
+A deployment bug was found during the first fulfillment attempt: `deploy.sh`
+raw-sourced `.env` and overwrote the caller's site-specific
+`PRINTFUL_API_KEY="$ANCHOVY_PRINTFUL_API_KEY"` override, so the Pages secret was
+set to the default/HMC Printful key. The webhook failed with:
+
+```text
+printful order create failed
+HTTP 400: Item 0: Sync variant not found
+```
+
+That failure is now covered by the env-override deploy fix merged in PR #72.
+Future commerce debugging should start with:
+
+```bash
+SITES_DIR=/Users/danrevel/lab/projects/clodsite-sites SITE_NAME=<site> \
+  bash scripts/commerce-debug.sh <stripe-checkout-session-id>
+```
+
 ## File Map
 
 | File / Repo | Action | Responsibility |

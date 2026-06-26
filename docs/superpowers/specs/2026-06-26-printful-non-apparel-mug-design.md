@@ -1,7 +1,7 @@
 # Printful Non-Apparel Product Support — Anchovy Mug Design
 
 **Date:** 2026-06-26
-**Status:** Proposed
+**Status:** Validated
 **Roadmap entries:** Commerce v1; Named commerce catalogs deferred
 
 ---
@@ -26,6 +26,40 @@ whose shape is not a shirt:
 The dogfood product is an **Anchovy mug**. Anchovy is intentionally lower-risk
 than HMC: it is playful, small, and a good place to learn whether the catalog UI
 still feels good when a product is not apparel.
+
+## Validation Outcome
+
+The static Anchovy mug path was validated live on 2026-06-26 using the separate
+`anchovy-mug` site. The successful path was:
+
+```text
+catalog card -> Stripe live checkout -> success page ->
+Stripe webhook -> Cloudflare Pages Function -> Printful Anchovy store order
+```
+
+The validated product shape was a single 11 oz white glossy mug:
+
+- no selectable options;
+- catalog `size: "11 oz"`;
+- one variant with `optionValues: {}`;
+- `fulfillment_ref` equal to the Printful `sync_variant_id`;
+- one mirrored Printful preview image.
+
+The live smoke test created a Printful order, which was then cancelled/refunded
+in the Printful UI.
+
+One operational issue surfaced before the successful run: deployment pushed the
+wrong `PRINTFUL_API_KEY` Pages secret when a site-specific key was supplied as a
+shell override. The webhook reached Printful, but the default/HMC key could not
+see the Anchovy mug sync variant and failed with:
+
+```text
+HTTP 400: Item 0: Sync variant not found
+```
+
+That is now part of the proven operational contract: site-specific provider keys
+must survive deploy-time `.env` loading. The immediate fix was merged in PR #72;
+longer-term site-scoped secret design remains separate work.
 
 ## Important Constraint: Anchovy Currently Uses Manual Fulfillment
 
