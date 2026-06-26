@@ -23,10 +23,10 @@ binary **front/back** toggle, wired into four layers:
 4. **Client JS** — `viewImage()` hardcodes the front→back fallback chain and
    the `selectedView = 'front'` default.
 
-This fit the launch t-shirt use case (anchovy, bbpp) but does not generalize:
-a product may have a side view, a detail shot, a flat-lay, or any ordered set
-of images. There is no "view" abstraction to extend — there are two named slots
-pretending to be a set.
+This fit the launch t-shirt use case (the hmc-next-gen "HMC Crow Front and
+Back" tees) but does not generalize: a product may have a side view, a detail
+shot, a flat-lay, or any ordered set of images. There is no "view" abstraction
+to extend — there are two named slots pretending to be a set.
 
 The fix is to make views a genuine **ordered list of `{ label, image }`**,
 with the first entry as the default. This is a contained refactor: only
@@ -46,14 +46,21 @@ no deprecation window.
   the page. The cart keys off option selections, not images.
 - **The Printful sync path never emits `by_color` views.** `sync.mjs` produces
   only `main` + `gallery` (one front mockup per color; it names files `-front`
-  but mirrors a single preview). So the front/back `by_color` shape is
-  populated **only by hand-authored catalogs** — the t-shirt stores. No
-  provider-sync code needs to change for the data contract (though sync *could*
-  later grow real placement mockups that map cleanly onto the new list).
-- **The two live catalogs migrate in the same change.** Only anchovy and bbpp
-  carry hand-authored `by_color` data; rewriting their catalog JSON to the
-  `views` list is part of this work, not a follow-up. No compatibility shim is
-  retained.
+  but mirrors a single preview). The `by_color` front/back data in hmc-next-gen
+  was **hand-added on top of the sync** (the `deploy: hmc-next-gen — front/back
+  product mockups` commit), so the shape is populated only by hand-authored
+  edits. No provider-sync code needs to change for the data contract (though
+  sync *could* later grow real placement mockups that map cleanly onto the new
+  list).
+- **Exactly one site migrates: hmc-next-gen.** A survey of every catalog in
+  `nopolabs/clodsite-sites` (2026-06-26) found `by_color` data in only
+  `hmc-next-gen/commerce/catalog.json` — three "...HMC Crow Front and Back"
+  tee products, each with 7–10 colors, every color carrying both `front` and
+  `back`. The other catalogs use plain `main`(+`gallery`): anchovy
+  (`treat-for-anchovy`), clodsite-demo (`retired-cap`, `build-plan-poster`),
+  bbpp (`printed-certificate`, certificate commerce). Rewriting hmc-next-gen's
+  catalog JSON to the `views` list is part of this work, not a follow-up. No
+  compatibility shim is retained.
 
 ## Contract (authored catalog source)
 
@@ -91,7 +98,7 @@ Rules:
 `resolve-catalog.mjs` reads exactly one shape: `by_color[color].views`. The
 `{front, back}` keys are removed — a catalog still using them is a validation
 error, not a silently-normalized legacy input. `images.has_views` becomes
-`views.length > 1` for any color. The two live catalogs (anchovy, bbpp) are
+`views.length > 1` for any color. The one affected catalog (hmc-next-gen) is
 rewritten to the `views` list as part of this change (see Migration).
 
 ## Rendering
@@ -145,13 +152,16 @@ catalog fails loudly rather than building with the old behavior.
 
 ## Migration
 
-Part of this change, not a follow-up. Rewrite the `by_color` blocks in the
-anchovy and bbpp catalog JSON (`nopolabs/clodsite-sites`) from
-`{front, back}` to `views: [{label: 'Front', image: …}, {label: 'Back', image:
-…}]`, rebuild both sites, and confirm the rendered cards are unchanged (two
-buttons, same images, same default). Because there is no compatibility shim,
-the engine change and the site migration land together — a stale catalog would
-otherwise fail validation.
+Part of this change, not a follow-up. One catalog is affected:
+`hmc-next-gen/commerce/catalog.json` in `nopolabs/clodsite-sites`. Rewrite the
+`by_color` blocks on its three "...HMC Crow Front and Back" tees — each color's
+`{front, back}` becomes `views: [{label: 'Front', image: <front>}, {label:
+'Back', image: <back>}]` (a mechanical transform, every color has both today).
+Rebuild the site and confirm the rendered cards are unchanged: same swatches,
+two view buttons (Front/Back), same images and default. Because there is no
+compatibility shim, the engine change and the catalog migration land together —
+a stale `{front, back}` catalog would otherwise fail validation. The mirrored
+assets and all other fields are untouched.
 
 ## Follow-ups
 

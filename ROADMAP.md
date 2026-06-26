@@ -271,8 +271,9 @@ entry = default). Contained refactor: only hand-authored catalogs populate
 `by_color` (the Printful sync never emits views), so the blast radius is the
 normalize step, the component template + JS, docs, and tests. Clean cutover —
 no backward-compatibility layer: the `{front, back}` shape is removed and the
-two live catalogs (anchovy, bbpp) are migrated in the same change.
-Commerce/cart/fulfillment is untouched (views are display-only). Design:
+one affected catalog (hmc-next-gen — the only site in clodsite-sites carrying
+`by_color` data) is migrated in the same change. Commerce/cart/fulfillment is
+untouched (views are display-only). Design:
 `docs/superpowers/specs/2026-06-26-catalog-views-generalization-design.md`.
 
 ---
