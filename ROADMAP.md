@@ -256,24 +256,26 @@ visual-quality bar constant and measure each arm's cost to clear it — and whet
 Clodsite's themes can clear a *brand-specific* bar at all today. Design before
 building; the theme model is the lever, the benchmark is the evidence.
 
-### 19. Generalize catalog product views (front/back → ordered list)
+### 19. Product-level catalog views (decouple views from color)
 
-The `catalog` component's per-color "views" are not a general multi-image
-model — they are a hardcoded **front/back** binary baked into four layers: the
-normalized data shape (`by_color[color] = {front, back?}`, `has_views` ≡ "has a
-back"), two literal `Front`/`Back` buttons in the template, two fixed
-`data-view-front`/`data-view-back` swatch attributes, and a `selectedView =
-'front'` default in the JS. It fit the launch t-shirt stores but does not
-generalize to a side view, a detail shot, or any arbitrary ordered set.
+The `catalog` component has no general multi-image model: multi-view imagery
+exists *only* as `by_color[color] = {front, back?}`, so a product must have a
+color option to show more than one image, and the toggle is a hardcoded
+front/back binary (two literal buttons, two `data-view-*` swatch attributes, a
+`selectedView = 'front'` default). A seed packet (`Packet`/`Plant`/`Fruit`), a
+poster (`Front`/`Detail`/`In room`), or a book has nowhere to put labeled views.
 
-Replace it with a genuine ordered `views: [{label, image}, ...]` list (first
-entry = default). Contained refactor: only hand-authored catalogs populate
-`by_color` (the Printful sync never emits views), so the blast radius is the
-normalize step, the component template + JS, docs, and tests. Clean cutover —
-no backward-compatibility layer: the `{front, back}` shape is removed and the
-one affected catalog (hmc-next-gen — the only site in clodsite-sites carrying
-`by_color` data) is migrated in the same change. Commerce/cart/fulfillment is
-untouched (views are display-only). Design:
+Add a **product-level `images.views`** ordered list (`{label, image}`, first =
+default) as the base contract, with **option-specific overrides only where
+needed** via an optional `images.by_option[name][value].views` layer; `by_color`
+is removed. Views become a product property derived from the current selection,
+not something a swatch owns — so products with no color, or no options at all,
+get a full labeled view toggle. Contained refactor: the normalize step, the
+component template + JS, docs, and tests; the Printful sync never emits view
+data, and commerce/cart/fulfillment is untouched (views are display-only). Clean
+cutover, no compat layer — the one affected catalog (hmc-next-gen, the only site
+in clodsite-sites carrying `by_color` data) is migrated in the same change.
+Design:
 `docs/superpowers/specs/2026-06-26-catalog-views-generalization-design.md`.
 
 ---
