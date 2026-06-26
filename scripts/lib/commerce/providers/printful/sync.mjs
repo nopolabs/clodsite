@@ -150,6 +150,15 @@ function orderColors(allColors, colorOrderConfig) {
   return [...known, ...unknown];
 }
 
+function uniqueStrings(values) {
+  const out = [];
+  for (const value of values) {
+    if (typeof value !== 'string' || value === '') continue;
+    if (!out.includes(value)) out.push(value);
+  }
+  return out;
+}
+
 function extFromUrl(url) {
   try {
     const match = new URL(url).pathname.match(/\.(png|jpe?g|webp|gif)$/i);
@@ -251,6 +260,13 @@ function buildProduct(entry, detail, sizeTables, mirror) {
       'listed colors must match Printful color names');
   }
 
+  const allSizes = uniqueStrings(orderedColors.flatMap(function (color) {
+    return [...byColor.get(color).keys()];
+  }));
+  const selectableColor = orderedColors.length > 1;
+  const selectableSize = sortSizes(allSizes).length > 1;
+  const singletonSize = hasSize && !selectableSize ? sortSizes(allSizes)[0] : null;
+
   // Options + variants, walked in display order so catalog diffs are stable.
   const sizeUnion = [];
   const catalogVariants = [];
@@ -259,8 +275,8 @@ function buildProduct(entry, detail, sizeTables, mirror) {
     for (const size of sortSizes([...bySize.keys()])) {
       const variant = bySize.get(size);
       const optionValues = {};
-      if (hasColor) optionValues['Color'] = color;
-      if (hasSize) optionValues['Size'] = size;
+      if (selectableColor) optionValues['Color'] = color;
+      if (selectableSize) optionValues['Size'] = size;
       catalogVariants.push({
         optionValues: optionValues,
         fulfillment_ref: String(variant.id),
@@ -270,7 +286,7 @@ function buildProduct(entry, detail, sizeTables, mirror) {
   }
 
   const options = [];
-  if (hasColor) {
+  if (selectableColor) {
     options.push({
       name: 'Color',
       values: orderedColors.map(function (color) {
@@ -280,7 +296,7 @@ function buildProduct(entry, detail, sizeTables, mirror) {
       }),
     });
   }
-  if (hasSize) {
+  if (selectableSize) {
     options.push({
       name: 'Size',
       values: sortSizes(sizeUnion).map(function (size) { return { value: size }; }),
@@ -320,6 +336,7 @@ function buildProduct(entry, detail, sizeTables, mirror) {
       ? { main: images[0], gallery: images.slice(1) }
       : { main: images[0] },
   };
+  if (singletonSize) product.size = singletonSize;
   if (options.length > 0) product.options = options;
   product.variants = catalogVariants;
 
@@ -377,7 +394,7 @@ export async function syncCatalog(config, env) {
     if (catalogProductId) {
       try {
         const sizes = await printfulGet('/products/' + catalogProductId + '/sizes', apiKey);
-        sizeTables = sizes.size_tables || null;
+        sizeTables = sizes && Array.isArray(sizes.size_tables) ? sizes.size_tables : null;
       } catch (error) {
         if (error.status !== 404) throw error;
       }

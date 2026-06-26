@@ -228,8 +228,11 @@ test('color_order restricts and reorders colors; unlisted colors are disabled', 
   stubFetch(t, []);
   await syncCatalog({ siteDir, commerce: commerceConfig({ color_order: ['Black'] }) }, ENV);
   const product = readCatalog(siteDir).products[0];
-  assert.deepEqual(product.options[0].values.map((v) => v.value), ['Black']);
-  assert.ok(product.variants.every((v) => v.optionValues.Color === 'Black'));
+  assert.deepEqual(product.options, [{ name: 'Size', values: [{ value: 'S' }, { value: 'M' }] }]);
+  assert.deepEqual(product.variants, [
+    { optionValues: { Size: 'S' }, fulfillment_ref: '5270106489' },
+    { optionValues: { Size: 'M' }, fulfillment_ref: '5270106490' },
+  ]);
   assert.equal(product.images.main, 'commerce/assets/crow-tee-black-front.jpg');
   assert.equal(product.images.gallery, undefined);
 });
@@ -302,6 +305,64 @@ test('a product without a size guide (404) syncs without one', async (t) => {
   await syncCatalog({ siteDir, commerce: commerceConfig() }, ENV);
   const product = readCatalog(siteDir).products[0];
   assert.equal(product.size_guide, undefined);
+  assert.deepEqual(validateCatalog(readCatalog(siteDir)), []);
+});
+
+test('a one-variant mug collapses singleton color and size dimensions', async (t) => {
+  const siteDir = makeSiteDir(t);
+  const detail = {
+    sync_product: {
+      id: 442832209,
+      name: 'White glossy mug',
+      thumbnail_url: 'https://files.cdn.printful.com/files/mug-thumb_preview.png',
+    },
+    sync_variants: [{
+      id: 5371505149,
+      external_id: '6a3ec8aa8e8565',
+      name: 'White glossy mug',
+      color: 'White',
+      size: '11 oz',
+      retail_price: '15.00',
+      product: { product_id: 19, variant_id: 1320 },
+      files: [
+        {
+          type: 'default',
+          filename: 'IMG_1122.jpeg',
+          preview_url: 'https://files.cdn.printful.com/files/mug-art_preview.png',
+        },
+        {
+          type: 'preview',
+          filename: 'white-glossy-mug-white-11-oz-front-view.jpg',
+          preview_url: 'https://files.cdn.printful.com/files/mug-front_preview.png',
+        },
+      ],
+    }],
+  };
+  stubFetch(t, [], {
+    '/store/products/442832209': jsonResponse({ code: 200, result: detail }),
+    '/products/19/sizes': jsonResponse({ code: 200, result: null }),
+  });
+  const commerce = commerceConfig();
+  commerce.printful.products = [{
+    slug: 'anchovy-mug',
+    printful_product_id: 442832209,
+    price_minor: 1500,
+    description: 'A mug for Anchovy admirers.',
+  }];
+
+  await syncCatalog({ siteDir, commerce }, ENV);
+
+  const product = readCatalog(siteDir).products[0];
+  assert.equal(product.name, 'White glossy mug');
+  assert.equal(product.size, '11 oz');
+  assert.equal(product.options, undefined);
+  assert.deepEqual(product.variants, [
+    { optionValues: {}, fulfillment_ref: '5371505149' },
+  ]);
+  assert.equal(product.images.main, 'commerce/assets/anchovy-mug-white-front.png');
+  assert.equal(product.images.gallery, undefined);
+  assert.equal(product.size_guide, undefined);
+  assert.ok(fs.existsSync(path.join(siteDir, 'commerce/assets/anchovy-mug-white-front.png')));
   assert.deepEqual(validateCatalog(readCatalog(siteDir)), []);
 });
 
