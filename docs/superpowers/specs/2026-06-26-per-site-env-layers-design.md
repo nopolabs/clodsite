@@ -60,10 +60,15 @@ commerce:
     products: [ ... ]
 ```
 
-`resend-form` gains the same optional `api_key_env` for `RESEND_API_KEY`. When
-no alias is declared, the canonical bare name (`PRINTFUL_API_KEY`,
-`RESEND_API_KEY`) is read straight from the environment — single-site setups are
-unchanged.
+Resend takes the same optional `api_key_env` for `RESEND_API_KEY`, but it is
+**site-scoped, not per-form**: Resend v1 generates a single `/api/contact`
+endpoint with first-form-wins behavior, so one resolved key applies to the whole
+site. The binding is therefore a single declaration — and if it is expressed on
+`resend-form` components, `validate-plan` requires **every** `resend-form` to
+declare the *same* `api_key_env` (conflicting values are a structural error),
+documenting that the resolved key backs the one contact endpoint. When no alias
+is declared, the canonical bare names (`PRINTFUL_API_KEY`, `RESEND_API_KEY`) are
+read straight from the environment — single-site setups are unchanged.
 
 ### 2. Stripe mode binding (test/live duality)
 
@@ -95,9 +100,25 @@ leads; the binding follows.
 
 ## Resolution & precedence
 
-A binding step (a small helper invoked at the start of the site-scoped
-pipeline, before deploy/build/sync consume secrets) resolves each declared
-binding and assigns the canonical consumed variable:
+Binding resolution must run for **every** entrypoint that consumes provider
+credentials, not just the `build-deploy` happy path — otherwise a direct
+`commerce-sync.sh` could still pick up the wrong ambient `PRINTFUL_API_KEY`,
+which is the failure class this design exists to remove.
+
+The mechanism is the existing chokepoint. Every secret-consuming script already
+sources `lib/sites.sh` and calls `clodsite_init_site_dir` —
+`scripts/commerce-sync.sh`, `scripts/deploy.sh`,
+`scripts/provision-stripe-webhook.sh`, `scripts/provision-kv.sh`, and
+`scripts/deploy-finalize.sh` (verified). So binding resolution is added **inside
+`clodsite_init_site_dir`** (a `clodsite_resolve_bindings` step that reads the
+site's `build-plan.yaml` and sets the canonical variables), and every one of
+those entrypoints inherits it automatically. Any future script that reads Stripe
+or Printful credentials must likewise resolve a site through
+`clodsite_init_site_dir` before reading them — called out in
+`docs/agent-development.md` as a rule, and guarded by the per-use enforcement
+below so a bypass fails loudly rather than silently using an ambient key.
+
+The resolution itself assigns the canonical consumed variable:
 
 - The **source** variable (`STRIPE_SECRET_KEY_LIVE`, `ANCHOVY_PRINTFUL_API_KEY`)
   is read through normal env loading, so #72's exported-wins and item 11a's
@@ -113,26 +134,42 @@ This is the one precedence decision reviewers should confirm: **a declared
 binding overrides an ambient value of the canonical name, while the source it
 reads from still honors #72.**
 
-## Validation (before any live action)
+## Validation: structure vs. runtime preflight
 
-`validate-plan` (or a pre-deploy check it feeds) enforces, with no secret values
-printed:
+Two checks, deliberately separated so that ordinary plan validation stays
+runnable in a clean, secret-free environment (CI, authoring):
 
-- **Existence** — every referenced source variable (`api_key_env` target, or the
+**Structural — `validate-plan` (no secrets, no environment dependency):**
+
+- `mode ∈ {test, live}`.
+- `api_key_env` is a syntactically valid env-var name
+  (`^[A-Za-z_][A-Za-z0-9_]*$`).
+- allowed-field membership for the new keys.
+
+This is committed-structure only — it never reads the environment, so authoring
+and CI can validate a plan with no credentials present.
+
+**Runtime preflight — at the point of use, before a live action (no secret
+values printed):**
+
+- **Existence** — the referenced source variable (`api_key_env` target, or the
   mode-selected `STRIPE_SECRET_KEY_<MODE>`) is set and non-empty. A missing one
   is a hard error naming the expected variable: *"commerce.checkout.mode is
   `live` but STRIPE_SECRET_KEY_LIVE is not set."*
-- **Shape (belt and suspenders)** — even though `mode` selects the key, still
-  assert the resolved Stripe key carries the matching prefix:
-  `live` ⇒ `sk_live_` / `rk_live_`, `test` ⇒ `sk_test_` / `rk_test_`. A
-  `mode: live` bound to an `sk_test_…` value is rejected before deploy. This
-  catches a mis-populated registry (someone pasted the test key into
-  `STRIPE_SECRET_KEY_LIVE`) that the convention alone would trust.
-- **Field validity** — `mode ∈ {test, live}`; `api_key_env` is a syntactically
-  valid env-var name (`^[A-Za-z_][A-Za-z0-9_]*$`).
+- **Shape (belt and suspenders)** — assert the resolved Stripe key carries the
+  prefix matching the declared mode: `live` ⇒ `sk_live_` / `rk_live_`,
+  `test` ⇒ `sk_test_` / `rk_test_`. A `mode: live` bound to an `sk_test_…` value
+  is rejected, catching a mis-populated registry the convention alone would
+  trust.
 
-Because this runs at validate time, `/deploy` cannot reach Cloudflare/Stripe
-with a missing or wrong-shaped key.
+`clodsite_resolve_bindings` always *binds* the canonical variable when a source
+is present (so a plain `/build` with no secrets is unaffected — it just doesn't
+bind what isn't there); the existence/shape **enforcement** runs only in the
+secret-consuming scripts (`deploy`, `commerce-sync`, `provision-*`) at the
+moment they need the key — upgrading their existing presence checks to also name
+the resolved source and verify the mode prefix. So plain validation never
+depends on secrets, while no live action can proceed with a missing or
+wrong-shaped key.
 
 ## Build-plan fields (grounded in the current schema)
 
@@ -140,8 +177,9 @@ with a missing or wrong-shaped key.
   `commerce.checkout` allow-set (`provider`, `success_url`, `cancel_url`).
 - `commerce.printful.api_key_env` — optional env-var name. Added to the
   `commerce.printful` block.
-- `resend-form` component (or its plan config) — optional `api_key_env` for
-  `RESEND_API_KEY`.
+- `resend-form` — optional `api_key_env` for `RESEND_API_KEY`, site-scoped (one
+  `/api/contact` endpoint): all `resend-form` components must agree on the value,
+  enforced by `validate-plan`.
 - All optional; omitting them preserves today's bare-name behavior.
 
 ## Reporting (`NEXT-STEPS.md` + resolve-env.sh)
@@ -185,13 +223,20 @@ name → #72 exported-wins). Migration is per multi-key site:
 
 ## Testing
 
-- Binding/resolution: `mode: live` selects `STRIPE_SECRET_KEY_LIVE`;
-  `api_key_env` selects the named Printful key into `PRINTFUL_API_KEY`; no
-  binding → bare name (the #72 path) is unchanged.
-- Validation: missing selected var rejected with its name; `mode: live` + an
-  `sk_test_` value rejected (shape check); bad `mode`; malformed `api_key_env`.
-- Reporting: NEXT-STEPS/resolve-env show the source name + mode and **not** the
-  value (assert the secret string is absent from output).
+- **Structural validation (secret-free):** `validate-plan` accepts a valid
+  `mode`/`api_key_env`; rejects bad `mode`, malformed `api_key_env`, and two
+  `resend-form` components with conflicting `api_key_env`; **runs green with no
+  credentials in the environment** (the CI-safety guarantee).
+- **Resolution at the chokepoint:** `mode: live` binds `STRIPE_SECRET_KEY_LIVE`
+  into `STRIPE_SECRET_KEY`; `api_key_env` binds the named Printful key into
+  `PRINTFUL_API_KEY`; no binding → bare name (the #72 path) unchanged. Assert a
+  **direct `commerce-sync.sh`** (not via `build-deploy`) resolves the declared
+  Printful key, not an ambient one (the P1 failure class).
+- **Runtime preflight at point of use:** a secret-consuming script with the
+  selected var missing fails naming it; `mode: live` + an `sk_test_` value is
+  rejected (shape check); a plain `/build` with no secrets still succeeds.
+- **Reporting:** NEXT-STEPS/resolve-env show the source name + mode and **not**
+  the value (assert the secret string is absent from output).
 
 ## Follow-ups / relationship to item 11a
 
