@@ -266,12 +266,39 @@ function validateVariants(variants, declaredOptions, tag, errors) {
   });
 }
 
-function validateImages(images, tag, errors) {
+// An ordered list of labeled product views (the inspectable media set). Used
+// both for product-level images.views and for each by_option override.
+function validateViewList(views, tag, errors) {
+  if (!Array.isArray(views) || views.length === 0) {
+    errors.push(tag + ' must be a non-empty array');
+    return;
+  }
+  views.forEach(function (view, i) {
+    const vtag = tag + '[' + i + ']';
+    if (!isObject(view)) {
+      errors.push(vtag + ' must be an object');
+      return;
+    }
+    checkUnknownFields(view, new Set(['label', 'image']), vtag, errors);
+    if (!isNonEmptyString(view.label)) {
+      errors.push(vtag + '.label must be a non-empty string');
+    }
+    if (!isLocalImagePath(view.image)) {
+      errors.push(vtag + '.image must be a local commerce/assets/ or site-root path');
+    }
+  });
+}
+
+// Image dimension is orthogonal to options (views-generalization design):
+// images.views is the product-level inspectable media set, and images.by_option
+// overrides it for specific option values (e.g. per-color photography). The
+// retired by_color shape is rejected by the unknown-field check.
+function validateImages(images, tag, errors, declaredOptions) {
   if (!isObject(images)) {
     errors.push(tag + ' must be an object');
     return;
   }
-  checkUnknownFields(images, new Set(['main', 'gallery', 'by_color']), tag, errors);
+  checkUnknownFields(images, new Set(['main', 'gallery', 'views', 'by_option']), tag, errors);
   if (!isLocalImagePath(images.main)) {
     errors.push(tag + '.main must be a local commerce/assets/ or site-root path');
   }
@@ -286,26 +313,41 @@ function validateImages(images, tag, errors) {
       });
     }
   }
-  if ('by_color' in images) {
-    if (!isObject(images.by_color) || Object.keys(images.by_color).length === 0) {
-      errors.push(tag + '.by_color must be a non-empty object');
+  if ('views' in images) {
+    validateViewList(images.views, tag + '.views', errors);
+  }
+  if ('by_option' in images) {
+    if (!isObject(images.by_option) || Object.keys(images.by_option).length === 0) {
+      errors.push(tag + '.by_option must be a non-empty object');
     } else {
-      for (const [color, views] of Object.entries(images.by_color)) {
-        const ctag = tag + '.by_color.' + color;
-        if (!isNonEmptyString(color)) {
-          errors.push(tag + '.by_color contains an empty color name');
+      // Overrides are a layer on top of a product-level base; without one,
+      // the initial / no-matching-override render has nothing to fall back to.
+      if (!Array.isArray(images.views) || images.views.length === 0) {
+        errors.push(tag + '.by_option requires a non-empty ' + tag + '.views base');
+      }
+      for (const [optName, byValue] of Object.entries(images.by_option)) {
+        const otag = tag + '.by_option.' + optName;
+        const declaredValues = declaredOptions.get(optName);
+        if (!declaredValues) {
+          errors.push(otag + ' does not match any declared option name');
           continue;
         }
-        if (!isObject(views)) {
-          errors.push(ctag + ' must be an object');
+        if (!isObject(byValue) || Object.keys(byValue).length === 0) {
+          errors.push(otag + ' must be a non-empty object');
           continue;
         }
-        checkUnknownFields(views, new Set(['front', 'back']), ctag, errors);
-        if (!isLocalImagePath(views.front)) {
-          errors.push(ctag + '.front must be a local commerce/assets/ or site-root path');
-        }
-        if ('back' in views && !isLocalImagePath(views.back)) {
-          errors.push(ctag + '.back must be a local commerce/assets/ or site-root path');
+        for (const [optValue, entry] of Object.entries(byValue)) {
+          const vtag = otag + '.' + optValue;
+          if (!declaredValues.has(optValue)) {
+            errors.push(vtag + ' is not a declared value of option "' + optName + '"');
+            continue;
+          }
+          if (!isObject(entry)) {
+            errors.push(vtag + ' must be an object');
+            continue;
+          }
+          checkUnknownFields(entry, new Set(['views']), vtag, errors);
+          validateViewList(entry.views, vtag + '.views', errors);
         }
       }
     }
@@ -366,15 +408,17 @@ export function validateCatalog(catalog) {
       errors.push(tag + '.size must be a non-empty string');
     }
 
-    // Images are optional — a display-only listing (name + price + description)
-    // needs no image. When present, images.main must be a valid local path.
-    if ('images' in product) {
-      validateImages(product.images, tag + '.images', errors);
-    }
-
+    // Options first: images.by_option overrides are validated against the
+    // declared option names/values, so the option map must exist before images.
     const declaredOptions = ('options' in product)
       ? validateOptions(product.options, tag + '.options', errors)
       : new Map();
+
+    // Images are optional — a display-only listing (name + price + description)
+    // needs no image. When present, images.main must be a valid local path.
+    if ('images' in product) {
+      validateImages(product.images, tag + '.images', errors, declaredOptions);
+    }
 
     // Display-only catalogs (lookbook) may omit variants; when present each
     // variant must carry a fulfillment_ref and reference declared options.

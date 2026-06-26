@@ -20,13 +20,23 @@ function makeCatalog() {
         images: {
           main: 'commerce/assets/crow-tee-front.png',
           gallery: ['commerce/assets/crow-tee-back.png'],
-          by_color: {
-            White: {
-              front: 'commerce/assets/crow-tee-white-front.png',
-              back: 'commerce/assets/crow-tee-white-back.png',
-            },
-            Black: {
-              front: 'commerce/assets/crow-tee-black-front.png',
+          views: [
+            { label: 'Front', image: 'commerce/assets/crow-tee-white-front.png' },
+            { label: 'Back', image: 'commerce/assets/crow-tee-white-back.png' },
+          ],
+          by_option: {
+            Color: {
+              White: {
+                views: [
+                  { label: 'Front', image: 'commerce/assets/crow-tee-white-front.png' },
+                  { label: 'Back', image: 'commerce/assets/crow-tee-white-back.png' },
+                ],
+              },
+              Black: {
+                views: [
+                  { label: 'Front', image: 'commerce/assets/crow-tee-black-front.png' },
+                ],
+              },
             },
           },
         },
@@ -146,17 +156,79 @@ test('formats prices and roots image paths in the resolved shape', () => {
   assert.equal(cap.price_display, '$15.00');
   assert.equal(tee.images.main, '/commerce/assets/crow-tee-front.png');
   assert.deepEqual(tee.images.gallery, ['/commerce/assets/crow-tee-back.png']);
-  assert.deepEqual(tee.images.by_color, {
-    White: {
-      front: '/commerce/assets/crow-tee-white-front.png',
-      back: '/commerce/assets/crow-tee-white-back.png',
-    },
-    Black: {
-      front: '/commerce/assets/crow-tee-black-front.png',
+  assert.deepEqual(tee.images.views, [
+    { label: 'Front', image: '/commerce/assets/crow-tee-white-front.png' },
+    { label: 'Back', image: '/commerce/assets/crow-tee-white-back.png' },
+  ]);
+  assert.deepEqual(tee.images.by_option, {
+    Color: {
+      White: [
+        { label: 'Front', image: '/commerce/assets/crow-tee-white-front.png' },
+        { label: 'Back', image: '/commerce/assets/crow-tee-white-back.png' },
+      ],
+      Black: [
+        { label: 'Front', image: '/commerce/assets/crow-tee-black-front.png' },
+      ],
     },
   });
   assert.equal(tee.images.has_views, true);
   assert.deepEqual(cap.images.gallery, []);
+});
+
+test('resolves product-level views for an option-less product', () => {
+  const catalog = {
+    products: [{
+      slug: 'tomato-seeds',
+      name: 'Tomato Seeds',
+      description: 'Heirloom.',
+      price_minor: 300,
+      active: true,
+      images: {
+        main: 'commerce/assets/tomato-packet.png',
+        views: [
+          { label: 'Packet', image: 'commerce/assets/tomato-packet.png' },
+          { label: 'Plant', image: 'commerce/assets/tomato-plant.png' },
+          { label: 'Fruit', image: 'commerce/assets/tomato-fruit.png' },
+        ],
+      },
+      variants: [{ optionValues: {}, fulfillment_ref: '1' }],
+    }],
+  };
+  const [seeds] = resolveCatalogComponent({ type: 'catalog' }, catalog).products;
+  assert.deepEqual(seeds.images.views, [
+    { label: 'Packet', image: '/commerce/assets/tomato-packet.png' },
+    { label: 'Plant', image: '/commerce/assets/tomato-plant.png' },
+    { label: 'Fruit', image: '/commerce/assets/tomato-fruit.png' },
+  ]);
+  assert.equal(seeds.images.has_views, true);
+  assert.equal('by_option' in seeds.images, false);
+});
+
+test('has_views reflects any reachable selection, not just product-level views', () => {
+  function product(images) {
+    return {
+      slug: 'p', name: 'P', description: 'd', price_minor: 100, active: true,
+      images, options: [{ name: 'Color', values: [{ value: 'White', hex: '#FFFFFF' }] }],
+      variants: [{ optionValues: { Color: 'White' }, fulfillment_ref: '1' }],
+    };
+  }
+  // Single product-level view, no overrides → no toggle.
+  const single = resolveCatalogComponent({ type: 'catalog' }, { products: [product({
+    main: 'commerce/assets/p.png',
+    views: [{ label: 'Front', image: 'commerce/assets/p.png' }],
+  })] }).products[0];
+  assert.equal(single.images.has_views, false);
+
+  // Single product-level view but a 2-view override → toggle is reachable.
+  const overridden = resolveCatalogComponent({ type: 'catalog' }, { products: [product({
+    main: 'commerce/assets/p.png',
+    views: [{ label: 'Front', image: 'commerce/assets/p.png' }],
+    by_option: { Color: { White: { views: [
+      { label: 'Front', image: 'commerce/assets/p-front.png' },
+      { label: 'Back', image: 'commerce/assets/p-back.png' },
+    ] } } },
+  })] }).products[0];
+  assert.equal(overridden.images.has_views, true);
 });
 
 test('honors the commerce currency', () => {

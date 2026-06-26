@@ -153,19 +153,29 @@ test('accepts site-root image paths alongside commerce/assets paths', () => {
   assert.deepEqual(validateCatalog({ products: [product] }), []);
 });
 
-test('accepts color-specific front and back images', () => {
+test('accepts product-level views with per-option overrides', () => {
   const product = makeProduct({
     images: {
       main: 'commerce/assets/crow-tee-white-front.png',
       gallery: ['commerce/assets/crow-tee-black-front.png'],
-      by_color: {
-        White: {
-          front: 'commerce/assets/crow-tee-white-front.png',
-          back: 'commerce/assets/crow-tee-white-back.png',
-        },
-        Black: {
-          front: 'commerce/assets/crow-tee-black-front.png',
-          back: 'commerce/assets/crow-tee-black-back.png',
+      views: [
+        { label: 'Front', image: 'commerce/assets/crow-tee-white-front.png' },
+        { label: 'Back', image: 'commerce/assets/crow-tee-white-back.png' },
+      ],
+      by_option: {
+        Color: {
+          White: {
+            views: [
+              { label: 'Front', image: 'commerce/assets/crow-tee-white-front.png' },
+              { label: 'Back', image: 'commerce/assets/crow-tee-white-back.png' },
+            ],
+          },
+          Black: {
+            views: [
+              { label: 'Front', image: 'commerce/assets/crow-tee-black-front.png' },
+              { label: 'Back', image: 'commerce/assets/crow-tee-black-back.png' },
+            ],
+          },
         },
       },
     },
@@ -173,24 +183,79 @@ test('accepts color-specific front and back images', () => {
   assert.deepEqual(validateCatalog({ products: [product] }), []);
 });
 
-test('rejects malformed color-specific images', () => {
+test('accepts product-level views on an option-less product', () => {
+  const product = {
+    slug: 'tomato-seeds', name: 'Tomato Seeds', description: 'Heirloom.',
+    price_minor: 300, active: true,
+    images: {
+      main: 'commerce/assets/tomato-packet.png',
+      views: [
+        { label: 'Packet', image: 'commerce/assets/tomato-packet.png' },
+        { label: 'Plant', image: 'commerce/assets/tomato-plant.png' },
+      ],
+    },
+    variants: [{ optionValues: {}, fulfillment_ref: '1' }],
+  };
+  assert.deepEqual(validateCatalog({ products: [product] }), []);
+});
+
+test('rejects malformed view lists', () => {
   const product = makeProduct({
     images: {
       main: 'commerce/assets/crow-tee-white-front.png',
-      by_color: {
-        White: {
-          front: 'https://cdn.example/white-front.png',
-          back: 'commerce/assets/crow-tee-white-back.png',
-          zoom: 'commerce/assets/crow-tee-white-zoom.png',
+      views: [
+        { label: '', image: 'commerce/assets/crow-tee-white-front.png' },
+        { label: 'Back', image: 'https://cdn.example/back.png' },
+        { label: 'Zoom', image: 'commerce/assets/zoom.png', tint: 'x' },
+      ],
+    },
+  });
+  const errors = validateCatalog({ products: [product] });
+  assert.ok(errors.some((e) => e.includes('images.views[0].label must be a non-empty string')));
+  assert.ok(errors.some((e) => e.includes('images.views[1].image must be a local')));
+  assert.ok(errors.some((e) => e.includes('images.views[2] has unknown field "tint"')));
+});
+
+test('rejects by_option without a product-level views base', () => {
+  const product = makeProduct({
+    images: {
+      main: 'commerce/assets/crow-tee-white-front.png',
+      by_option: {
+        Color: {
+          White: { views: [{ label: 'Front', image: 'commerce/assets/crow-tee-white-front.png' }] },
         },
-        Black: {},
       },
     },
   });
   const errors = validateCatalog({ products: [product] });
-  assert.ok(errors.some((e) => e.includes('images.by_color.White.front must be a local')));
-  assert.ok(errors.some((e) => e.includes('images.by_color.White has unknown field "zoom"')));
-  assert.ok(errors.some((e) => e.includes('images.by_color.Black.front must be a local')));
+  assert.ok(errors.some((e) => e.includes('by_option requires a non-empty') && e.includes('.views base')));
+});
+
+test('rejects by_option keys naming unknown options or values', () => {
+  const product = makeProduct({
+    images: {
+      main: 'commerce/assets/crow-tee-white-front.png',
+      views: [{ label: 'Front', image: 'commerce/assets/crow-tee-white-front.png' }],
+      by_option: {
+        Material: { Cotton: { views: [{ label: 'Front', image: 'commerce/assets/m.png' }] } },
+        Color: { Plaid: { views: [{ label: 'Front', image: 'commerce/assets/p.png' }] } },
+      },
+    },
+  });
+  const errors = validateCatalog({ products: [product] });
+  assert.ok(errors.some((e) => e.includes('images.by_option.Material does not match any declared option name')));
+  assert.ok(errors.some((e) => e.includes('images.by_option.Color.Plaid is not a declared value of option "Color"')));
+});
+
+test('rejects the retired by_color image shape', () => {
+  const product = makeProduct({
+    images: {
+      main: 'commerce/assets/crow-tee-white-front.png',
+      by_color: { White: { front: 'commerce/assets/crow-tee-white-front.png' } },
+    },
+  });
+  const errors = validateCatalog({ products: [product] });
+  assert.ok(errors.some((e) => e.includes('images has unknown field "by_color"')));
 });
 
 test('rejects more than two option dimensions', () => {

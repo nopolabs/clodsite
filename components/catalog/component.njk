@@ -3,16 +3,24 @@
    variants and fulfillment refs never reach the page. #}
 <div class="c-catalog" data-randomize-initial-color="{% if component.randomize_initial_color %}true{% else %}false{% endif %}">
   {% for product in component.products %}
+  {# Initial image: the first product-level view if any, else the main image.
+     The view set, and any per-option overrides, ride on the card as JSON data
+     attributes (JSON.stringify via `dump`, then HTML-attribute-escaped) so the
+     script can recompute the active set from the current option selection. #}
+  {% set initialImage = product.images.views[0].image if (product.images and product.images.views) else (product.images.main if product.images else "") %}
   <article class="c-catalog__product{% if not (product.images and product.images.main) %} c-catalog__product--no-media{% endif %}" data-slug="{{ product.slug | escape }}"
            data-name="{{ product.name | escape }}" data-price-minor="{{ product.price_minor }}"
-           {% if product.images and product.images.main %}data-image="{{ product.images.main | escape }}"{% endif %}>
+           {% if initialImage %}data-image="{{ initialImage | escape }}"{% endif %}
+           {% if product.images and product.images.views %}data-views="{{ product.images.views | dump | escape }}"{% endif %}
+           {% if product.images and product.images.by_option %}data-view-overrides="{{ product.images.by_option | dump | escape }}"{% endif %}>
     {% if product.images and product.images.main %}
     <figure class="c-catalog__media">
-      <img class="c-catalog__image" src="{{ product.images.main | escape }}" alt="{{ product.name | escape }}" loading="lazy">
+      <img class="c-catalog__image" src="{{ initialImage | escape }}" alt="{{ product.name | escape }}" loading="lazy">
       {% if product.images.has_views %}
-      <div class="c-catalog__view-toggle" role="group" aria-label="{{ product.name | escape }} view">
-        <button type="button" class="c-catalog__view-button" data-view="front" aria-pressed="true">Front</button>
-        <button type="button" class="c-catalog__view-button" data-view="back" aria-pressed="false">Back</button>
+      <div class="c-catalog__view-toggle" role="group" aria-label="{{ product.name | escape }} view"{% if not (product.images.views and product.images.views.length > 1) %} hidden{% endif %}>
+        {% for view in product.images.views %}
+        <button type="button" class="c-catalog__view-button" data-view-index="{{ loop.index0 }}" aria-pressed="{% if loop.first %}true{% else %}false{% endif %}">{{ view.label | escape }}</button>
+        {% endfor %}
       </div>
       {% endif %}
     </figure>
@@ -31,12 +39,9 @@
           {% if not loop.first and product.images and product.images.gallery and product.images.gallery[loop.index0 - 1] %}
           {% set swatchImage = product.images.gallery[loop.index0 - 1] %}
           {% endif %}
-          {% set swatchViews = product.images and product.images.by_color and product.images.by_color[value.value] %}
           <button type="button" class="c-catalog__swatch" title="{{ value.value | escape }}"
                   aria-label="{{ value.value | escape }}" aria-pressed="{% if loop.first %}true{% else %}false{% endif %}"
                   {% if swatchImage %}data-src="{{ swatchImage | escape }}"{% endif %}
-                  {% if swatchViews and swatchViews.front %}data-view-front="{{ swatchViews.front | escape }}"{% endif %}
-                  {% if swatchViews and swatchViews.back %}data-view-back="{{ swatchViews.back | escape }}"{% endif %}
                   style="background-color: {{ value.hex | escape }}"></button>
           {% endfor %}
         </div>
@@ -118,54 +123,107 @@
         (function (card) {
           var mainImage = card.querySelector('.c-catalog__image');
           var swatches = card.querySelectorAll('.c-catalog__swatch');
-          var viewButtons = card.querySelectorAll('.c-catalog__view-button');
-          var selectedView = 'front';
-          function viewImage(swatch, view) {
-            if (!swatch) return '';
-            if (view === 'back' && swatch.dataset.viewBack) return swatch.dataset.viewBack;
-            return swatch.dataset.viewFront || swatch.dataset.src || '';
-          }
-          function activeSwatch() {
-            return card.querySelector('.c-catalog__swatch[aria-pressed="true"]');
-          }
-          function syncViewButtons(swatch) {
-            for (var button of viewButtons) {
-              var view = button.dataset.view;
-              var available = Boolean(viewImage(swatch, view));
-              button.disabled = !available;
-              button.setAttribute('aria-pressed', String(view === selectedView && available));
+          var toggle = card.querySelector('.c-catalog__view-toggle');
+          var productViews = card.dataset.views ? JSON.parse(card.dataset.views) : null;
+          var viewOverrides = card.dataset.viewOverrides ? JSON.parse(card.dataset.viewOverrides) : null;
+          var selectedViewIndex = 0;
+
+          // The current option selection in declared (DOM) order — a
+          // {optionName: value} map, the same source the cart reads.
+          function currentSelection() {
+            var selection = {};
+            for (var wrapper of card.querySelectorAll('.c-catalog__option')) {
+              var select = wrapper.querySelector('.c-catalog__select');
+              var pressed = wrapper.querySelector('.c-catalog__swatch[aria-pressed="true"]');
+              selection[wrapper.dataset.optionName] =
+                select ? select.value : (pressed ? pressed.getAttribute('aria-label') : null);
             }
+            return selection;
           }
-          function showImage(swatch) {
-            if (!mainImage || !swatch) return;
-            if (!viewImage(swatch, selectedView)) selectedView = 'front';
-            var src = viewImage(swatch, selectedView);
-            if (src) {
+
+          // The active view set for the current selection: product-level views,
+          // overridden by any selected option value that carries an override
+          // (applied in option order, so a later option wins). [] when the
+          // product has no views at all.
+          function effectiveViews() {
+            var views = productViews;
+            if (viewOverrides) {
+              var selection = currentSelection();
+              for (var name in selection) {
+                var value = selection[name];
+                if (value != null && viewOverrides[name] && viewOverrides[name][value]) {
+                  views = viewOverrides[name][value];
+                }
+              }
+            }
+            return views || [];
+          }
+
+          function setImage(src) {
+            if (mainImage && src) {
               mainImage.src = src;
               card.dataset.image = src;
             }
-            syncViewButtons(swatch);
           }
+
+          function rebuildViewButtons(views) {
+            toggle.textContent = '';
+            views.forEach(function (view, i) {
+              var button = document.createElement('button');
+              button.type = 'button';
+              button.className = 'c-catalog__view-button';
+              button.dataset.viewIndex = String(i);
+              button.setAttribute('aria-pressed', String(i === selectedViewIndex));
+              button.textContent = view.label;
+              button.addEventListener('click', function () {
+                selectedViewIndex = i;
+                for (var other of toggle.querySelectorAll('.c-catalog__view-button')) {
+                  other.setAttribute('aria-pressed', String(Number(other.dataset.viewIndex) === i));
+                }
+                setImage(view.image);
+              });
+              toggle.appendChild(button);
+            });
+          }
+
+          // Recompute everything from the current selection: the active view
+          // set, the toggle's contents and visibility, and the main image.
+          function refresh() {
+            var views = effectiveViews();
+            if (selectedViewIndex >= views.length) selectedViewIndex = 0;
+            if (toggle) {
+              if (views.length > 1) {
+                rebuildViewButtons(views);
+                toggle.hidden = false;
+              } else {
+                toggle.hidden = true;
+              }
+            }
+            if (views.length > 0) {
+              setImage(views[selectedViewIndex].image);
+            } else {
+              // No views anywhere: fall back to the selected swatch's still
+              // image (the per-color gallery mapping).
+              var active = card.querySelector('.c-catalog__swatch[aria-pressed="true"]');
+              if (active && active.dataset.src) setImage(active.dataset.src);
+            }
+          }
+
           function selectSwatch(swatch) {
             if (!swatch) return;
             for (var s of swatches) s.setAttribute('aria-pressed', String(s === swatch));
-            showImage(swatch);
+            refresh();
           }
           for (var swatch of swatches) {
-            swatch.addEventListener('click', function (e) {
-              selectSwatch(e.currentTarget);
-            });
+            swatch.addEventListener('click', function (e) { selectSwatch(e.currentTarget); });
           }
-          for (var viewButton of viewButtons) {
-            viewButton.addEventListener('click', function (e) {
-              if (e.currentTarget.disabled) return;
-              selectedView = e.currentTarget.dataset.view;
-              showImage(activeSwatch());
-            });
+          for (var selectEl of card.querySelectorAll('.c-catalog__select')) {
+            selectEl.addEventListener('change', refresh);
           }
-          syncViewButtons(activeSwatch());
           if (catalog.dataset.randomizeInitialColor === 'true' && swatches.length > 1) {
             selectSwatch(swatches[Math.floor(Math.random() * swatches.length)]);
+          } else {
+            refresh();
           }
           var addButton = card.querySelector('.c-catalog__add-button');
           if (addButton) {
@@ -174,13 +232,7 @@
             addButton.addEventListener('click', function () {
               // Collect selections in DOM order — the declared option order,
               // matching the catalog set keys the cart validates against.
-              var optionValues = {};
-              for (var wrapper of card.querySelectorAll('.c-catalog__option')) {
-                var select = wrapper.querySelector('.c-catalog__select');
-                var pressed = wrapper.querySelector('.c-catalog__swatch[aria-pressed="true"]');
-                optionValues[wrapper.dataset.optionName] =
-                  select ? select.value : pressed.getAttribute('aria-label');
-              }
+              var optionValues = currentSelection();
               var cart = window.__clodsiteCart;
               if (!cart || !cart.sells(card.dataset.slug, optionValues)) {
                 flash.hidden = false;

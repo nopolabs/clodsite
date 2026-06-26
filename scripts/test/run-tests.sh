@@ -1729,6 +1729,58 @@ assert_contains "catalog CSS is aggregated" ".c-catalog" "$(cat scaffold/src/css
 assert_file_exists "commerce assets copied into dist" "${SITE_DIR}/dist/commerce/assets/crow-tee-white-front.png"
 rm -rf "${SITE_DIR}/commerce"
 
+# ── commerce catalog — product-level views (images.views / by_option) ─────────
+echo ""
+echo "=== commerce catalog — product views ==="
+
+rm -rf "${SITE_DIR}/src" "${SITE_DIR}/dist" "${SITE_DIR}/commerce" "${SITE_DIR}/assets"
+cp scripts/test/fixtures/valid-build-plan-catalog-views.yaml "${SITE_DIR}/build-plan.yaml"
+mkdir -p "${SITE_DIR}/commerce/assets"
+cp scripts/test/fixtures/valid-catalog-views.json "${SITE_DIR}/commerce/catalog.json"
+for png in seed-packet seed-plant seed-fruit crow-tee-white-front crow-tee-white-back crow-tee-black-front crow-tee-black-back; do
+  printf 'png' > "${SITE_DIR}/commerce/assets/${png}.png"
+done
+
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "views catalog validates" 0 $?
+
+bash scripts/write-site-json.sh > /dev/null 2>&1
+bash scripts/render-templates.sh > /dev/null 2>&1
+bash scripts/apply-theme.sh > /dev/null 2>&1
+SITE_DIR="${SITE_DIR}" bash scripts/build-site.sh > /dev/null 2>&1
+assert_exit "views catalog builds" 0 $?
+VIEWS_HTML=$(cat "${SITE_DIR}/dist/index.html")
+
+# Option-less product: product-level views render a labeled toggle, one button
+# per view in order, and no swatches own the view data.
+assert_contains "no-option product has a view toggle" 'c-catalog__view-toggle' "$VIEWS_HTML"
+assert_contains "view button renders first label" '>Packet<' "$VIEWS_HTML"
+assert_contains "view button renders last label" '>Fruit<' "$VIEWS_HTML"
+assert_contains "product carries card-level data-views" 'data-views=' "$VIEWS_HTML"
+
+# Color product: per-option overrides ride on the card; swatches stay pure
+# selection inputs and no longer carry the retired data-view-* attributes.
+assert_contains "color product carries override map" 'data-view-overrides=' "$VIEWS_HTML"
+assert_contains "color product keeps swatches" 'c-catalog__swatch' "$VIEWS_HTML"
+assert_not_contains "retired per-swatch view attrs are gone" 'data-view-front' "$VIEWS_HTML"
+
+# Data-attribute safety: a label with quotes, an ampersand, and angle brackets
+# survives dump + HTML-attribute escaping and parses back from dataset intact.
+VIEWS_LABEL=$(node -e '
+  const fs = require("fs");
+  const html = fs.readFileSync(process.argv[1], "utf8");
+  const card = html.split("data-slug=\"seed-packet\"")[1];
+  const m = card.match(/data-views=\"([^\"]*)\"/);
+  // Decode the HTML entities the browser would resolve before JSON.parse(dataset.views).
+  const decoded = m[1]
+    .replace(/&quot;/g, "\"").replace(/&#92;/g, "\\").replace(/&#39;/g, "\x27")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  process.stdout.write(JSON.parse(decoded)[1].label);
+' "${SITE_DIR}/dist/index.html")
+assert_contains "special-char view label round-trips from data-views" 'Plant & "flower" <bloom>' "$VIEWS_LABEL"
+
+rm -rf "${SITE_DIR}/commerce"
+
 # ── commerce cart (commerce: block + cart chrome) ─────────────────────────────
 echo ""
 echo "=== commerce cart ==="

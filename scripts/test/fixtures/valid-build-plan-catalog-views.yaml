@@ -1,0 +1,14 @@
+slug: catalog-views-test
+name: Catalog Views Test
+overview: Fixture exercising product-level images.views and by_option overrides.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: catalog
+nav:
+  order: [home]
+contact:
+  enabled: false

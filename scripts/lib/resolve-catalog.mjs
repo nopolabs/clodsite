@@ -46,20 +46,37 @@ function resolveSizeGuide(guide) {
   };
 }
 
+function resolveViewList(views) {
+  return views.map((view) => ({ label: view.label, image: assetUrl(view.image) }));
+}
+
 function resolveImages(images) {
   const resolved = {
     main: assetUrl(images.main),
     gallery: (images.gallery || []).map(assetUrl),
   };
-  if (images.by_color) {
-    resolved.by_color = Object.fromEntries(Object.entries(images.by_color).map(([color, views]) => [
-      color,
-      {
-        front: assetUrl(views.front),
-        ...(views.back ? { back: assetUrl(views.back) } : {}),
-      },
+  if (images.views) {
+    resolved.views = resolveViewList(images.views);
+  }
+  if (images.by_option) {
+    resolved.by_option = Object.fromEntries(Object.entries(images.by_option).map(([optName, byValue]) => [
+      optName,
+      Object.fromEntries(Object.entries(byValue).map(([value, entry]) => [value, resolveViewList(entry.views)])),
     ]));
-    resolved.has_views = Object.values(resolved.by_color).some((views) => Boolean(views.back));
+  }
+  // has_views: does any reachable selection yield more than one view? — the
+  // product-level set, or any option-value override. Drives whether the
+  // component renders a view toggle at all (the JS shows/hides it per
+  // selection). See the product-level views design spec.
+  if (resolved.views || resolved.by_option) {
+    const lists = [];
+    if (resolved.views) lists.push(resolved.views);
+    if (resolved.by_option) {
+      for (const byValue of Object.values(resolved.by_option)) {
+        lists.push(...Object.values(byValue));
+      }
+    }
+    resolved.has_views = lists.some((list) => list.length > 1);
   }
   return resolved;
 }
