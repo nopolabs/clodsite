@@ -108,8 +108,10 @@ which is the failure class this design exists to remove.
 The mechanism is the existing chokepoint. Every secret-consuming script already
 sources `lib/sites.sh` and calls `clodsite_init_site_dir` —
 `scripts/commerce-sync.sh`, `scripts/deploy.sh`,
-`scripts/provision-stripe-webhook.sh`, `scripts/provision-kv.sh`, and
-`scripts/deploy-finalize.sh` (verified). So binding resolution is added **inside
+`scripts/provision-stripe-webhook.sh`, `scripts/provision-kv.sh`,
+`scripts/deploy-finalize.sh`, and `scripts/commerce-debug.sh` (the live
+Stripe/Printful debug tool added in #75, which reads both keys via
+`lib/commerce-debug.mjs`) — all verified. So binding resolution is added **inside
 `clodsite_init_site_dir`** (a `clodsite_resolve_bindings` step that reads the
 site's `build-plan.yaml` and sets the canonical variables), and every one of
 those entrypoints inherits it automatically. Any future script that reads Stripe
@@ -229,9 +231,10 @@ name → #72 exported-wins). Migration is per multi-key site:
   credentials in the environment** (the CI-safety guarantee).
 - **Resolution at the chokepoint:** `mode: live` binds `STRIPE_SECRET_KEY_LIVE`
   into `STRIPE_SECRET_KEY`; `api_key_env` binds the named Printful key into
-  `PRINTFUL_API_KEY`; no binding → bare name (the #72 path) unchanged. Assert a
-  **direct `commerce-sync.sh`** (not via `build-deploy`) resolves the declared
-  Printful key, not an ambient one (the P1 failure class).
+  `PRINTFUL_API_KEY`; no binding → bare name (the #72 path) unchanged. Assert that
+  a **direct `commerce-sync.sh`** and a **direct `commerce-debug.sh`** (not via
+  `build-deploy`) each resolve/use the declared Stripe/Printful sources, not
+  ambient canonical values (the P1 failure class, incl. debug tooling).
 - **Runtime preflight at point of use:** a secret-consuming script with the
   selected var missing fails naming it; `mode: live` + an `sk_test_` value is
   rejected (shape check); a plain `/build` with no secrets still succeeds.
