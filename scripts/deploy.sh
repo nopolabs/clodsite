@@ -23,10 +23,7 @@ if [ ! -f ".env" ]; then
   exit 1
 fi
 
-set -a
-# shellcheck source=/dev/null
-source .env
-set +a
+clodsite_load_env
 
 if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
   echo "Error: CLOUDFLARE_API_TOKEN not set in .env. Run /setup first."
