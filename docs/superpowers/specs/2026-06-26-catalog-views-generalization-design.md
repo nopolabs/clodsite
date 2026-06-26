@@ -31,8 +31,13 @@ pretending to be a set.
 The fix is to make views a genuine **ordered list of `{ label, image }`**,
 with the first entry as the default. This is a contained refactor: only
 hand-authored catalogs populate `by_color`, so the blast radius is the
-normalize step, the component (template + JS), authoring docs, and tests —
-plus a backward-compatible normalizer so existing catalogs keep working.
+normalize step, the component (template + JS), authoring docs, and tests.
+
+Clodsite is pre-1.0 and we are its only customers, so this is a **clean
+cutover** with no backward-compatibility layer: the `{front, back}` shape is
+removed outright and the existing sites in `nopolabs/clodsite-sites` are
+migrated to the new `views` list in the same change. No dual-read normalizer,
+no deprecation window.
 
 ## Blast radius (why this is contained)
 
@@ -45,9 +50,10 @@ plus a backward-compatible normalizer so existing catalogs keep working.
   populated **only by hand-authored catalogs** — the t-shirt stores. No
   provider-sync code needs to change for the data contract (though sync *could*
   later grow real placement mockups that map cleanly onto the new list).
-- **Live stores need no same-day migration.** The normalizer accepts the old
-  `{ front, back }` shape and emits the new list, so already-committed catalog
-  JSON keeps building unchanged.
+- **The two live catalogs migrate in the same change.** Only anchovy and bbpp
+  carry hand-authored `by_color` data; rewriting their catalog JSON to the
+  `views` list is part of this work, not a follow-up. No compatibility shim is
+  retained.
 
 ## Contract (authored catalog source)
 
@@ -80,23 +86,13 @@ Rules:
 - Labels need not match across colors (a color could lack a detail shot); the
   toggle for a given swatch reflects only that swatch's own views.
 
-### Backward compatibility
+### No compatibility layer
 
-`resolve-catalog.mjs` accepts both shapes during a deprecation window:
-
-- New: `by_color[color].views = [{label, image}, ...]` → resolved as-is
-  (images run through `assetUrl`).
-- Legacy: `by_color[color] = { front, back? }` → normalized to
-  `views: [{ label: 'Front', image: front }] (+ { label: 'Back', image: back }
-  when present)`.
-
-Resolved output is a **single** shape downstream — always `views: [...]` — so
-the template and JS only ever see the list. `has_views` becomes
-`views.length > 1` for any color.
-
-Migration of the live t-shirt catalogs from `{front, back}` to explicit
-`views` lists is a follow-up commit, not a blocker; the legacy reader can be
-removed once no committed catalog uses it.
+`resolve-catalog.mjs` reads exactly one shape: `by_color[color].views`. The
+`{front, back}` keys are removed — a catalog still using them is a validation
+error, not a silently-normalized legacy input. `images.has_views` becomes
+`views.length > 1` for any color. The two live catalogs (anchovy, bbpp) are
+rewritten to the `views` list as part of this change (see Migration).
 
 ## Rendering
 
@@ -131,27 +127,34 @@ generated N times instead of twice.
 ## Validation
 
 Catalog JSON validation (wherever `by_color` shape is currently asserted)
-gains the `views` shape: optional `by_color`, each color either the legacy
-`{front, back?}` (accepted, warned as deprecated) or `{ views: [...] }` with a
-non-empty list of `{ label: non-empty string, image: non-empty string }`.
-Reject mixing both shapes within one color.
+requires the `views` shape: optional `by_color`, each color a
+`{ views: [...] }` with a non-empty list of `{ label: non-empty string, image:
+non-empty string }`. The legacy `{front, back}` keys are rejected, so a stale
+catalog fails loudly rather than building with the old behavior.
 
 ## Testing
 
-- Unit-test the `resolve-catalog` normalizer: legacy `{front, back}` →
-  `views` list; new `views` passthrough with `assetUrl` applied;
-  `has_views` true only when a color has >1 view; single-view color renders no
-  toggle.
+- Unit-test the `resolve-catalog` reader: `views` passthrough with `assetUrl`
+  applied to each image; `has_views` true only when a color has >1 view; a
+  single-view color renders no toggle.
 - `run-tests.sh`: build a site whose catalog uses a 3-view color and assert the
-  rendered card emits three view buttons in order and a `data-views` attribute;
-  assert a legacy `{front, back}` catalog still builds and yields two buttons.
-- Negative: empty `views`, a view missing `label` or `image`, and a color
-  mixing legacy keys with `views` are all rejected.
+  rendered card emits three view buttons in order plus a `data-views`
+  attribute.
+- Negative: empty `views`, a view missing `label` or `image`, and the legacy
+  `{front, back}` keys are all rejected by validation.
+
+## Migration
+
+Part of this change, not a follow-up. Rewrite the `by_color` blocks in the
+anchovy and bbpp catalog JSON (`nopolabs/clodsite-sites`) from
+`{front, back}` to `views: [{label: 'Front', image: …}, {label: 'Back', image:
+…}]`, rebuild both sites, and confirm the rendered cards are unchanged (two
+buttons, same images, same default). Because there is no compatibility shim,
+the engine change and the site migration land together — a stale catalog would
+otherwise fail validation.
 
 ## Follow-ups
 
-- Migrate the live t-shirt catalogs (anchovy, bbpp) from `{front, back}` to
-  explicit `views` lists, then remove the legacy normalizer.
 - Optional: teach the Printful sync to emit multiple placement mockups
   (front/back/sleeve) as `views` when the provider exposes them, replacing the
   current single-front-per-color behavior.

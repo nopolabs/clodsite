@@ -269,10 +269,10 @@ generalize to a side view, a detail shot, or any arbitrary ordered set.
 Replace it with a genuine ordered `views: [{label, image}, ...]` list (first
 entry = default). Contained refactor: only hand-authored catalogs populate
 `by_color` (the Printful sync never emits views), so the blast radius is the
-normalize step, the component template + JS, docs, and tests — plus a
-backward-compatible normalizer that reads the legacy `{front, back}` shape so
-live stores build unchanged and migrate later. Commerce/cart/fulfillment is
-untouched (views are display-only). Design:
+normalize step, the component template + JS, docs, and tests. Clean cutover —
+no backward-compatibility layer: the `{front, back}` shape is removed and the
+two live catalogs (anchovy, bbpp) are migrated in the same change.
+Commerce/cart/fulfillment is untouched (views are display-only). Design:
 `docs/superpowers/specs/2026-06-26-catalog-views-generalization-design.md`.
 
 ---
