@@ -256,31 +256,39 @@ visual-quality bar constant and measure each arm's cost to clear it — and whet
 Clodsite's themes can clear a *brand-specific* bar at all today. Design before
 building; the theme model is the lever, the benchmark is the evidence.
 
-### 19. Product-level catalog views (decouple views from color)
+### 19. Printful sync preserves (or emits) product views
 
-The `catalog` component has no general multi-image model: multi-view imagery
-exists *only* as `by_color[color] = {front, back?}`, so a product must have a
-color option to show more than one image, and the toggle is a hardcoded
-front/back binary (two literal buttons, two `data-view-*` swatch attributes, a
-`selectedView = 'front'` default). A seed packet (`Packet`/`Plant`/`Fruit`), a
-poster (`Front`/`Detail`/`In room`), or a book has nowhere to put labeled views.
-
-Add a **product-level `images.views`** ordered list (`{label, image}`, first =
-default) as the base contract, with **option-specific overrides only where
-needed** via an optional `images.by_option[name][value].views` layer; `by_color`
-is removed. Views become a product property derived from the current selection,
-not something a swatch owns — so products with no color, or no options at all,
-get a full labeled view toggle. Contained refactor: the normalize step, the
-component template + JS, docs, and tests; the Printful sync never emits view
-data, and commerce/cart/fulfillment is untouched (views are display-only). Clean
-cutover, no compat layer — the one affected catalog (hmc-next-gen, the only site
-in clodsite-sites carrying `by_color` data) is migrated in the same change.
-Design:
-`docs/superpowers/specs/2026-06-26-catalog-views-generalization-design.md`.
+Surfaced by the product-level views work (Completed, below). The Printful sync
+(`sync.mjs`) only writes `main` + `gallery`; the multi-view imagery on
+hmc-next-gen's tees — now `images.views` + `images.by_option.Color` — is
+**hand-authored on top of the sync**. Re-running the sync for that site today
+overwrites the catalog and silently drops every back view and override. Pick a
+durable fix: either (a) teach the sync to fetch and emit real placement mockups
+(front/back/sleeve) as `images.views` when Printful exposes them, or (b) make
+the sync preserve/merge existing hand-authored `images.views` /
+`images.by_option` data instead of replacing the whole catalog. Until then, do
+not re-sync hmc-next-gen without re-applying the multi-view data. Option (a)
+also raises the visual ceiling for synced stores generally.
 
 ---
 
 ## Completed
+
+### Product-level catalog views (decouple views from color)
+Shipped June 2026 (pending item 19). The `catalog` component's multi-view
+imagery was previously expressed only as `by_color[color] = {front, back?}`, so
+a product needed a color option to show more than one image and the toggle was a
+hardcoded front/back binary. Replaced with a **product-level `images.views`**
+ordered list (`{label, image}`, first = default) plus an optional
+`images.by_option[name][value].views` override layer keyed by any option;
+`by_color` is removed. The active view set is derived from the current option
+selection (product-level views, then selected-option overrides) — a seed packet
+with no options gets a full labeled toggle; per-color photography rides on
+`by_option`. View data lives in card-level `data-views` / `data-view-overrides`
+JSON attributes; swatches stay pure selection inputs. Clean cutover (no compat
+layer); hmc-next-gen — the only site carrying the data — was migrated in the same
+change. Follow-on: item 19 above (sync preservation). Design:
+`docs/superpowers/specs/2026-06-26-catalog-views-generalization-design.md`.
 
 ### Generated not-found page
 Shipped June 2026 (pending item 8). Every site now builds a top-level

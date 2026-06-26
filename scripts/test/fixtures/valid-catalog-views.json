@@ -1,0 +1,63 @@
+{
+  "products": [
+    {
+      "slug": "seed-packet",
+      "name": "Heirloom Tomato Seeds",
+      "description": "Three labeled views, no color option.",
+      "price_minor": 300,
+      "active": true,
+      "images": {
+        "main": "commerce/assets/seed-packet.png",
+        "views": [
+          { "label": "Packet", "image": "commerce/assets/seed-packet.png" },
+          { "label": "Plant & \"flower\" <bloom>", "image": "commerce/assets/seed-plant.png" },
+          { "label": "Fruit", "image": "commerce/assets/seed-fruit.png" }
+        ]
+      },
+      "variants": [{ "optionValues": {}, "fulfillment_ref": "9001" }]
+    },
+    {
+      "slug": "crow-tee",
+      "name": "Crow Tee",
+      "description": "Per-color front/back views via by_option.",
+      "price_minor": 2000,
+      "active": true,
+      "images": {
+        "main": "commerce/assets/crow-tee-white-front.png",
+        "views": [
+          { "label": "Front", "image": "commerce/assets/crow-tee-white-front.png" },
+          { "label": "Back", "image": "commerce/assets/crow-tee-white-back.png" }
+        ],
+        "by_option": {
+          "Color": {
+            "White": {
+              "views": [
+                { "label": "Front", "image": "commerce/assets/crow-tee-white-front.png" },
+                { "label": "Back", "image": "commerce/assets/crow-tee-white-back.png" }
+              ]
+            },
+            "Black": {
+              "views": [
+                { "label": "Front", "image": "commerce/assets/crow-tee-black-front.png" },
+                { "label": "Back", "image": "commerce/assets/crow-tee-black-back.png" }
+              ]
+            }
+          }
+        }
+      },
+      "options": [
+        {
+          "name": "Color",
+          "values": [
+            { "value": "White", "hex": "#FFFFFF" },
+            { "value": "Black", "hex": "#000000" }
+          ]
+        }
+      ],
+      "variants": [
+        { "optionValues": { "Color": "White" }, "fulfillment_ref": "9100" },
+        { "optionValues": { "Color": "Black" }, "fulfillment_ref": "9101" }
+      ]
+    }
+  ]
+}

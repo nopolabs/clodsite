@@ -1,7 +1,7 @@
 # Product-Level Catalog Views Design
 
 **Date:** 2026-06-26
-**Status:** Proposed
+**Status:** Implemented
 **Roadmap entry:** Product-level catalog views — decouple views from color (pending item 19)
 
 ---
