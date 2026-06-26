@@ -152,11 +152,35 @@ printf '%s\n' \
   'CLOUDFLARE_ACCOUNT_ID=test-account' > "$TEST_ENV_FILE"
 install_controlled_test_env "$(pwd)" "$TEST_ENV_FILE"
 
+ENV_OVERRIDE_TEST_FILE=$(mktemp)
+printf '%s\n' \
+  'CLOUDFLARE_API_TOKEN=test-token' \
+  'CLOUDFLARE_ACCOUNT_ID=test-account' \
+  'PRINTFUL_API_KEY=pf_from_env_file' > "$ENV_OVERRIDE_TEST_FILE"
+install_controlled_test_env "$(pwd)" "$ENV_OVERRIDE_TEST_FILE"
+if (
+  export PRINTFUL_API_KEY=pf_exported
+  unset CLOUDFLARE_API_TOKEN
+  # shellcheck source=../lib/sites.sh
+  source scripts/lib/sites.sh
+  clodsite_load_env
+  [ "${PRINTFUL_API_KEY:-}" = "pf_exported" ] &&
+    [ "${CLOUDFLARE_API_TOKEN:-}" = "test-token" ]
+); then
+  echo "  ✓ exported env values override .env defaults"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ exported env values override .env defaults"
+  FAIL=$((FAIL + 1))
+fi
+install_controlled_test_env "$(pwd)" "$TEST_ENV_FILE"
+
 cleanup() {
   rm -rf "$SITE_DIR"
   rm -rf site sites
   rm -f .env
   rm -f "$TEST_ENV_FILE"
+  rm -f "$ENV_OVERRIDE_TEST_FILE"
   if [ -n "$SITE_BACKUP" ]; then
     mkdir -p site && cp -r "$SITE_BACKUP/." site/ && rm -rf "$SITE_BACKUP"
   fi
@@ -2144,7 +2168,11 @@ esac
 STUB
 cat > "${CHECKOUT_STUB_DIR}/wrangler" << STUB
 #!/usr/bin/env bash
-echo "wrangler \$*" >> "${CHECKOUT_STUB_LOG}"
+secret=""
+if echo "\$*" | grep -q "secret put"; then
+  secret=\$(cat)
+fi
+echo "wrangler \$* stdin=\$secret" >> "${CHECKOUT_STUB_LOG}"
 exit 0
 STUB
 chmod +x "${CHECKOUT_STUB_DIR}/curl" "${CHECKOUT_STUB_DIR}/wrangler"
@@ -2278,6 +2306,7 @@ STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test SITE_DIR="${SITE_DIR}" \
 assert_exit "live printful deploy exits 0" 0 $?
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
 assert_contains "Printful key pushed through Wrangler" "pages secret put PRINTFUL_API_KEY" "$CHECKOUT_LOG"
+assert_contains "exported Printful key overrides .env during deploy" "pages secret put PRINTFUL_API_KEY --project-name commerce-live-test stdin=pf_test" "$CHECKOUT_LOG"
 assert_contains "Stripe secret key still pushed for printful" "pages secret put STRIPE_SECRET_KEY" "$CHECKOUT_LOG"
 assert_not_contains "no Resend push for printful without contact form" "pages secret put RESEND_API_KEY" "$CHECKOUT_LOG"
 assert_contains "printful Pages deploy called" "pages deploy dist" "$CHECKOUT_LOG"

@@ -11,10 +11,31 @@ CLODSITE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 clodsite_load_env() {
   if [ -f "${CLODSITE_ROOT}/.env" ]; then
+    local keys=()
+    local key line
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in
+        ""|\#*) continue ;;
+        export\ *) key="${line#export }"; key="${key%%=*}" ;;
+        *) key="${line%%=*}" ;;
+      esac
+      key="${key%"${key##*[![:space:]]}"}"
+      key="${key#"${key%%[![:space:]]*}"}"
+      if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && [ "${!key+x}" ]; then
+        keys+=("$key")
+        eval "__clodsite_saved_${key}=\${$key}"
+      fi
+    done < "${CLODSITE_ROOT}/.env"
+
     set -a
     # shellcheck source=/dev/null
     source "${CLODSITE_ROOT}/.env"
     set +a
+
+    for key in "${keys[@]}"; do
+      eval "export ${key}=\${__clodsite_saved_${key}}"
+      unset "__clodsite_saved_${key}"
+    done
   fi
 }
 
