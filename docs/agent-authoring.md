@@ -49,7 +49,7 @@ output.
 
    ```bash
    for s in validate-plan write-site-json apply-theme render-templates \
-            render-functions build-site render-headers; do
+            render-functions build-site render-headers render-redirects; do
      SITE_NAME=<site-name> bash scripts/$s.sh || { echo "BUILD FAILED at $s"; break; }
    done
    ```
@@ -123,6 +123,28 @@ small plan diff, that is usually good: the compiler is doing its job.
   `nav`. The `catalog`, `personalized-product`, and `certificate-award`
   components are not allowed on it (they need commerce/proxy wiring the 404 slot
   has no use for).
+
+## Redirects
+
+- When a page is renamed or retired, send its old URL somewhere with a real HTTP
+  redirect instead of letting it fall through to the 404. Add a top-level
+  `redirects` block to `build-plan.yaml`:
+
+  ```yaml
+  redirects:
+    - from: /old-pricing      # the path visitors still request
+      to: /pricing            # origin-relative path, or an https:// URL
+    - from: /promo
+      to: https://example.org/landing
+      status: 302             # optional; default 301
+  ```
+
+- `from` is a literal origin-relative path (no `*`/`:` patterns in v1). `to` is
+  an origin-relative path or an `https://` URL. `status` defaults to `301`
+  (permanent); `302`/`303`/`307`/`308` are also allowed.
+- A `from` that matches a real page route (e.g. `/` or `/pricing/`) is rejected —
+  the page would shadow the redirect. Use redirects only for paths the site does
+  *not* serve as pages; genuinely unknown paths still hit the generated 404.
 
 ## Commerce And Forms
 

@@ -582,6 +582,74 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# ── redirects (validate-plan + render-redirects.sh) ───────────────────────────
+echo ""
+echo "=== redirects ==="
+
+cp scripts/test/fixtures/valid-build-plan-redirects.yaml "${SITE_DIR}/build-plan.yaml"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "plan with valid redirects validates" 0 $?
+
+bash scripts/render-redirects.sh > /dev/null 2>&1
+assert_exit "render-redirects exits 0" 0 $?
+assert_file_exists "dist/_redirects created" "${SITE_DIR}/dist/_redirects"
+REDIRECTS_OUTPUT=$(cat "${SITE_DIR}/dist/_redirects")
+assert_contains "_redirects defaults missing status to 301" "/old-pricing  /pricing  301" "$REDIRECTS_OUTPUT"
+assert_contains "_redirects keeps explicit status + external target" "/promo  https://example.org/landing  302" "$REDIRECTS_OUTPUT"
+if [ "$(tail -c 1 "${SITE_DIR}/dist/_redirects" | od -An -t u1 | tr -d ' ')" = "10" ]; then
+  echo "  ✓ _redirects ends with a newline"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ _redirects does not end with a newline"
+  FAIL=$((FAIL + 1))
+fi
+
+# Negative validation: each mutation makes the redirects block invalid.
+redirects_rejects() {
+  local desc="$1" needle="$2" mutate="$3"
+  cp scripts/test/fixtures/valid-build-plan-redirects.yaml "${SITE_DIR}/build-plan.yaml"
+  node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+${mutate}
+fs.writeFileSync(file, yaml.dump(p));
+"
+  local out
+  out=$(bash scripts/validate-plan.sh 2>&1)
+  assert_exit "$desc exits 1" 1 $?
+  assert_contains "$desc is reported" "$needle" "$out"
+}
+
+redirects_rejects "relative from" "must be an origin-relative path" "p.redirects[0].from='old-pricing';"
+redirects_rejects "from conflicting with a page route" "conflicts with a generated page route" "p.redirects[0].from='/pricing';"
+redirects_rejects "from conflicting with home" "conflicts with a generated page route" "p.redirects[0].from='/';"
+redirects_rejects "duplicate from" "duplicates an earlier redirect source" "p.redirects[1].from='/old-pricing';"
+redirects_rejects "splat in from" "literal path" "p.redirects[0].from='/blog/*';"
+redirects_rejects "bad status" "status must be one of" "p.redirects[0].status=418;"
+redirects_rejects "relative-and-not-url to" "must be an origin-relative path or an https" "p.redirects[0].to='ftp://x/y';"
+redirects_rejects "no-op redirect" "no-op redirect" "p.redirects[0].to='/old-pricing';"
+redirects_rejects "unknown field" 'has unknown field "code"' "p.redirects[0].code=301;"
+
+# Removing the block clears any stale dist/_redirects.
+cp scripts/test/fixtures/valid-build-plan-redirects.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+delete p.redirects;
+fs.writeFileSync(file, yaml.dump(p));
+"
+bash scripts/render-redirects.sh > /dev/null 2>&1
+assert_exit "render-redirects without rules exits 0" 0 $?
+if [ ! -f "${SITE_DIR}/dist/_redirects" ]; then
+  echo "  ✓ stale dist/_redirects removed"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ stale dist/_redirects remains"
+  FAIL=$((FAIL + 1))
+fi
+
 cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
 rm -rf "${SITE_DIR}/src"
 bash scripts/write-site-json.sh > /dev/null 2>&1

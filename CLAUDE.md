@@ -115,6 +115,7 @@ Render build plan to templates. Run Eleventy. Produces `$SITES_DIR/<site-name>/d
 [SCRIPT] bash scripts/render-functions.sh
 [SCRIPT] bash scripts/build-site.sh
 [SCRIPT] bash scripts/render-headers.sh
+[SCRIPT] bash scripts/render-redirects.sh
 ```
 
 ### `/deploy` — `[SCRIPT]`
@@ -123,7 +124,7 @@ Build and deploy to Cloudflare Pages — `/deploy` always rebuilds first (builds
 ```
 [SCRIPT] bash scripts/deploy.sh --local                  (if `/deploy <site-name> local` — serve, no deploy)
 [SCRIPT] bash scripts/build-deploy.sh <site-name> "<message>"
-         (full pipeline: validate → build → render-headers → deploy → finalize;
+         (full pipeline: validate → build → render-headers → render-redirects → deploy → finalize;
           finalize prints the production URL, writes NEXT-STEPS.md, and commits to the sites repo)
 [LLM]    Interpret error if any stage fails
 ```
@@ -181,6 +182,7 @@ The LLM handles: collecting user input through the chat, reading source material
 | `$SITES_DIR/<site-name>/src/*.njk` | `/build <site-name>` (via `render-templates.sh`) | Page templates with content (gitignored) |
 | `$SITES_DIR/<site-name>/dist/` | `/build <site-name>` | Built static site |
 | `$SITES_DIR/<site-name>/dist/_headers` | `/build <site-name>` (via `render-headers.sh`) | Optional Cloudflare Pages static response-header rules |
+| `$SITES_DIR/<site-name>/dist/_redirects` | `/build <site-name>` (via `render-redirects.sh`) | Optional Cloudflare Pages redirect rules (renamed/retired pages) |
 | `$SITES_DIR/<site-name>/NEXT-STEPS.md` | `/deploy <site-name>` | Post-deploy ops guide |
 
 ---

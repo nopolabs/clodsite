@@ -37,6 +37,9 @@ SITE_NAME="$SITE_NAME" bash "${SCRIPT_DIR}/build-site.sh"
 echo "==> render-headers"
 SITE_NAME="$SITE_NAME" bash "${SCRIPT_DIR}/render-headers.sh"
 
+echo "==> render-redirects"
+SITE_NAME="$SITE_NAME" bash "${SCRIPT_DIR}/render-redirects.sh"
+
 echo "==> deploy"
 SITE_NAME="$SITE_NAME" bash "${SCRIPT_DIR}/deploy.sh"
 

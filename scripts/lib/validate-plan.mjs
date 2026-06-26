@@ -216,6 +216,107 @@ if ('headers' in plan) {
   }
 }
 
+// The request paths the build will serve as real pages, computed with the same
+// rule the site uses for nav hrefs and not-found links: a page is `/` when its
+// id is `home` or it is nav.order[0], else `/<id>/`. Plus the reserved
+// generated 404. A redirect whose source resolves to one of these would be
+// shadowed by the static asset, so we reject it.
+function generatedPageRoutes(plan) {
+  const order = (plan.nav && Array.isArray(plan.nav.order)) ? plan.nav.order : [];
+  const firstId = order.length
+    ? order[0]
+    : ((plan.pages && plan.pages[0]) ? plan.pages[0].id : undefined);
+  const routes = new Set(['/404.html']);
+  for (const p of (plan.pages || [])) {
+    if (!isObject(p) || !p.id) continue;
+    routes.add((p.id === 'home' || p.id === firstId) ? '/' : '/' + p.id + '/');
+  }
+  return routes;
+}
+
+// Compare paths ignoring a single trailing slash so `/about` and `/about/`
+// both match the `about` page route `/about/`; `/` is left as-is.
+function stripTrailingSlash(p) {
+  return (p.length > 1 && p.endsWith('/')) ? p.slice(0, -1) : p;
+}
+
+// Optional explicit redirects (item 9): a top-level `redirects` block →
+// dist/_redirects. Sibling of `headers`; literal origin-relative sources only.
+if ('redirects' in plan) {
+  if (!Array.isArray(plan.redirects) || plan.redirects.length === 0) {
+    errors.push('redirects must be a non-empty array');
+  } else {
+    if (plan.redirects.length > 100)
+      errors.push('redirects must contain at most 100 rules');
+
+    const ALLOWED_STATUS = new Set([301, 302, 303, 307, 308]);
+    const pageRoutes = new Set([...generatedPageRoutes(plan)].map(stripTrailingSlash));
+    const seenFrom = new Set();
+
+    plan.redirects.forEach(function(rule, i) {
+      const tag = 'redirects[' + i + ']';
+      if (!isObject(rule)) {
+        errors.push(tag + ' must be an object');
+        return;
+      }
+      const allowed = new Set(['from', 'to', 'status']);
+      for (const field of Object.keys(rule)) {
+        if (!allowed.has(field))
+          errors.push(tag + ' has unknown field "' + field + '"');
+      }
+
+      let fromOk = false;
+      if (!('from' in rule)) {
+        errors.push(tag + '.from is required');
+      } else if (validateNonEmptyString(rule.from, tag + '.from')) {
+        const from = rule.from;
+        if (/[\s]/.test(from))
+          errors.push(tag + '.from must not contain whitespace');
+        else if (!from.startsWith('/') || from.startsWith('//'))
+          errors.push(tag + '.from must be an origin-relative path beginning with /');
+        else if (from.includes('..'))
+          errors.push(tag + '.from must not contain ".."');
+        else if (/[*:]/.test(from))
+          errors.push(tag + '.from must be a literal path — "*" splats and ":" placeholders are not supported');
+        else {
+          fromOk = true;
+          if (seenFrom.has(from))
+            errors.push(tag + '.from duplicates an earlier redirect source: ' + from);
+          seenFrom.add(from);
+          if (pageRoutes.has(stripTrailingSlash(from)))
+            errors.push(tag + '.from "' + from + '" conflicts with a generated page route and would never fire');
+        }
+      }
+
+      let toValue;
+      if (!('to' in rule)) {
+        errors.push(tag + '.to is required');
+      } else if (validateNonEmptyString(rule.to, tag + '.to')) {
+        toValue = rule.to;
+        let validAbsoluteUrl = false;
+        if (/^https:\/\//i.test(toValue)) {
+          try {
+            const parsed = new URL(toValue);
+            validAbsoluteUrl = parsed.protocol === 'https:' && parsed.hostname.length > 0;
+          } catch (_) {
+            validAbsoluteUrl = false;
+          }
+        }
+        if (/[\s]/.test(toValue))
+          errors.push(tag + '.to must not contain whitespace');
+        else if (!((toValue.startsWith('/') && !toValue.startsWith('//')) || validAbsoluteUrl))
+          errors.push(tag + '.to must be an origin-relative path or an https:// URL');
+      }
+
+      if (fromOk && toValue !== undefined && rule.from === toValue)
+        errors.push(tag + '.from and .to are identical (no-op redirect)');
+
+      if ('status' in rule && !ALLOWED_STATUS.has(rule.status))
+        errors.push(tag + '.status must be one of 301, 302, 303, 307, 308');
+    });
+  }
+}
+
 const catalog = {};
 if (fs.existsSync(componentsDir)) {
   for (const name of fs.readdirSync(componentsDir)) {
