@@ -106,16 +106,8 @@ This evolves the planned `/modify` command around current build-plan-first
 usage, preserves stable page IDs, and keeps revision governed rather than
 silently regenerating the site.
 
-*(Item 8, "Generated not-found page", shipped June 2026 — see Completed below.
-Numbering preserved.)*
-
-### 9. Explicit redirects
-
-Add optional redirect declarations to `build-plan.yaml` and generate a
-Cloudflare Pages `_redirects` file. Support intentional permanent redirects for
-renamed or retired pages, while leaving genuinely unknown paths to the generated
-404 page. Validate sources, destinations, status codes, duplicates, and
-conflicts with generated page routes.
+*(Items 8 "Generated not-found page" and 9 "Explicit redirects" shipped June
+2026 — see Completed below. Numbering preserved.)*
 
 ### 10. Installable skill/plugin packaging
 
@@ -273,6 +265,19 @@ also raises the visual ceiling for synced stores generally.
 ---
 
 ## Completed
+
+### Explicit redirects
+Shipped June 2026 (pending item 9). An optional top-level `redirects` block in
+`build-plan.yaml` generates a Cloudflare Pages `dist/_redirects` file — the
+redirect sibling of `headers` → `_headers`. Each rule is `{from, to, status?}`
+with `from` a literal origin-relative path, `to` an origin-relative path or
+`https://` URL, and `status` defaulting to 301 (302/303/307/308 allowed).
+`validate-plan` enforces the shape, rejects duplicate sources, no-op redirects,
+and sources that collide with a generated page route (which the static asset
+would shadow); `render-redirects.sh` writes the file deterministically and
+self-heals a stale one. Renamed/retired pages now redirect honestly while
+genuinely unknown paths still hit the generated 404 (item 8). Design:
+`docs/superpowers/specs/2026-06-26-explicit-redirects-design.md`.
 
 ### Product-level catalog views (decouple views from color)
 Shipped June 2026 (pending item 19). The `catalog` component's multi-view

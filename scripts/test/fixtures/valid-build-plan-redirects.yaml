@@ -1,0 +1,30 @@
+slug: redirects-test
+name: Redirects Test
+overview: Fixture exercising the explicit redirects block.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          ## Home
+          Welcome.
+  - id: pricing
+    title: Pricing
+    components:
+      - type: prose
+        markdown: |
+          ## Pricing
+          What it costs.
+redirects:
+  - from: /old-pricing
+    to: /pricing
+  - from: /promo
+    to: https://example.org/landing
+    status: 302
+nav:
+  order: [home, pricing]
+contact:
+  enabled: false

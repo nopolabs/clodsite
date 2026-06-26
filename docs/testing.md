@@ -92,7 +92,7 @@ For local verification of a real site build without deploying:
 
 ```bash
 for s in validate-plan write-site-json apply-theme render-templates \
-         render-functions build-site render-headers; do
+         render-functions build-site render-headers render-redirects; do
   SITE_NAME=<site-name> bash scripts/$s.sh || { echo "BUILD FAILED at $s"; break; }
 done
 ```

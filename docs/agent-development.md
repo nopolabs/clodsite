@@ -132,7 +132,7 @@ For local verification of a real site build:
 
 ```bash
 for s in validate-plan write-site-json apply-theme render-templates \
-         render-functions build-site render-headers; do
+         render-functions build-site render-headers render-redirects; do
   SITE_NAME=<site-name> bash scripts/$s.sh || { echo "BUILD FAILED at $s"; break; }
 done
 ```
@@ -154,8 +154,9 @@ debugging a failed deploy or intentionally running a partial pipeline.
 5. `render-functions`
 6. `build-site`
 7. `render-headers`
-8. `deploy`
-9. `deploy-finalize`
+8. `render-redirects`
+9. `deploy`
+10. `deploy-finalize`
 
 `deploy-finalize.sh` writes `NEXT-STEPS.md` and auto-commits the deployed site
 snapshot to the sites repo when `SITES_DIR` is a git repo. Treat that as part of
