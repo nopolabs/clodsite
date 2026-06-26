@@ -256,6 +256,25 @@ visual-quality bar constant and measure each arm's cost to clear it — and whet
 Clodsite's themes can clear a *brand-specific* bar at all today. Design before
 building; the theme model is the lever, the benchmark is the evidence.
 
+### 19. Generalize catalog product views (front/back → ordered list)
+
+The `catalog` component's per-color "views" are not a general multi-image
+model — they are a hardcoded **front/back** binary baked into four layers: the
+normalized data shape (`by_color[color] = {front, back?}`, `has_views` ≡ "has a
+back"), two literal `Front`/`Back` buttons in the template, two fixed
+`data-view-front`/`data-view-back` swatch attributes, and a `selectedView =
+'front'` default in the JS. It fit the launch t-shirt stores but does not
+generalize to a side view, a detail shot, or any arbitrary ordered set.
+
+Replace it with a genuine ordered `views: [{label, image}, ...]` list (first
+entry = default). Contained refactor: only hand-authored catalogs populate
+`by_color` (the Printful sync never emits views), so the blast radius is the
+normalize step, the component template + JS, docs, and tests — plus a
+backward-compatible normalizer that reads the legacy `{front, back}` shape so
+live stores build unchanged and migrate later. Commerce/cart/fulfillment is
+untouched (views are display-only). Design:
+`docs/superpowers/specs/2026-06-26-catalog-views-generalization-design.md`.
+
 ---
 
 ## Completed
