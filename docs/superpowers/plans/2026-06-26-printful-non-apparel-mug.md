@@ -39,6 +39,10 @@ The completed smoke test proved:
 - the Pages Function creates the Printful order in the Anchovy store;
 - the Printful order can be cancelled/refunded through the Printful UI.
 
+The result is intentionally narrow and useful: the static mug path is validated.
+It does not cover personalized Printful files, Parchment-generated mug artwork,
+or mixed manual/Printful catalogs.
+
 A deployment bug was found during the first fulfillment attempt: `deploy.sh`
 raw-sourced `.env` and overwrote the caller's site-specific
 `PRINTFUL_API_KEY="$ANCHOVY_PRINTFUL_API_KEY"` override, so the Pages secret was
@@ -49,7 +53,9 @@ printful order create failed
 HTTP 400: Item 0: Sync variant not found
 ```
 
-That failure is now covered by the env-override deploy fix merged in PR #72.
+That failure was a deploy-time secret binding problem, not a catalog rendering
+or checkout problem. It is now covered by the env-override deploy fix merged in
+PR #72.
 Future commerce debugging should start with:
 
 ```bash

@@ -48,6 +48,11 @@ The validated product shape was a single 11 oz white glossy mug:
 The live smoke test created a Printful order, which was then cancelled/refunded
 in the Printful UI.
 
+This validates the static mug path only: synced catalog data, no-option catalog
+rendering, Stripe checkout, webhook handling, and ordinary Printful fulfillment.
+It does not validate personalized mug artwork, per-order Printful files, or
+selling manual and Printful products from the same site.
+
 One operational issue surfaced before the successful run: deployment pushed the
 wrong `PRINTFUL_API_KEY` Pages secret when a site-specific key was supplied as a
 shell override. The webhook reached Printful, but the default/HMC key could not
