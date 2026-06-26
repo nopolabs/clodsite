@@ -165,6 +165,21 @@ assets and all other fields are untouched.
 
 ## Follow-ups
 
-- Optional: teach the Printful sync to emit multiple placement mockups
+Promote these to ROADMAP items when this spec is implemented.
+
+- **hmc-next-gen back views are hand-maintained and a re-sync will clobber
+  them.** The Printful sync (`sync.mjs`) only writes `main` + `gallery`;
+  hmc-next-gen's `by_color` front/back was hand-added afterward (the `deploy:
+  hmc-next-gen — front/back product mockups` commit). Re-running the Printful
+  sync on that site today would overwrite the catalog and silently drop every
+  back view — a latent data-loss bug independent of this generalization. After
+  this change it gets *worse*: a re-sync would emit the old `main`/`gallery`
+  shape with no `views`, so the hand-curated multi-view data is lost with no
+  warning. Decide a durable fix: either (a) teach the sync to fetch and emit
+  real placement mockups as `views` (the next follow-up), or (b) make the sync
+  preserve/merge existing hand-authored `by_color` data instead of replacing
+  the whole catalog. Until then, do not re-sync hmc-next-gen without re-applying
+  the back views.
+- **Optional:** teach the Printful sync to emit multiple placement mockups
   (front/back/sleeve) as `views` when the provider exposes them, replacing the
-  current single-front-per-color behavior.
+  current single-front-per-color behavior. This subsumes fix (a) above.
