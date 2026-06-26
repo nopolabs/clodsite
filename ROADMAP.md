@@ -155,6 +155,7 @@ Cloudflare account access and local defaults, plus per-site overlays for site
 providers, checkout mode, sender identity, fulfillment, and generated platform
 secrets. Shared credentials remain acceptable for the current single-operator
 workflow; customer-per-site use requires this layer split before it is safe.
+Design (proposed): `docs/superpowers/specs/2026-06-26-per-site-env-layers-design.md`.
 
 ### 13. MCP HTTP transport
 
