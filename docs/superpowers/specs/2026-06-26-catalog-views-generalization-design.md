@@ -128,10 +128,12 @@ Rules:
   order; index 0 is the default shown. A single-image product may omit `views`
   and keep just `main` (no toggle), exactly as today.
 - Each view: `label` required and non-empty, `image` required.
-- `images.by_option` is optional. Keys are option **names** that must match a
-  declared `product.options[].name`; sub-keys are option **values** that must
-  match that option's declared values. Each entry is a `{ views: [...] }` with
-  the same per-view rules.
+- `images.by_option` is optional, and when present requires a non-empty
+  product-level `images.views` base (it is an override layer, not a standalone
+  source). Keys are option **names** that must match a declared
+  `product.options[].name`; sub-keys are option **values** that must match that
+  option's declared values. Each entry is a `{ views: [...] }` with the same
+  per-view rules.
 - An option-value override **replaces** the active view set for that selection
   (it is not merged view-by-view). Override view lists need not match the
   product-level list in length or labels.
@@ -169,13 +171,21 @@ view data.
 - Emit the product-level views and the override map as JSON data attributes on
   the product card (not on swatches):
   `data-views='[{"label":"Front","image":"…"},…]'` and, when present,
-  `data-view-overrides='{"Color":{"Black":[…],"White":[…]}}'`
-  (HTML-attribute-escaped). One card-level source of truth; swatches stay pure
-  selection inputs and lose their `data-view-*` attributes.
-- The view-toggle button row is rendered from the *initial* effective set
-  (product-level `views`, or the override for the initially-selected values);
-  the group renders only when that set has more than one view, and the JS
-  rebuilds it on selection change.
+  `data-view-overrides='{"Color":{"Black":[…],"White":[…]}}'`. Each is produced
+  with `JSON.stringify` and then HTML-attribute-escaped, so arbitrary author
+  `label` text (quotes, apostrophes, ampersands) survives intact and cannot
+  break the attribute boundary or inject markup. One card-level source of truth;
+  swatches stay pure selection inputs and lose their `data-view-*` attributes.
+- The `.c-catalog__view-toggle` container is rendered whenever the product's
+  `has_views` is true — i.e. when *any* reachable selection yields more than one
+  view — **not** merely when the initial set does. This guarantees a stable node
+  for the JS to populate even if the initial selection has 0–1 views but a later
+  color does. The container starts hidden (and empty, or filled from the initial
+  set) and the JS shows/hides it per selection. A product where no reachable
+  selection has >1 view renders no container at all.
+- The button row is populated from the *initial* effective set (product-level
+  `views`, or the override for the initially-selected values); the JS rebuilds
+  it on selection change.
 
 Client JS, per card:
 
@@ -184,10 +194,11 @@ Client JS, per card:
 - `effectiveViews()` computes the active set from `data-views` +
   `data-view-overrides` and the current selection (both parsed once and cached).
 - On any option change (swatch click *or* dropdown change), recompute
-  `effectiveViews()`, rebuild the button row, clamp `selectedViewIndex` into
-  range (falling back to `0` when the new set is shorter — preserving today's
-  "view unavailable for this selection → show the default" behavior), and update
-  the main image to `effectiveViews()[selectedViewIndex].image`.
+  `effectiveViews()`, rebuild the button row, show the toggle container when the
+  set has >1 view and hide it otherwise, clamp `selectedViewIndex` into range
+  (falling back to `0` when the new set is shorter — preserving today's "view
+  unavailable for this selection → show the default" behavior), and update the
+  main image to `effectiveViews()[selectedViewIndex].image`.
 - A view button click sets `selectedViewIndex` and swaps the main image within
   the current set.
 
@@ -206,6 +217,11 @@ Catalog JSON validation (wherever the `by_color` shape is currently asserted):
   declared values, and each entry is `{ views: [...] }` with the same per-view
   rules. Unknown option names or values are rejected (catches typos and stale
   overrides).
+- `images.by_option` requires a non-empty product-level `images.views` base:
+  overrides without a base set are rejected. The base is the default render and
+  the fallback for any selection without a matching override, so a catalog that
+  defines only overrides has undefined initial/no-match behavior — reject it at
+  build time rather than render something muddy.
 - The `by_color` key and the `{front, back}` view shape are rejected outright,
   so a stale catalog fails loudly rather than building with the old behavior.
 
@@ -222,9 +238,17 @@ Catalog JSON validation (wherever the `by_color` shape is currently asserted):
   - Build a catalog with a color product using `by_option`; assert selecting a
     color swaps the effective view set (a `data-view-overrides` attribute is
     present and the default buttons come from product-level `views`).
+  - **Data-attribute safety:** build a catalog whose view `label`s contain
+    quotes, apostrophes, and ampersands (e.g. `Detail "close-up"`,
+    `Men's & Women's`). Assert the rendered card's `data-views` /
+    `data-view-overrides` attributes are produced via `JSON.stringify` plus HTML
+    attribute escaping, and that the values round-trip — i.e. parsing
+    `dataset.views` back yields the original labels intact, with no broken
+    attribute boundaries or HTML injection.
 - Negative: empty `views`, a view missing `label`/`image`, a `by_option` key
-  naming an unknown option or value, and the legacy `by_color`/`{front, back}`
-  shape are all rejected by validation.
+  naming an unknown option or value, `by_option` present without a product-level
+  `images.views` base, and the legacy `by_color`/`{front, back}` shape are all
+  rejected by validation.
 
 ## Migration
 
