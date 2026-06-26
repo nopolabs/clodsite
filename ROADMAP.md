@@ -256,6 +256,28 @@ visual-quality bar constant and measure each arm's cost to clear it — and whet
 Clodsite's themes can clear a *brand-specific* bar at all today. Design before
 building; the theme model is the lever, the benchmark is the evidence.
 
+### 19. Product-level catalog views (decouple views from color)
+
+The `catalog` component has no general multi-image model: multi-view imagery
+exists *only* as `by_color[color] = {front, back?}`, so a product must have a
+color option to show more than one image, and the toggle is a hardcoded
+front/back binary (two literal buttons, two `data-view-*` swatch attributes, a
+`selectedView = 'front'` default). A seed packet (`Packet`/`Plant`/`Fruit`), a
+poster (`Front`/`Detail`/`In room`), or a book has nowhere to put labeled views.
+
+Add a **product-level `images.views`** ordered list (`{label, image}`, first =
+default) as the base contract, with **option-specific overrides only where
+needed** via an optional `images.by_option[name][value].views` layer; `by_color`
+is removed. Views become a product property derived from the current selection,
+not something a swatch owns — so products with no color, or no options at all,
+get a full labeled view toggle. Contained refactor: the normalize step, the
+component template + JS, docs, and tests; the Printful sync never emits view
+data, and commerce/cart/fulfillment is untouched (views are display-only). Clean
+cutover, no compat layer — the one affected catalog (hmc-next-gen, the only site
+in clodsite-sites carrying `by_color` data) is migrated in the same change.
+Design:
+`docs/superpowers/specs/2026-06-26-catalog-views-generalization-design.md`.
+
 ---
 
 ## Completed
