@@ -245,9 +245,21 @@ settle, and the reasoning:
   render) with the provider that has no external dependency — the same
   carry-the-pipeline-first role `manual` played in commerce v1's phasing.
 
-When a Printful print product becomes worth it, the seam is visible: the
-provider already receives `personalization_url`; the work is the per-order
-print-file capability in `printful/order.mjs` plus a product mapping.
+When a Printful product becomes worth it, the seam is visible: the provider
+already receives `personalization_url`; `printful/order.mjs` can attach that
+URL as the line item's `files[]` payload while continuing to resolve the
+product variant through `fulfillment_ref`.
+
+**2026-06-27 update:** the Printful provider now supports that per-order file
+attachment. A personalized product may point `personalization.url` at
+Parchment's mug artwork endpoint (`/parchment/mug/{id}`), and checkout will
+verify the token, carry the resolved URL through Stripe metadata, and pass it
+to Printful as the order item artwork file. Ordinary synced Printful products
+continue to use `sync_variant_id` as `fulfillment_ref`; made-to-order catalog
+products can use `variant:<catalog-variant-id>` so the provider sends
+`variant_id`. For the 11 oz White Glossy Mug, the current catalog variant is
+`variant:1320`. BBPP activation still requires a real BBPP Printful store/API
+key mapping.
 
 ### 5. What stays private, restated
 
@@ -312,7 +324,7 @@ own repo (typecheck + its conventions).
 | 4 | Personalized products are buy-now only; the cart is untouched | Cart identity/purge machinery stays as shipped; capability tokens don't persist in localStorage |
 | 5 | Checkout verifies the token live (HEAD → 200) before creating the Stripe session | Never sell a print of nothing; the only non-Stripe network call the function makes, to its own origin |
 | 6 | The print-resolution URL is resolved server-side at checkout and travels via Stripe metadata to `createOrder` | Webhook and providers stay personalization-agnostic; parchment remains the sole resolver |
-| 7 | Manual fulfillment in v1; Printful print product deferred | Per-order print files are a new provider surface; manual exercises every new mechanism at bbpp's volume (§4) |
+| 7 | Manual fulfillment in v1; Printful print product deferred until a real product mapping exists | Per-order print files are now supported, but activation still needs a Printful store/product and live smoke test (§4) |
 | 8 | Print quality via a `?scale=` render multiplier in parchment | One Satori tree serves screen and print; needed regardless of who fulfills |
 | 9 | Stripe Checkout custom fields stay unused | Parent-spec rule: reserved for genuinely buyer-supplied data; Stripe already collects the buyer's email and shipping address |
 | 10 | `personalization.url` must be origin-relative | A catalog edit must not be able to point token-bearing checkout validation at a third party |
@@ -340,7 +352,7 @@ own repo (typecheck + its conventions).
 
 ## Deferred
 
-- Printful print product / per-order print files in the provider interface (§4)
+- BBPP Printful product mapping and live personalized mug smoke test (§4)
 - Optional (non-required) personalization on catalog products
 - Personalized items in the cart (buy-now only in v1)
 - Framing/size options on the print product (plain print, one size, v1)

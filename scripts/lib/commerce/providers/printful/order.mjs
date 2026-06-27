@@ -5,7 +5,8 @@
 // Workers-compatible APIs only (fetch).
 //
 // Contract (spec §7): createOrder(order, env) -> { provider_order_id }
-//   order = { idempotency_key, lineItems: [{ fulfillment_ref, qty }], shipping, email }
+//   order = { idempotency_key, lineItems: [{ fulfillment_ref, qty,
+//             personalization_id?, personalization_url? }], shipping, email }
 // Throws on failure; the thrown error carries provider_detail for the
 // webhook's KV last_error record.
 //
@@ -76,6 +77,14 @@ async function printfulExternalId(idempotencyKey) {
   return 'cs_' + hex.slice(0, 24);
 }
 
+function printfulItemVariant(fulfillmentRef) {
+  const ref = String(fulfillmentRef);
+  if (ref.startsWith('variant:')) {
+    return { variant_id: Number(ref.slice('variant:'.length)) };
+  }
+  return { sync_variant_id: Number(ref) };
+}
+
 export async function createOrder(order, env) {
   if (!env.PRINTFUL_API_KEY || !env.PRINTFUL_STORE_ID) {
     const missing = [
@@ -122,11 +131,15 @@ export async function createOrder(order, env) {
       ...(order.email ? { email: order.email } : {}),
     },
     items: order.lineItems.map(function (item, index) {
-      return {
+      const out = {
         external_id: externalId + '-' + (index + 1),
-        sync_variant_id: Number(item.fulfillment_ref),
+        ...printfulItemVariant(item.fulfillment_ref),
         quantity: item.qty,
       };
+      if (item.personalization_url) {
+        out.files = [{ type: 'default', url: item.personalization_url }];
+      }
+      return out;
     }),
   }, 'printful order create failed');
 

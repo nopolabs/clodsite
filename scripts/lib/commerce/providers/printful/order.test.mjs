@@ -123,6 +123,65 @@ test('createOrder builds the Printful order payload from the fulfillment order',
   ]);
 });
 
+test('createOrder attaches personalized artwork files to Printful line items', async (t) => {
+  const calls = stubFetch(t, HAPPY_ROUTES);
+
+  await createOrder(makeOrder({
+    lineItems: [
+      {
+        fulfillment_ref: '5270106491',
+        qty: 1,
+        personalization_id: 'tok_aaaaaaaaaaaaaaaaaaaa',
+        personalization_url: 'https://bigbeautifulpeaceprize.com/parchment/mug/tok_aaaaaaaaaaaaaaaaaaaa',
+      },
+    ],
+  }), ENV);
+
+  const body = JSON.parse(calls[1].init.body);
+  assert.deepEqual(body.items, [
+    {
+      external_id: 'cs_71d330da3cfb1ee326a53caf-1',
+      sync_variant_id: 5270106491,
+      quantity: 1,
+      files: [
+        {
+          type: 'default',
+          url: 'https://bigbeautifulpeaceprize.com/parchment/mug/tok_aaaaaaaaaaaaaaaaaaaa',
+        },
+      ],
+    },
+  ]);
+});
+
+test('createOrder can use a Printful catalog variant for made-to-order products', async (t) => {
+  const calls = stubFetch(t, HAPPY_ROUTES);
+
+  await createOrder(makeOrder({
+    lineItems: [
+      {
+        fulfillment_ref: 'variant:1320',
+        qty: 1,
+        personalization_url: 'https://bigbeautifulpeaceprize.com/parchment/mug/tok_aaaaaaaaaaaaaaaaaaaa',
+      },
+    ],
+  }), ENV);
+
+  const body = JSON.parse(calls[1].init.body);
+  assert.deepEqual(body.items, [
+    {
+      external_id: 'cs_71d330da3cfb1ee326a53caf-1',
+      variant_id: 1320,
+      quantity: 1,
+      files: [
+        {
+          type: 'default',
+          url: 'https://bigbeautifulpeaceprize.com/parchment/mug/tok_aaaaaaaaaaaaaaaaaaaa',
+        },
+      ],
+    },
+  ]);
+});
+
 test('createOrder compacts real Stripe session ids into Printful-safe external ids', async (t) => {
   const calls = stubFetch(t, HAPPY_ROUTES);
 
