@@ -265,6 +265,14 @@ lists, entry headers/dates, post-body rhythm) to the theme contract — surfaces
 where generic styling shows most. Whatever theme model this item lands must cover
 blog typography, not just landing-page chrome.
 
+Design (proposed): `docs/superpowers/specs/2026-06-27-theme-ceiling-brand-tokens-design.md`
+— three composing, curated/governed layers (personality `style` × curated
+`palette` × bounded `brand` tokens), plus finer theme tokens and shared component
+polish. Synthesizes the `docs/theme-system-notes.md` direction into a decided
+plan; reconciles "curated, not configurable" with "brand tokens in the plan" via
+automated quality gates (curated catalogs + a contrast gate) instead of a
+raw-CSS escape hatch.
+
 ### 19. Printful sync preserves (or emits) product views
 
 Surfaced by the product-level views work (Completed, below). The Printful sync
