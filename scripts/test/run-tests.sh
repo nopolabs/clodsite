@@ -274,6 +274,21 @@ assert_contains "resolve-env names the Printful source" "Printful: from ANCHOVY_
 assert_not_contains "resolve-env never prints the Stripe value" "sk_live_bound_secret" "$BIND_REPORT"
 assert_not_contains "resolve-env never prints the Printful value" "pf_bound_secret" "$BIND_REPORT"
 
+# resolve-env.sh is sourced into the user's interactive shell, which may be zsh.
+# lib/sites.sh uses bash-only syntax, so the script must do its work in a bash
+# subprocess and still report + set the canonical vars when sourced from zsh.
+if command -v zsh >/dev/null 2>&1; then
+  BIND_REPORT_ZSH=$( export STRIPE_SECRET_KEY_LIVE=sk_live_zsh_secret ANCHOVY_PRINTFUL_API_KEY=pf_zsh_secret SITE_DIR="$BIND_SITE"
+    zsh -c 'source scripts/resolve-env.sh bind-test' 2>&1 )
+  assert_contains "resolve-env reports correctly when sourced from zsh" "Stripe: live (from STRIPE_SECRET_KEY_LIVE" "$BIND_REPORT_ZSH"
+  assert_not_contains "resolve-env from zsh never prints the value" "sk_live_zsh_secret" "$BIND_REPORT_ZSH"
+  BIND_SET_ZSH=$( export STRIPE_SECRET_KEY_LIVE=sk_live_zsh_secret SITE_DIR="$BIND_SITE"
+    zsh -c 'source scripts/resolve-env.sh bind-test >/dev/null 2>&1; [ "${STRIPE_SECRET_KEY:-}" = "sk_live_zsh_secret" ] && echo BOUND' )
+  assert_contains "resolve-env from zsh sets the bound canonical var" "BOUND" "$BIND_SET_ZSH"
+else
+  echo "  - zsh not available; skipping zsh resolve-env checks"
+fi
+
 rm -rf "$BIND_SITE" "$NOBIND_SITE"
 
 # ── write-site-json.sh ────────────────────────────────────────────────────────
