@@ -50,8 +50,14 @@ in the Printful UI.
 
 This validates the static mug path only: synced catalog data, no-option catalog
 rendering, Stripe checkout, webhook handling, and ordinary Printful fulfillment.
-It does not validate personalized mug artwork, per-order Printful files, or
-selling manual and Printful products from the same site.
+It does not validate selling manual and Printful products from the same site.
+
+The follow-on personalized mug path is now supported in the provider contract:
+when a webhook line item carries `personalization_url`, the Printful provider
+attaches it as the order item `files[]` payload. This enables BBPP-style
+Parchment mug artwork (`/parchment/mug/{token}`) using a Printful catalog
+variant reference such as `variant:1320` for the 11 oz White Glossy Mug,
+without changing the static synced-product mug catalog model.
 
 One operational issue surfaced before the successful run: deployment pushed the
 wrong `PRINTFUL_API_KEY` Pages secret when a site-specific key was supplied as a
@@ -97,8 +103,6 @@ and mixed-provider questions are designed.
 - Mixed manual + Printful fulfillment in one checkout.
 - HMC mug launch.
 - BBPP personalized mugs.
-- Printful per-order artwork files.
-- Parchment mug-specific render targets.
 
 Those are real follow-on needs, but they should not be coupled to proving a
 static Printful mug.
@@ -208,7 +212,11 @@ Static mugs use the existing Printful order contract:
 ```
 
 No per-order files are needed. This is the dividing line between the Anchovy
-mug and future BBPP personalized mugs.
+mug and BBPP personalized mugs: static synced products use only
+`sync_variant_id` and quantity; personalized made-to-order products may use a
+catalog `variant_id` via `fulfillment_ref: "variant:<id>"` and also carry a
+Parchment-generated `personalization_url` that Printful receives as the line
+item artwork file.
 
 ## Validation And Tests
 
@@ -233,5 +241,5 @@ Add fixture-driven tests for:
   Printful mugs in the same live site.
 - Decide whether singleton color should become product metadata for products
   where the lone color label is meaningful.
-- Design Parchment mug artwork and Printful per-order files before BBPP
-  personalized mugs.
+- Add the BBPP personalized mug once its Printful store/product mapping is
+  created and smoke-tested.

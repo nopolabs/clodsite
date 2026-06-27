@@ -62,6 +62,14 @@ const CATALOG = {
       variants: [{ optionValues: {}, fulfillment_ref: 'bbpp-print' }],
       personalization: { required: true, url: '/parchment/cert/{id}' },
     },
+    {
+      slug: 'custom-mug',
+      name: 'Custom Mug',
+      price_minor: 1500,
+      active: true,
+      variants: [{ optionValues: {}, fulfillment_ref: 'variant:1320' }],
+      personalization: { required: true, url: '/parchment/mug/{id}' },
+    },
   ],
 };
 
@@ -313,6 +321,25 @@ test('a personalized item is HEAD-verified, then carried in metadata with its pr
       qty: 1,
       personalization_id: TOKEN,
       personalization_url: 'https://shop.example.com/parchment/cert/' + TOKEN + '?scale=2',
+    },
+  ]);
+});
+
+test('a personalized mug can use the mug artwork endpoint as its product URL', async (t) => {
+  const calls = stubFetchWithHead(t);
+
+  const res = await onRequestPost(makeContext({
+    items: [{ slug: 'custom-mug', optionValues: {}, qty: 1, personalization_id: TOKEN }],
+  }));
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(calls.head.map((c) => c.url), ['https://shop.example.com/parchment/mug/' + TOKEN]);
+  assert.deepEqual(JSON.parse(calls.stripe[0].params.get('metadata[items]')), [
+    {
+      fulfillment_ref: 'variant:1320',
+      qty: 1,
+      personalization_id: TOKEN,
+      personalization_url: 'https://shop.example.com/parchment/mug/' + TOKEN + '?scale=2',
     },
   ]);
 });

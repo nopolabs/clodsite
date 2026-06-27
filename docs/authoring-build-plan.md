@@ -182,6 +182,34 @@ marker and Clodsite can clear the cart on the success page. Use a page such as
 `nav.order` are still built, which is the right shape for utility pages like
 checkout success pages.
 
+Personalized products are buy-now products that require an opaque token from an
+external system. The `personalization.url` is an origin-relative artwork URL
+template; checkout verifies `HEAD <url>` before creating a Stripe session and
+passes the resolved URL to the fulfillment provider. For Printful, that URL is
+attached as the order item artwork file:
+
+```json
+{
+  "slug": "custom-peace-prize-mug",
+  "name": "Custom Peace Prize Mug",
+  "description": "An 11 oz mug printed with your issued Big Beautiful Peace Prize artwork.",
+  "price_minor": 2500,
+  "active": true,
+  "size": "11 oz",
+  "images": { "main": "commerce/assets/bbpp-seal.png" },
+  "variants": [{ "optionValues": {}, "fulfillment_ref": "variant:1320" }],
+  "personalization": {
+    "required": true,
+    "url": "/parchment/mug/{id}"
+  }
+}
+```
+
+For ordinary synced Printful products, `fulfillment_ref` is the
+`sync_variant_id`. For made-to-order Printful products that supply their own
+artwork at order time, use `variant:<catalog-variant-id>` so the provider sends
+`variant_id` plus the personalization artwork file.
+
 ## Extending the vocabulary (when the catalog can't express it)
 
 If a request needs a shape no component covers — an interactive widget, a
