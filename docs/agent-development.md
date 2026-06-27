@@ -55,7 +55,12 @@ When changing Clodsite, preserve this boundary:
 
 ## Local Credentials Across Worktrees
 
-The current scripts expect a repo-local `.env`. For multiple local checkouts or
+`.env.example` (repo root) is the annotated template for the credential
+registry — copy it to `.env` and fill in values, or use it as the reference for
+the shared file described below. It documents every recognized name and the
+item-12 binding conventions; the `.env` it produces is gitignored.
+
+The scripts expect a repo-local `.env`. For multiple local checkouts or
 agent worktrees that share one trusted operator account, use one private file at
 `~/.config/clodsite/env` and symlink each checkout's `.env` to it:
 
