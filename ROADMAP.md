@@ -159,11 +159,36 @@ current sites put `home` first.
 Port mastertimewaster.com (the `mtw4` repo) to a Clodsite-managed site, the
 way bbpp was ported. mtw4 is the second parchment client: its hand-rolled
 Pages Function proxy becomes a `proxies` plan entry, its certificate page
-becomes a `certificate-award` component, and its hardcoded Turnstile site key
-is replaced by Clodsite's managed widget provisioning (retiring the manual
-`TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` handling in that repo). The
-commerce/checkout worker in `mtw4/worker/` is a separate concern and may stay
-external or migrate to commerce v1 catalogs, decided at port time.
+becomes a `certificate-award` component (verified parity: it already collects
+name/email/achievement and speaks the parchment render/issue protocol), and its
+hardcoded Turnstile site key is replaced by Clodsite's managed widget
+provisioning (retiring the manual `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`
+handling). Its bespoke commerce — a *separate* Cloudflare Worker
+(`mtw4/worker/`, zone routes `/checkout*` + `/webhook*`) with a localStorage
+cart, Stripe, Printful (store 17783389), KV idempotency, and base+per-item
+shipping — migrates wholesale to **commerce v1** Pages Functions, retiring the
+Worker. With item 12 shipped, mtw4 simply declares `commerce.checkout.mode:
+live` and `commerce.printful.api_key_env` (a third Printful store) — no friction.
+
+Assessment (2026-06-27): ~70–80% of mtw4 is config + catalog sync today — it is
+"bbpp with a cart and a blog." Two genuine Clodsite evolutions gate a faithful,
+no-corners port:
+
+- **Content collections (item 20)** — mtw4's `/posts/` "Journal" is a real blog
+  (dated Markdown entries, generated index + entry pages). Clodsite has no
+  collection/date concept; this is the largest piece and the one boundary
+  expansion. Hard prerequisite. Spec:
+  `docs/superpowers/specs/2026-06-27-content-collections-design.md`.
+- **Brand-grade theming (item 18)** — mtw4's identity is bespoke CSS (DM Sans, a
+  custom palette, italic hero emphasis, card/cart/cert styling). The fixed themes
+  cannot reproduce it and the component model forbids the inline CSS it relies
+  on, so a faithful port needs brand tokens; without them the port is functional
+  but a brand regression.
+
+Smaller fidelity items: constrained inline emphasis in `hero` headings ("Time,
+*Reclaimed.*"), and confirming favicon discovery covers the 48×48 +
+apple-touch set. Everything else — commerce, certificate, Turnstile, proxy,
+domain, headers, secrets — is already covered by shipped work, including item 12.
 
 ### 16. Multi-tenant isolation model
 
@@ -233,6 +258,13 @@ visual-quality bar constant and measure each arm's cost to clear it — and whet
 Clodsite's themes can clear a *brand-specific* bar at all today. Design before
 building; the theme model is the lever, the benchmark is the evidence.
 
+Two concrete forcing functions: a faithful **mtw4 port (item 15)** needs brand
+tokens to retain its bespoke look (DM Sans, custom palette, accent treatment),
+and **content collections (item 20)** add long-form reading typography (index
+lists, entry headers/dates, post-body rhythm) to the theme contract — surfaces
+where generic styling shows most. Whatever theme model this item lands must cover
+blog typography, not just landing-page chrome.
+
 ### 19. Printful sync preserves (or emits) product views
 
 Surfaced by the product-level views work (Completed, below). The Printful sync
@@ -246,6 +278,30 @@ the sync preserve/merge existing hand-authored `images.views` /
 `images.by_option` data instead of replacing the whole catalog. Until then, do
 not re-sync hmc-next-gen without re-applying the multi-view data. Option (a)
 also raises the visual ceiling for synced stores generally.
+
+### 20. Content collections (blog / journal)
+
+Clodsite models a site as a fixed list of 1–5 component pages; it has no concept
+of a **collection** — an open-ended, dated set of long-form Markdown entries with
+a generated index and per-entry pages. mtw4's "Journal" needs exactly this, and
+nothing in the catalog, renderer, or plan schema can express it.
+
+Add a `collections` plan block, each backed by a directory of Markdown entries
+(frontmatter `title`/`date`/`description`), expanded by the build into an index
+route (`/<id>/`, reverse-chronological) plus an entry route per file
+(`/<id>/<slug>/`), rendered with a constrained post layout and the site theme.
+Lean on Eleventy's native Markdown/collections/date handling; clodsite generates
+the index template, the post layout, two date filters, nav wiring, and asset
+passthrough. `validate-plan` validates the block structurally **and** each
+entry's frontmatter (the content tree becomes a second authored input).
+
+The notable evolution is that this **expands the inference boundary** from
+`build-plan.yaml` alone to `build-plan.yaml` + a content tree (`posts/*.md`):
+long-form prose belongs in Markdown, not YAML, but the entries remain
+author-controlled deterministic input, so the `[LLM]`-authors / `[SCRIPT]`-builds
+discipline holds. Prerequisite for item 15; raises the stakes for item 18 (it
+adds long-form reading typography to the theme contract). Design (proposed):
+`docs/superpowers/specs/2026-06-27-content-collections-design.md`.
 
 ---
 
