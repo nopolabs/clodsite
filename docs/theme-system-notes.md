@@ -4,6 +4,11 @@
 > system as we push on ROADMAP #18 (raise the theme ceiling). Started 2026-06-16
 > from the Phase-0 benchmark finding that an unconstrained control arm produced a
 > visibly nicer site than Clodsite's fixed themes.
+>
+> **These notes are now synthesized into a proposed spec:**
+> `docs/superpowers/specs/2026-06-27-theme-ceiling-brand-tokens-design.md`
+> (personality × curated palette × bounded brand tokens, + finer tokens +
+> component polish). Keep appending evidence here; design decisions live there.
 
 ## How themes work today
 
