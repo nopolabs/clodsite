@@ -74,6 +74,13 @@ function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+// A syntactically valid POSIX environment-variable name — the only constraint
+// validate-plan can place on an `api_key_env`/binding source without reading
+// the environment (item 12, structural check).
+function isEnvVarName(value) {
+  return typeof value === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
+}
+
 function validateNonEmptyString(value, fieldPath) {
   if (typeof value !== 'string') {
     errors.push(fieldPath + ' must be a string');
@@ -606,13 +613,18 @@ if ('commerce' in plan) {
       if (!isObject(commerce.checkout)) {
         errors.push('commerce.checkout must be an object ({ provider: stripe, success_url, cancel_url })');
       } else {
-        const allowedCheckout = new Set(['provider', 'success_url', 'cancel_url']);
+        const allowedCheckout = new Set(['provider', 'success_url', 'cancel_url', 'mode']);
         for (const field of Object.keys(commerce.checkout)) {
           if (!allowedCheckout.has(field))
             errors.push('commerce.checkout has unknown field "' + field + '"');
         }
         if (commerce.checkout.provider !== 'stripe')
           errors.push('commerce.checkout.provider must be stripe (the only v1 value)');
+        // Item 12: declared Stripe mode selects STRIPE_SECRET_KEY_{TEST,LIVE}.
+        // Structural-only here — existence and key-shape are enforced at the
+        // point of use, so plan validation stays runnable without secrets.
+        if ('mode' in commerce.checkout && commerce.checkout.mode !== 'test' && commerce.checkout.mode !== 'live')
+          errors.push('commerce.checkout.mode must be "test" or "live" (got: ' + commerce.checkout.mode + ')');
         if (!('success_url' in commerce.checkout))
           errors.push('commerce.checkout.success_url is required');
         else
@@ -733,9 +745,14 @@ if ('commerce' in plan) {
       } else {
         const printful = commerce.printful;
         for (const field of Object.keys(printful)) {
-          if (field !== 'store_id' && field !== 'products')
+          if (field !== 'store_id' && field !== 'products' && field !== 'api_key_env')
             errors.push('commerce.printful has unknown field "' + field + '"');
         }
+        // Item 12: api_key_env names the env var that supplies PRINTFUL_API_KEY
+        // for this store. Structural syntax check only — existence is enforced
+        // at the point of use.
+        if ('api_key_env' in printful && !isEnvVarName(printful.api_key_env))
+          errors.push('commerce.printful.api_key_env must be a valid environment-variable name (^[A-Za-z_][A-Za-z0-9_]*$)');
         if (!Number.isInteger(printful.store_id) || printful.store_id <= 0)
           errors.push('commerce.printful.store_id must be a positive integer (Printful dashboard > Settings > Stores)');
         if (!Array.isArray(printful.products) || printful.products.length === 0) {
@@ -865,6 +882,26 @@ if (catalogComponents.length > 0 || personalizedComponents.length > 0 || commerc
     }
   }
 }
+
+// Item 12: resend-form's optional api_key_env names the env var that supplies
+// RESEND_API_KEY. Resend is site-scoped — v1 generates one /api/contact
+// endpoint with first-form-wins behavior — so the binding is one declaration:
+// every resend-form must agree on the value, and a syntactically invalid name
+// is rejected (structural; existence enforced at the point of use).
+const resendApiKeyEnvs = [];
+(plan.pages || []).forEach(function(p, i) {
+  (Array.isArray(p.components) ? p.components : []).forEach(function(c, j) {
+    if (c && c.type === 'resend-form' && 'api_key_env' in c)
+      resendApiKeyEnvs.push({ value: c.api_key_env, tag: 'pages[' + i + '].components[' + j + '].api_key_env' });
+  });
+});
+resendApiKeyEnvs.forEach(function(entry) {
+  if (!isEnvVarName(entry.value))
+    errors.push(entry.tag + ' must be a valid environment-variable name (^[A-Za-z_][A-Za-z0-9_]*$)');
+});
+const distinctResendEnvs = new Set(resendApiKeyEnvs.map(function(e) { return e.value; }));
+if (distinctResendEnvs.size > 1)
+  errors.push('resend-form api_key_env must be identical across all forms — Resend is site-scoped to one /api/contact endpoint (found: ' + [...distinctResendEnvs].join(', ') + ')');
 
 // Proxies (proxy-functions design §1): each entry renders an authenticated
 // pass-through Function at functions/<mount>/[[path]].js.

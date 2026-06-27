@@ -136,26 +136,10 @@ fall back to the repo-local `.env`, then fall back to
 setup verification, domain, teardown, status, and provisioning scripts, and
 report the loaded env path without printing secret values.
 
-### 12. Per-site environments and credential layers
-
-`.env` is scoped to the Clodsite repository, so every site in `SITES_DIR`
-shares one set of credentials: one Cloudflare account, one Resend key, one
-Stripe account, one Printful key. Commerce makes this an active constraint —
-all stores currently settle into the same Stripe account, and switching one
-site between Stripe test and live mode means editing the shared file that
-every other site's deploy reads. Add a per-site environment layer (e.g.
-`$SITES_DIR/<site>/.env` overlaying the repo `.env`) so each site can carry
-its own commerce keys and mode without affecting its neighbors. Keep the
-existing single-file setup as the default for single-tenant use; per-site
-files must be covered by the same never-committed and test-isolation
-guarantees as the repo `.env`.
-
-This should split credential layers explicitly: a global author/operator env for
-Cloudflare account access and local defaults, plus per-site overlays for site
-providers, checkout mode, sender identity, fulfillment, and generated platform
-secrets. Shared credentials remain acceptable for the current single-operator
-workflow; customer-per-site use requires this layer split before it is safe.
-Design (proposed): `docs/superpowers/specs/2026-06-26-per-site-env-layers-design.md`.
+*(Item 12, "Per-site environments and credential layers", shipped June 2026 as
+declarative per-site secret binding — see Completed below. Numbering preserved.
+The follow-on value-source generalization is item 11a; the trust-boundary half
+is item 16.)*
 
 ### 13. MCP HTTP transport
 
@@ -266,6 +250,31 @@ also raises the visual ceiling for synced stores generally.
 ---
 
 ## Completed
+
+### Declarative per-site secret binding
+Shipped June 2026 (pending item 12). The repo `.env` is shared by every site in
+`SITES_DIR`, so a site could not carry its own provider credentials or Stripe
+mode without editing the file every other site's deploy reads — the root cause
+of the Stripe test→live footgun and the multi-store Printful key pain. Instead
+of an out-of-band per-site `.env` overlay, site-scoped secrets are now
+**declarative in `build-plan.yaml`**: the plan names *which* env var supplies
+each credential and *which* Stripe mode to bind, while the secret **values**
+stay in the environment and never enter the plan. `commerce.checkout.mode:
+test|live` selects `STRIPE_SECRET_KEY_{TEST,LIVE}` → `STRIPE_SECRET_KEY` (mode
+is now declared and selects the key; `clodsite_stripe_mode` becomes a verifier);
+`commerce.printful.api_key_env` and a site-scoped `resend-form` `api_key_env`
+alias their canonical names. Resolution runs inside the
+`clodsite_init_site_dir` chokepoint (`clodsite_resolve_bindings`), so every
+secret-consuming entrypoint inherits it; a declared binding overrides an ambient
+canonical value while the source it reads still honors #72 exported-wins.
+Validation is split: `validate-plan` checks structure only (mode enum,
+`api_key_env` syntax, resend-form agreement) and stays runnable with no
+credentials; existence and Stripe key-shape are enforced at the point of use in
+the secret-consuming scripts. `scripts/resolve-env.sh <site>` (sourceable)
+resolves a site's bindings into the current shell and reports the source name +
+mode — never the value. Clean cutover (no overlay file); the value-source
+generalization is item 11a, the trust-boundary half item 16. Design:
+`docs/superpowers/specs/2026-06-26-per-site-env-layers-design.md`.
 
 ### Explicit redirects
 Shipped June 2026 (pending item 9). An optional top-level `redirects` block in

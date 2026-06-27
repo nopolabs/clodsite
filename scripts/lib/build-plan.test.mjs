@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 import {
   findFirstComponent,
   getCustomDomain,
+  getSecretBindings,
   getSlug,
+  getStripeMode,
   getStyle,
   isResendTurnstileEnabled,
   readBuildPlan,
@@ -109,6 +111,63 @@ test('Turnstile is enabled only by a resend-form with boolean true', () => {
     false
   );
   assert.equal(isResendTurnstileEnabled(makePlan({ pages: [] })), false);
+});
+
+test('getStripeMode returns a declared test/live mode or empty', () => {
+  const commerceWith = (checkout) => ({ commerce: { checkout } });
+  assert.equal(getStripeMode(commerceWith({ mode: 'live' })), 'live');
+  assert.equal(getStripeMode(commerceWith({ mode: ' test ' })), 'test');
+  assert.equal(getStripeMode(commerceWith({ mode: 'staging' })), '');
+  assert.equal(getStripeMode(commerceWith({})), '');
+  assert.equal(getStripeMode({}), '');
+});
+
+test('getSecretBindings maps mode and aliases to canonical → source pairs', () => {
+  const bindings = getSecretBindings({
+    commerce: {
+      checkout: { mode: 'live' },
+      printful: { api_key_env: 'ANCHOVY_PRINTFUL_API_KEY' },
+    },
+    pages: [{ components: [{ type: 'resend-form', api_key_env: 'SITE_RESEND_KEY' }] }],
+  });
+  assert.deepEqual(bindings, [
+    { canonical: 'STRIPE_SECRET_KEY', source: 'STRIPE_SECRET_KEY_LIVE' },
+    { canonical: 'PRINTFUL_API_KEY', source: 'ANCHOVY_PRINTFUL_API_KEY' },
+    { canonical: 'RESEND_API_KEY', source: 'SITE_RESEND_KEY' },
+  ]);
+});
+
+test('getSecretBindings selects the test key for mode test', () => {
+  assert.deepEqual(
+    getSecretBindings({ commerce: { checkout: { mode: 'test' } } }),
+    [{ canonical: 'STRIPE_SECRET_KEY', source: 'STRIPE_SECRET_KEY_TEST' }]
+  );
+});
+
+test('getSecretBindings is empty when nothing is declared (bare-name path)', () => {
+  assert.deepEqual(getSecretBindings(makePlan()), []);
+  assert.deepEqual(
+    getSecretBindings({ commerce: { provider: 'printful', printful: { store_id: 1 } } }),
+    []
+  );
+});
+
+test('secret-bindings CLI prints one "CANONICAL SOURCE" per line', () => {
+  withPlanFile(
+    'slug: s\nstyle: minimal\ncommerce:\n  checkout: { mode: live }\n  printful: { api_key_env: ANCHOVY_PRINTFUL_API_KEY }\n',
+    (planPath) => {
+      const result = spawnSync(
+        process.execPath,
+        [modulePath, planPath, 'secret-bindings'],
+        { encoding: 'utf8' }
+      );
+      assert.equal(result.status, 0);
+      assert.equal(
+        result.stdout,
+        'STRIPE_SECRET_KEY STRIPE_SECRET_KEY_LIVE\nPRINTFUL_API_KEY ANCHOVY_PRINTFUL_API_KEY\n'
+      );
+    }
+  );
 });
 
 test('selectPlanValues returns requested semantic values in order', () => {

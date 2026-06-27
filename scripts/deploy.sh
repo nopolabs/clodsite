@@ -45,9 +45,10 @@ if [ ! -d "${SITE_DIR}/dist" ] || [ -z "$(ls -A "${SITE_DIR}/dist" 2>/dev/null)"
 fi
 
 PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
-  "${SITE_DIR}/build-plan.yaml" slug commerce-provider)
+  "${SITE_DIR}/build-plan.yaml" slug commerce-provider stripe-mode)
 SITE_NAME=$(echo "$PLAN_VALUES" | sed -n '1p')
 COMMERCE_PROVIDER=$(echo "$PLAN_VALUES" | sed -n '2p')
+STRIPE_DECLARED_MODE=$(echo "$PLAN_VALUES" | sed -n '3p')
 
 # The manual provider fulfills by emailing the merchant through Resend, so a
 # live commerce site needs the key even without a resend-form component.
@@ -64,17 +65,31 @@ if [ "$NEEDS_RESEND" = "true" ] && [ -z "${RESEND_API_KEY:-}" ]; then
   exit 1
 fi
 
-if [ -f "${SITE_DIR}/functions/api/checkout.js" ] && [ -z "${STRIPE_SECRET_KEY:-}" ]; then
+# When the plan declares a Stripe mode (item 12), the mode block below names the
+# missing mode-selected source; only the undeclared bare-name path is handled
+# here.
+if [ -f "${SITE_DIR}/functions/api/checkout.js" ] && [ -z "${STRIPE_SECRET_KEY:-}" ] \
+    && [ -z "$STRIPE_DECLARED_MODE" ]; then
   echo "Error: STRIPE_SECRET_KEY is not set in .env but this site has live checkout."
   echo "Add STRIPE_SECRET_KEY=sk_... to .env and redeploy."
   exit 1
 fi
 
-# The printful provider's webhook creates Printful orders server-side.
+# The printful provider's webhook creates Printful orders server-side. With a
+# per-site alias (commerce.printful.api_key_env, item 12) the canonical
+# PRINTFUL_API_KEY is bound from that source; name it so a missing source is
+# obvious.
 if [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ "$COMMERCE_PROVIDER" = "printful" ] \
     && [ -z "${PRINTFUL_API_KEY:-}" ]; then
-  echo "Error: PRINTFUL_API_KEY is not set in .env but this site fulfills via Printful."
-  echo "Add PRINTFUL_API_KEY=... to .env (Printful dashboard > Settings > Stores > API) and redeploy."
+  PRINTFUL_SOURCE=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+    "${SITE_DIR}/build-plan.yaml" printful-api-key-env)
+  if [ -n "$PRINTFUL_SOURCE" ]; then
+    echo "Error: commerce.printful.api_key_env names ${PRINTFUL_SOURCE}, but it is not set in .env."
+    echo "Add ${PRINTFUL_SOURCE}=... to .env (Printful dashboard > Settings > Stores > API) and redeploy."
+  else
+    echo "Error: PRINTFUL_API_KEY is not set in .env but this site fulfills via Printful."
+    echo "Add PRINTFUL_API_KEY=... to .env (Printful dashboard > Settings > Stores > API) and redeploy."
+  fi
   exit 1
 fi
 
@@ -94,7 +109,31 @@ done
 # provisioned — test-mode setup and mode visibility must be easy and
 # unambiguous (commerce spec, phase 7).
 if [ -f "${SITE_DIR}/functions/api/checkout.js" ]; then
+  # Item 12 preflight: when the plan declares a mode, the mode-selected source
+  # (STRIPE_SECRET_KEY_TEST/LIVE) must be present and the resolved key must
+  # carry the matching prefix — a mis-populated registry (mode: live bound to
+  # an sk_test_ value) is rejected here, not trusted.
+  if [ -n "$STRIPE_DECLARED_MODE" ]; then
+    STRIPE_SOURCE_VAR="STRIPE_SECRET_KEY_$(echo "$STRIPE_DECLARED_MODE" | tr '[:lower:]' '[:upper:]')"
+    if [ -z "${!STRIPE_SOURCE_VAR:-}" ]; then
+      echo "Error: commerce.checkout.mode is ${STRIPE_DECLARED_MODE} but ${STRIPE_SOURCE_VAR} is not set in .env."
+      echo "Add ${STRIPE_SOURCE_VAR}=sk_${STRIPE_DECLARED_MODE}_... to .env and redeploy."
+      exit 1
+    fi
+  fi
   STRIPE_MODE=$(clodsite_stripe_mode)
+  if [ -z "$STRIPE_MODE" ]; then
+    echo "Error: STRIPE_SECRET_KEY does not look like a Stripe secret key"
+    echo "(expected an sk_test_/sk_live_ or rk_test_/rk_live_ prefix)."
+    echo "Copy the key from the Stripe dashboard (Developers > API keys) into .env."
+    exit 1
+  fi
+  if [ -n "$STRIPE_DECLARED_MODE" ] && [ "$STRIPE_MODE" != "$STRIPE_DECLARED_MODE" ]; then
+    echo "Error: commerce.checkout.mode is ${STRIPE_DECLARED_MODE} but the resolved Stripe key"
+    echo "is a ${STRIPE_MODE}-mode key (${STRIPE_SOURCE_VAR} carries the wrong prefix)."
+    echo "Put an sk_${STRIPE_DECLARED_MODE}_/rk_${STRIPE_DECLARED_MODE}_ key in ${STRIPE_SOURCE_VAR} and redeploy."
+    exit 1
+  fi
   case "$STRIPE_MODE" in
     test)
       echo "────────────────────────────────────────────────────────────"
@@ -107,13 +146,10 @@ if [ -f "${SITE_DIR}/functions/api/checkout.js" ]; then
       echo "  Stripe mode: LIVE — real cards will be charged."
       echo "────────────────────────────────────────────────────────────"
       ;;
-    *)
-      echo "Error: STRIPE_SECRET_KEY does not look like a Stripe secret key"
-      echo "(expected an sk_test_/sk_live_ or rk_test_/rk_live_ prefix)."
-      echo "Copy the key from the Stripe dashboard (Developers > API keys) into .env."
-      exit 1
-      ;;
   esac
+  if [ -n "$STRIPE_DECLARED_MODE" ]; then
+    echo "  (declared by commerce.checkout.mode; key from ${STRIPE_SOURCE_VAR})"
+  fi
   echo ""
 fi
 

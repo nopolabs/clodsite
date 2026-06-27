@@ -69,12 +69,39 @@ ln -sf ~/.config/clodsite/env /path/to/clodsite-worktree/.env
 Do not paste secrets into chat or commit `.env`. This is a local single-operator
 convenience, not a multi-customer isolation model.
 
-In v1, Clodsite does not support per-site secret overlays. The shared env is the
-operator credential set; individual sites choose provider resources through
-validated plan fields such as `commerce.printful.store_id`. Do not put secret
-values in `build-plan.yaml` or generated site files. If a future site needs
-hard isolation by provider account or operator, add a designed per-site secret
-overlay instead of ad hoc env loading.
+The shared env is the operator credential set; individual sites choose provider
+resources and credentials through validated plan fields. Do not put secret
+**values** in `build-plan.yaml` or generated site files — only **names**.
+
+### Per-site secret binding (item 12)
+
+A site declares *which* env var supplies each credential, so two sites can use
+different keys (or Stripe modes) without editing a shared file:
+
+- `commerce.checkout.mode: test|live` selects `STRIPE_SECRET_KEY_{TEST,LIVE}`
+  and binds it to the canonical `STRIPE_SECRET_KEY`. Mode is **declared, not
+  derived**: the deploy verifies the resolved key's prefix matches the declared
+  mode (via `clodsite_stripe_mode`) and rejects a mismatch.
+- `commerce.printful.api_key_env: SOME_NAME` binds `SOME_NAME` →
+  `PRINTFUL_API_KEY` for that store.
+- `resend-form`'s `api_key_env` binds a source → `RESEND_API_KEY`; it is
+  site-scoped (one `/api/contact` endpoint), so every form must agree.
+
+Resolution happens in `clodsite_resolve_bindings`, called from the
+`clodsite_init_site_dir` chokepoint — names only travel through the plan; values
+stay in the env, and a declared binding overrides an ambient canonical value
+while the source still honors caller-exported-wins. When nothing is declared the
+canonical bare names are read straight from the env (single-tenant default).
+
+**Rule:** any script that reads a Stripe/Printful/Resend credential must resolve
+its site through `clodsite_init_site_dir` (which binds the canonical names)
+before reading it — never read an ambient `STRIPE_SECRET_KEY`/`PRINTFUL_API_KEY`
+without going through the chokepoint, or it may pick up the wrong site's key.
+Existence and Stripe key-shape are enforced at the point of use; `validate-plan`
+stays structural and secret-free. `source scripts/resolve-env.sh <site>`
+resolves a site's bindings into the current shell and reports the source name +
+mode (never the value). Hard isolation by provider account is the item 16
+trust-boundary work, layered on top of this plumbing.
 
 ## Component Change Checklist
 

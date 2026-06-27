@@ -14,6 +14,13 @@ const selectors = {
   'turnstile-consumers': (plan) => hasTurnstileConsumer(plan) ? 'true' : 'false',
   'proxy-secrets': getProxySecrets,
   'commerce-provider': getCommerceProvider,
+  'stripe-mode': getStripeMode,
+  'printful-api-key-env': (plan) => {
+    const printful = plan.commerce && plan.commerce.printful;
+    return printful && typeof printful.api_key_env === 'string' ? printful.api_key_env.trim() : '';
+  },
+  'secret-bindings': (plan) => getSecretBindings(plan)
+    .map((b) => b.canonical + ' ' + b.source).join('\n'),
 };
 
 export function readBuildPlan(planPath) {
@@ -97,6 +104,61 @@ export function getCommerceProvider(plan) {
     ? plan.commerce.provider.trim()
     : '';
   return provider;
+}
+
+// The Stripe mode declared by the plan (item 12): commerce.checkout.mode, one of
+// "test" | "live", or '' when undeclared. When declared it selects which Stripe
+// key the binding resolves; when omitted, the bare STRIPE_SECRET_KEY is used.
+export function getStripeMode(plan) {
+  const checkout = plan.commerce && plan.commerce.checkout;
+  const mode = checkout && typeof checkout.mode === 'string' ? checkout.mode.trim() : '';
+  return mode === 'test' || mode === 'live' ? mode : '';
+}
+
+// Resolve the single site-scoped Resend source var declared on resend-form
+// components, or '' when none. Site-scoped because v1 generates one /api/contact
+// endpoint; validate-plan enforces that every resend-form agrees on the value,
+// so the first non-empty declaration is authoritative here.
+function getResendApiKeyEnv(plan) {
+  for (const page of plan.pages || []) {
+    for (const component of (page && page.components) || []) {
+      if (component && component.type === 'resend-form' &&
+          typeof component.api_key_env === 'string' && component.api_key_env.trim() !== '') {
+        return component.api_key_env.trim();
+      }
+    }
+  }
+  return '';
+}
+
+// Declarative per-site secret bindings (item 12): each entry names the canonical
+// env var the deploy/Functions consume and the source var the plan binds into
+// it. Names only — never secret values. clodsite_resolve_bindings reads these and
+// sets each canonical from its source when the source is present in the
+// environment; an undeclared credential keeps its bare-name behavior (#72).
+export function getSecretBindings(plan) {
+  const bindings = [];
+  const commerce = plan.commerce && typeof plan.commerce === 'object' && !Array.isArray(plan.commerce)
+    ? plan.commerce
+    : null;
+  if (commerce) {
+    const mode = getStripeMode(plan);
+    if (mode) {
+      bindings.push({
+        canonical: 'STRIPE_SECRET_KEY',
+        source: mode === 'live' ? 'STRIPE_SECRET_KEY_LIVE' : 'STRIPE_SECRET_KEY_TEST',
+      });
+    }
+    const printful = commerce.printful;
+    if (printful && typeof printful.api_key_env === 'string' && printful.api_key_env.trim() !== '') {
+      bindings.push({ canonical: 'PRINTFUL_API_KEY', source: printful.api_key_env.trim() });
+    }
+  }
+  const resendSource = getResendApiKeyEnv(plan);
+  if (resendSource) {
+    bindings.push({ canonical: 'RESEND_API_KEY', source: resendSource });
+  }
+  return bindings;
 }
 
 export function selectPlanValues(plan, requestedSelectors) {

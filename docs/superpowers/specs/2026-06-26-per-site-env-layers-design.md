@@ -1,8 +1,8 @@
 # Declarative Per-Site Secret Binding Design
 
 **Date:** 2026-06-26
-**Status:** Proposed
-**Roadmap entry:** Per-site environments and credential layers (pending item 12)
+**Status:** Implemented
+**Roadmap entry:** Per-site environments and credential layers (item 12, Completed)
 
 ---
 
