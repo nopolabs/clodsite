@@ -140,7 +140,16 @@ fi
 
 ENV_WAS_PRESENT=false
 ENV_BACKUP=""
-if [ -f ".env" ]; then
+ENV_WAS_SYMLINK=false
+ENV_SYMLINK_TARGET=""
+if [ -L ".env" ]; then
+  # The recommended operator setup symlinks .env to a shared registry
+  # (~/.config/clodsite/env). Record the link target so cleanup restores the
+  # symlink, not a stale regular-file copy of its contents — install_controlled_
+  # test_env replaces .env during the run, and a cp-back would clobber the link.
+  ENV_WAS_SYMLINK=true
+  ENV_SYMLINK_TARGET=$(readlink .env)
+elif [ -f ".env" ]; then
   ENV_WAS_PRESENT=true
   ENV_BACKUP=$(mktemp)
   cp .env "$ENV_BACKUP"
@@ -187,7 +196,9 @@ cleanup() {
   if [ -n "$SITES_BACKUP" ]; then
     mkdir -p sites && cp -r "$SITES_BACKUP/." sites/ && rm -rf "$SITES_BACKUP"
   fi
-  if [ "$ENV_WAS_PRESENT" = true ]; then
+  if [ "$ENV_WAS_SYMLINK" = true ]; then
+    rm -f .env && ln -s "$ENV_SYMLINK_TARGET" .env
+  elif [ "$ENV_WAS_PRESENT" = true ]; then
     cp "$ENV_BACKUP" .env && rm -f "$ENV_BACKUP"
   fi
   if [ -n "$ORIGINAL_SITES_DIR" ]; then
