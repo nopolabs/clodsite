@@ -200,6 +200,82 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# ── secret bindings resolve at the chokepoint (item 12) ───────────────────────
+echo ""
+echo "=== secret bindings (item 12) ==="
+
+BIND_SITE=$(mktemp -d)
+cat > "${BIND_SITE}/build-plan.yaml" <<'BINDPLAN'
+slug: bind-test
+name: Bind Test
+overview: x
+style: minimal
+tone: professional
+commerce:
+  enabled: true
+  provider: printful
+  currency: usd
+  checkout: { provider: stripe, mode: live, success_url: "/s/?session_id={CHECKOUT_SESSION_ID}", cancel_url: / }
+  printful: { api_key_env: ANCHOVY_PRINTFUL_API_KEY, store_id: 1, products: [ { slug: t, printful_product_id: 1, price_minor: 100, description: d } ] }
+pages: [ { id: home, title: Home, components: [ { type: prose, markdown: hi } ] } ]
+nav: { order: [home] }
+BINDPLAN
+
+# clodsite_init_site_dir (the chokepoint every secret-consuming script routes
+# through) binds the mode-selected and aliased sources into the canonical names.
+( source scripts/lib/sites.sh
+  export STRIPE_SECRET_KEY_LIVE=sk_live_bound STRIPE_SECRET_KEY_TEST=sk_test_bound
+  export ANCHOVY_PRINTFUL_API_KEY=pf_bound SITE_DIR="$BIND_SITE"
+  clodsite_init_site_dir > /dev/null 2>&1
+  [ "${STRIPE_SECRET_KEY:-}" = "sk_live_bound" ] && [ "${PRINTFUL_API_KEY:-}" = "pf_bound" ] )
+assert_exit "chokepoint binds mode-selected and aliased sources" 0 $?
+
+# A declared binding overrides an ambient value of the canonical name (the
+# committed selection wins), while the source it reads still honors #72.
+( source scripts/lib/sites.sh
+  export STRIPE_SECRET_KEY=sk_test_ambient STRIPE_SECRET_KEY_LIVE=sk_live_bound SITE_DIR="$BIND_SITE"
+  clodsite_init_site_dir > /dev/null 2>&1
+  [ "${STRIPE_SECRET_KEY:-}" = "sk_live_bound" ] )
+assert_exit "declared binding overrides an ambient canonical value" 0 $?
+
+# Sources absent (a plain build with no credentials) leaves the environment
+# untouched — the canonical name is never invented.
+( source scripts/lib/sites.sh
+  unset STRIPE_SECRET_KEY PRINTFUL_API_KEY
+  export SITE_DIR="$BIND_SITE"
+  clodsite_init_site_dir > /dev/null 2>&1
+  [ -z "${STRIPE_SECRET_KEY:-}" ] && [ -z "${PRINTFUL_API_KEY:-}" ] )
+assert_exit "absent sources leave canonical names unset (plain build path)" 0 $?
+
+# A plan with no bindings keeps the bare-name behavior (#72): an exported
+# canonical value passes straight through.
+cat > "${BIND_SITE}/build-plan.yaml.nobind" <<'NOBINDPLAN'
+slug: nobind
+name: No Bind
+overview: x
+style: minimal
+tone: professional
+pages: [ { id: home, title: Home, components: [ { type: prose, markdown: hi } ] } ]
+nav: { order: [home] }
+NOBINDPLAN
+NOBIND_SITE=$(mktemp -d)
+cp "${BIND_SITE}/build-plan.yaml.nobind" "${NOBIND_SITE}/build-plan.yaml"
+( source scripts/lib/sites.sh
+  export STRIPE_SECRET_KEY=sk_test_bare SITE_DIR="$NOBIND_SITE"
+  clodsite_init_site_dir > /dev/null 2>&1
+  [ "${STRIPE_SECRET_KEY:-}" = "sk_test_bare" ] )
+assert_exit "no-binding plan preserves the bare-name canonical value" 0 $?
+
+# resolve-env.sh reports the source name and Stripe mode — never the value.
+BIND_REPORT=$( export STRIPE_SECRET_KEY_LIVE=sk_live_bound_secret ANCHOVY_PRINTFUL_API_KEY=pf_bound_secret SITE_DIR="$BIND_SITE"
+  source scripts/resolve-env.sh bind-test 2>&1 )
+assert_contains "resolve-env names the Stripe source and mode" "Stripe: live (from STRIPE_SECRET_KEY_LIVE" "$BIND_REPORT"
+assert_contains "resolve-env names the Printful source" "Printful: from ANCHOVY_PRINTFUL_API_KEY" "$BIND_REPORT"
+assert_not_contains "resolve-env never prints the Stripe value" "sk_live_bound_secret" "$BIND_REPORT"
+assert_not_contains "resolve-env never prints the Printful value" "pf_bound_secret" "$BIND_REPORT"
+
+rm -rf "$BIND_SITE" "$NOBIND_SITE"
+
 # ── write-site-json.sh ────────────────────────────────────────────────────────
 echo ""
 echo "=== write-site-json.sh ==="
@@ -1102,6 +1178,45 @@ fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
 "
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "resend-form turnstile false passes" 0 $?
 
+# ── item 12: resend-form api_key_env (site-scoped binding) ────────────────────
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[1].components[0].api_key_env='SITE_RESEND_KEY';
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "resend-form api_key_env validates without secrets" 0 $?
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.pages[1].components[0].api_key_env='bad name';
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+RESEND_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "resend-form malformed api_key_env exits 1" 1 $?
+assert_contains "resend-form malformed api_key_env is rejected" "must be a valid environment-variable name" "$RESEND_OUTPUT"
+
+# Two resend-form components that disagree on api_key_env: Resend is site-scoped
+# to one /api/contact endpoint, so conflicting values are a structural error.
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+const form=p.pages[1].components[0];
+form.api_key_env='RESEND_A';
+const second=JSON.parse(JSON.stringify(form));
+second.api_key_env='RESEND_B';
+p.pages[0].components.push(second);
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+RESEND_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "conflicting resend-form api_key_env exits 1" 1 $?
+assert_contains "conflicting resend-form api_key_env is rejected" "must be identical across all forms" "$RESEND_OUTPUT"
+
 for invalid_turnstile in '"yes"' '1' '{}' 'null'; do
   cp scripts/test/fixtures/valid-build-plan-resend-turnstile.yaml "${SITE_DIR}/build-plan.yaml"
   TURNSTILE_VALUE="$invalid_turnstile" node -e "
@@ -1960,6 +2075,31 @@ COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
 assert_exit "unknown commerce field exits 1" 1 $?
 assert_contains "unknown commerce field is rejected" 'commerce has unknown field "surcharge_minor"' "$COMMERCE_OUTPUT"
 
+# ── item 12: declarative secret bindings — structural validation ──────────────
+# These run against the same secret-free environment as the rest of the suite:
+# validate-plan must accept declared mode/api_key_env with no credentials set.
+commerce_plan_mutation "p.commerce.checkout.mode='live';"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "commerce.checkout.mode live validates without secrets" 0 $?
+
+commerce_plan_mutation "p.commerce.checkout.mode='test';"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "commerce.checkout.mode test validates without secrets" 0 $?
+
+commerce_plan_mutation "p.commerce.checkout.mode='staging';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "invalid checkout mode exits 1" 1 $?
+assert_contains "invalid checkout mode is rejected" 'commerce.checkout.mode must be "test" or "live"' "$COMMERCE_OUTPUT"
+
+commerce_plan_mutation "p.commerce.printful.api_key_env='ANCHOVY_PRINTFUL_API_KEY';"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "commerce.printful.api_key_env alias validates without secrets" 0 $?
+
+commerce_plan_mutation "p.commerce.printful.api_key_env='1BAD NAME';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "malformed api_key_env exits 1" 1 $?
+assert_contains "malformed api_key_env is rejected" "commerce.printful.api_key_env must be a valid environment-variable name" "$COMMERCE_OUTPUT"
+
 # checkout enabled + active product without variants → exits 1
 cp scripts/test/fixtures/valid-build-plan-commerce.yaml "${SITE_DIR}/build-plan.yaml"
 node -e "
@@ -2378,6 +2518,58 @@ assert_contains "exported Printful key overrides .env during deploy" "pages secr
 assert_contains "Stripe secret key still pushed for printful" "pages secret put STRIPE_SECRET_KEY" "$CHECKOUT_LOG"
 assert_not_contains "no Resend push for printful without contact form" "pages secret put RESEND_API_KEY" "$CHECKOUT_LOG"
 assert_contains "printful Pages deploy called" "pages deploy dist" "$CHECKOUT_LOG"
+
+# ── item 12: per-site secret binding through a real deploy ────────────────────
+# Declare a Stripe mode and a Printful alias, then deploy with only the source
+# vars set (no ambient STRIPE_SECRET_KEY/PRINTFUL_API_KEY) — the bound values
+# are what get pushed.
+rm -f "${SITE_DIR}/.stripe-webhook-state.json"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${SITE_DIR}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.commerce.checkout.mode='live';
+p.commerce.printful.api_key_env='ANCHOVY_PRINTFUL_API_KEY';
+fs.writeFileSync(file, yaml.dump(p));
+"
+: > "${CHECKOUT_STUB_LOG}"
+COMMERCE_OUTPUT=$( unset STRIPE_SECRET_KEY PRINTFUL_API_KEY
+  STRIPE_SECRET_KEY_LIVE=sk_live_456 STRIPE_SECRET_KEY_TEST=sk_test_123 \
+  ANCHOVY_PRINTFUL_API_KEY=pf_anchovy SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1 )
+assert_exit "mode-bound printful deploy exits 0" 0 $?
+assert_contains "deploy names the bound mode source" "key from STRIPE_SECRET_KEY_LIVE" "$COMMERCE_OUTPUT"
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_contains "bound live Stripe key is pushed" "pages secret put STRIPE_SECRET_KEY --project-name commerce-live-test stdin=sk_live_456" "$CHECKOUT_LOG"
+assert_contains "aliased Printful key is pushed" "pages secret put PRINTFUL_API_KEY --project-name commerce-live-test stdin=pf_anchovy" "$CHECKOUT_LOG"
+
+# mode: live with the selected source missing → named hard error, no deploy.
+rm -f "${SITE_DIR}/.stripe-webhook-state.json"
+: > "${CHECKOUT_STUB_LOG}"
+COMMERCE_OUTPUT=$( unset STRIPE_SECRET_KEY STRIPE_SECRET_KEY_LIVE
+  STRIPE_SECRET_KEY_TEST=sk_test_123 ANCHOVY_PRINTFUL_API_KEY=pf_anchovy SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1 )
+assert_exit "mode live with missing source exits 1" 1 $?
+assert_contains "missing mode source is named" "STRIPE_SECRET_KEY_LIVE is not set" "$COMMERCE_OUTPUT"
+assert_not_contains "no deploy when mode source missing" "pages deploy" "$(cat "${CHECKOUT_STUB_LOG}")"
+
+# mode: live bound to a test-shaped key → shape mismatch rejected, no deploy.
+: > "${CHECKOUT_STUB_LOG}"
+COMMERCE_OUTPUT=$( unset STRIPE_SECRET_KEY
+  STRIPE_SECRET_KEY_LIVE=sk_test_oops ANCHOVY_PRINTFUL_API_KEY=pf_anchovy SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1 )
+assert_exit "mode live with test-shaped key exits 1" 1 $?
+assert_contains "shape mismatch is explained" "is a test-mode key" "$COMMERCE_OUTPUT"
+assert_not_contains "no deploy on shape mismatch" "pages deploy" "$(cat "${CHECKOUT_STUB_LOG}")"
+
+# Printful alias with its source missing → error names the alias, not the
+# canonical bare name.
+: > "${CHECKOUT_STUB_LOG}"
+COMMERCE_OUTPUT=$( unset PRINTFUL_API_KEY ANCHOVY_PRINTFUL_API_KEY
+  STRIPE_SECRET_KEY_LIVE=sk_live_456 SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1 )
+assert_exit "printful alias with missing source exits 1" 1 $?
+assert_contains "missing printful alias is named" "commerce.printful.api_key_env names ANCHOVY_PRINTFUL_API_KEY" "$COMMERCE_OUTPUT"
 
 export PATH="$CHECKOUT_ORIGINAL_PATH"
 rm -rf "$CHECKOUT_STUB_DIR"

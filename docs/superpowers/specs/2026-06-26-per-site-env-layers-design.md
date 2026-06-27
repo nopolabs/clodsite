@@ -1,8 +1,8 @@
 # Declarative Per-Site Secret Binding Design
 
 **Date:** 2026-06-26
-**Status:** Proposed
-**Roadmap entry:** Per-site environments and credential layers (pending item 12)
+**Status:** Implemented
+**Roadmap entry:** Per-site environments and credential layers (item 12, Completed)
 
 ---
 
@@ -207,10 +207,22 @@ wrong-shaped key.
 
 ## `/setup`
 
-Collect both `STRIPE_SECRET_KEY_TEST` and `STRIPE_SECRET_KEY_LIVE` (and prompt
-for provider keys), so the registry is complete and a site can be flipped by
-plan edit alone. Keep accepting a single `STRIPE_SECRET_KEY` for the
-no-mode/back-compat path.
+**Not changed by this implementation — documenting current state.** `scripts/setup.sh`
+today collects and verifies only the Cloudflare operator credentials
+(`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) across its four modes
+(`--import`, `--init-sites`, `--check`, `--verify`); it never prompts for
+commerce/provider secrets. All credential **values** —
+`STRIPE_SECRET_KEY[_TEST|_LIVE]`, `PRINTFUL_API_KEY` / aliases, `RESEND_API_KEY`
+/ aliases — are added to the repo `.env` by hand. That stays true here: this
+change introduces the *binding* (names in the plan), not a new collection flow.
+
+Deferred enhancement (when `/setup` gains commerce-key collection): prompt for
+both `STRIPE_SECRET_KEY_TEST` and `STRIPE_SECRET_KEY_LIVE` (and provider keys)
+so the registry is complete and a site can be flipped by plan edit alone, while
+still accepting a single `STRIPE_SECRET_KEY` for the no-mode/back-compat path.
+The binding model already supports this — only the interactive prompts are
+missing. Authoring guidance to keep both Stripe keys in the environment lives in
+`docs/agent-authoring.md`.
 
 ## Migration
 
