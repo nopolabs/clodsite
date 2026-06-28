@@ -9,8 +9,8 @@ Current operating documents:
 
 - [`AGENTS.md`](../AGENTS.md) — canonical agent guide: the workflow contract
   (Setup, Interview, Build, Deploy, Domain, Teardown, Status), architecture
-  boundary, and multi-agent norms. (`CLAUDE.md` is a symlink to it; Claude Code
-  slash commands are thin triggers over these workflows.)
+  boundary, and multi-agent norms. (`CLAUDE.md` is a pure pointer to it; Claude
+  Code slash commands are thin triggers over these workflows.)
 - [`README.md`](../README.md) for product overview and setup.
 - [`docs/agent-authoring.md`](agent-authoring.md) and
   [`docs/authoring-build-plan.md`](authoring-build-plan.md) for site-authoring
@@ -45,7 +45,7 @@ When changing Clodsite, preserve this boundary:
 
 | Area | Files |
 |---|---|
-| Workflow contract | `AGENTS.md` (canonical; `CLAUDE.md` symlinks to it) |
+| Workflow contract | `AGENTS.md` (canonical; `CLAUDE.md` points to it) |
 | Slash-command triggers | `.claude/commands/*.md` (thin pointers to `AGENTS.md` workflows) |
 | Build/deploy scripts | `scripts/*.sh` |
 | Shared JS libraries | `scripts/lib/*.mjs` |

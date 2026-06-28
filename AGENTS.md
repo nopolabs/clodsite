@@ -3,9 +3,10 @@
 Canonical, agent-neutral guidance for any coding agent (Claude Code, Codex, or
 others) working in this repository. This is the single source of truth.
 
-> **Claude Code:** `CLAUDE.md` is a symlink to this file. Claude Code also
-> exposes the workflows below as slash commands (`/setup`, `/deploy`, …); those
-> command files are thin triggers — the behavior lives here.
+> **Claude Code:** `CLAUDE.md` is a pure pointer to this file (its content lives
+> only here). Claude Code also exposes the workflows below as slash commands
+> (`/setup`, `/deploy`, …); those command files are thin triggers — the behavior
+> lives here.
 >
 > **Other agents:** there are no slash commands. Run the workflows below by
 > invoking the scripts directly, in the documented order.

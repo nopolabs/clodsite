@@ -187,7 +187,7 @@ A static site built with [Eleventy](https://www.11ty.dev/) and deployed to Cloud
 
 ## Why it works this way
 
-Claude Code's `CLAUDE.md` loads when you open Claude Code in a directory — that's how the commands work and why you need to be inside the cloned repo. This is a current Claude Code constraint; the natural next step is installable skill packaging that removes the clone-and-cd bootstrap entirely.
+Claude Code auto-loads `CLAUDE.md` when you open Claude Code in a directory — that's how the commands work and why you need to be inside the cloned repo. (`CLAUDE.md` is a pure pointer to `AGENTS.md`, the canonical guidance every agent shares.) This is a current Claude Code constraint; the natural next step is installable skill packaging that removes the clone-and-cd bootstrap entirely.
 
 The longer arc: the build plan is a portable document format. A schema that deterministically compiles to a deployed website is a build pipeline, and build pipelines can become services. The inference layer — Claude today, anything tomorrow — stays decoupled from the compilation and deployment back-end.
 

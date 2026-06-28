@@ -2,7 +2,7 @@
 
 The canonical agent guide is [`../AGENTS.md`](../AGENTS.md) — start there for the
 workflow contract, architecture boundary, and multi-agent norms. (`CLAUDE.md` is
-a symlink to it.) The role-specific guides below go deeper.
+a pure pointer to it.) The role-specific guides below go deeper.
 
 Start from the role you are playing.
 
