@@ -132,6 +132,11 @@ elif [ "$STRIPE_MODE" = "live" ]; then
 fi
 echo "See ${SITE_DIR}/NEXT-STEPS.md for next steps."
 
+# Regenerate this site's OKF Site concept from build-plan.yaml so docs/index.md
+# stays current. It rides along in the deploy commit below (offline, idempotent).
+node "${SCRIPT_DIR}/lib/generate-site-concept.mjs" \
+  "${SITE_DIR}/build-plan.yaml" "${SITE_DIR}/docs/index.md" "$(basename "${SITE_DIR}")" > /dev/null
+
 # Auto-commit to sites repo if initialised. An optional DEPLOY_MESSAGE says
 # why this deploy happened (passed through from build-deploy.sh / the /deploy
 # command); the URLs and Stripe mode go in the body where they don't crowd

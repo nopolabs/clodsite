@@ -219,8 +219,9 @@ token needed. Stop here; do not run the Cloudflare steps.
    `deploy: <site-name>` lines.
 2. **[SCRIPT]** `bash scripts/build-deploy.sh <site-name> "<message>"` — the full
    pipeline: validate → build → render Functions/headers/redirects → deploy →
-   finalize (prints the production URL, writes `NEXT-STEPS.md`, commits inside
-   the `SITES_DIR` repo). For a `resend-form` with `turnstile: true`, deployment
+   finalize (prints the production URL, writes `NEXT-STEPS.md`, regenerates the
+   site's OKF `Site` concept at `docs/index.md`, commits inside the `SITES_DIR`
+   repo). For a `resend-form` with `turnstile: true`, deployment
    creates or reuses a managed Turnstile widget restricted to the site's
    production hostnames, installs its secret, and injects the site key.
 3. **[LLM]** On non-zero exit, the failing stage is announced with `==>`; if the
@@ -336,6 +337,7 @@ responses, generated URLs, or raw styling knobs.
 | `$SITES_DIR/<site-name>/dist/_headers` | Build (render-headers) | Optional Pages response-header rules |
 | `$SITES_DIR/<site-name>/dist/_redirects` | Deploy (render-redirects) | Optional Pages redirect rules |
 | `$SITES_DIR/<site-name>/NEXT-STEPS.md` | Deploy | Post-deploy ops guide |
+| `$SITES_DIR/<site-name>/docs/index.md` | Deploy (regenerated) | OKF `Site` concept for the site's doc bundle |
 
 # Scope (v2.0)
 

@@ -465,6 +465,8 @@ cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with output exits 0" 0 $?
 assert_file_exists "NEXT-STEPS.md created" "${SITE_DIR}/NEXT-STEPS.md"
+assert_file_exists "finalize regenerates the Site concept" "${SITE_DIR}/docs/index.md"
+assert_contains "regenerated Site concept is type Site" "type: Site" "$(cat "${SITE_DIR}/docs/index.md")"
 
 # No sites/.git → git block is skipped, exits 0
 rm -rf sites/.git

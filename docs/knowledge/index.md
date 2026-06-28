@@ -100,8 +100,9 @@ This is an incremental adoption, not a big-bang reformat.
   the test suite (`✓ OKF: 84 conformant, 0 not yet adopted`).
 - **Done (sites repo):** `scripts/generate-site-docs.sh` writes a `Site` concept
   into each site's `docs/index.md` from its `build-plan.yaml` (offline,
-  re-runnable). Each site's `docs/` is its own OKF bundle (the `Site` concept
-  plus any hand-written `Reference` notes).
+  re-runnable), and `/deploy` regenerates it automatically (in `deploy-finalize`)
+  so it stays current without a manual step. Each site's `docs/` is its own OKF
+  bundle (the `Site` concept plus any hand-written `Reference` notes).
 - **Planned:** optionally render the bundle(s) with the OKF static visualizer.
 
 `ROADMAP.md` tracks these as they move.
