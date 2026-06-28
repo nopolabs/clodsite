@@ -14,3 +14,8 @@ fi
 OUT="${CATALOG_OUT:-${COMPONENTS_DIR}/CATALOG.md}"
 node "${SCRIPT_DIR}/lib/generate-catalog-md.mjs" "$COMPONENTS_DIR" > "$OUT"
 echo "✓ ${OUT} written"
+
+# Also regenerate the OKF Component concept bundle from the same schemas, so the
+# two representations stay in lockstep (override with CONCEPTS_OUT).
+CONCEPTS_OUT="${CONCEPTS_OUT:-docs/knowledge/components}"
+node "${SCRIPT_DIR}/lib/generate-component-concepts.mjs" "$COMPONENTS_DIR" "$CONCEPTS_OUT"

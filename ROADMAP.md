@@ -21,10 +21,11 @@ or moved into Pending/Completed.
   `docs/` guides/references carry OKF frontmatter; `docs/knowledge/index.md`
   defines the contract; `scripts/lib/validate-okf.mjs` enforces conformance in
   the test suite; all dated `superpowers/specs|plans` records carry frontmatter
-  with `status`/`supersedes` (68 conformant, full coverage). Remaining: make
-  `generate-catalog-md.sh` emit OKF-native `Component` concepts and add a `Site`
-  producer off `/status`. Avoid overlapping on `docs/knowledge/` and bulk
-  frontmatter edits while this is in flight.
+  with `status`/`supersedes`; `generate-catalog-md.sh` also emits an OKF
+  `Component` bundle under `docs/knowledge/components/` (84 conformant, full
+  coverage). Remaining: a `Site` producer off `/status`; optional static
+  visualizer. Avoid overlapping on `docs/knowledge/` and bulk frontmatter edits
+  while this is in flight.
 
 ## Pending
 
