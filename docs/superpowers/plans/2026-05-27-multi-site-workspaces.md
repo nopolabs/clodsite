@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Multi-site Workspaces Implementation Plan"
+description: "Implementation plan for managing multiple sites in one workspace."
+tags: ["multi-site", "workspaces"]
+status: shipped
+timestamp: 2026-05-27T00:00:00Z
+---
+
 # Multi-site Workspaces Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

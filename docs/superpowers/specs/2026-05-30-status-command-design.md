@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "`/status` Command Design"
+description: "Design for the /status command."
+tags: ["status", "commands"]
+status: shipped
+timestamp: 2026-05-30T00:00:00Z
+---
+
 # `/status` Command Design
 
 **Date:** 2026-05-30

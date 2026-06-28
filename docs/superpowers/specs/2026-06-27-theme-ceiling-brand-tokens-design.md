@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Theme Ceiling: Curated Palettes + Bounded Brand Tokens — Design"
+description: "Design for curated palettes and bounded brand tokens. Not yet implemented."
+tags: ["themes", "branding"]
+status: accepted
+timestamp: 2026-06-27T00:00:00Z
+---
+
 # Theme Ceiling: Curated Palettes + Bounded Brand Tokens — Design
 
 **Date:** 2026-06-27

@@ -1,3 +1,13 @@
+---
+type: Spec
+title: "Site Spec Retirement Design"
+description: "Retire site-spec.json so build-plan.yaml is the sole authoring contract."
+tags: ["build-plan", "authoring", "cleanup"]
+status: shipped
+supersedes: ["/docs/superpowers/specs/2026-05-29-structured-build-plan-design.md", "/docs/superpowers/plans/2026-05-29-structured-build-plan.md"]
+timestamp: 2026-06-12T00:00:00Z
+---
+
 # Site Spec Retirement Design
 
 **Date:** 2026-06-12

@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "`media-section` Component Implementation Plan"
+description: "Implementation plan for the media-section component."
+tags: ["components", "media"]
+status: shipped
+timestamp: 2026-06-07T00:00:00Z
+---
+
 # `media-section` Component Implementation Plan
 
 > **For agentic workers:** Execute this plan task-by-task. Do not begin a later

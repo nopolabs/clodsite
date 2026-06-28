@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Explicit Redirects Design"
+description: "Design for an explicit redirects block generating _redirects."
+tags: ["redirects", "pages"]
+status: shipped
+timestamp: 2026-06-26T00:00:00Z
+---
+
 # Explicit Redirects Design
 
 **Date:** 2026-06-26

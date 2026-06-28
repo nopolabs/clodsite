@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "HMC Commerce Port — Implementation Plan"
+description: "Implementation plan to port hmc-cycling onto Clodsite commerce."
+tags: ["commerce", "port", "hmc"]
+status: shipped
+timestamp: 2026-06-18T00:00:00Z
+---
+
 # HMC Commerce Port — Implementation Plan
 
 > Execute task by task. Do not perform any live checkout, Printful order

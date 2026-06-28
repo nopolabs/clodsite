@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Multi-site Workspaces — Design Spec"
+description: "Design for managing multiple sites in one workspace."
+tags: ["multi-site", "workspaces"]
+status: shipped
+timestamp: 2026-05-27T00:00:00Z
+---
+
 # Multi-site Workspaces — Design Spec
 
 **Date:** 2026-05-27

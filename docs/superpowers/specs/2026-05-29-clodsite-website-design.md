@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Clodsite Website — Content Design"
+description: "Content design for the Clodsite marketing website."
+tags: ["website", "content"]
+status: shipped
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Clodsite Website — Content Design
 
 **Date:** 2026-05-29

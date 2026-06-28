@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Contact Footer Design"
+description: "Design for the site-wide contact footer."
+tags: ["contact", "footer"]
+status: shipped
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Contact Footer Design
 
 ## Problem

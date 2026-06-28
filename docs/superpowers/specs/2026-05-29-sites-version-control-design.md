@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Sites Version Control — Design Spec"
+description: "Design for per-site git version control."
+tags: ["sites", "git", "version-control"]
+status: shipped
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Sites Version Control — Design Spec
 
 **Date:** 2026-05-29

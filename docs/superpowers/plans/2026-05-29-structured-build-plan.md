@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Structured Build Plan Implementation Plan"
+description: "Implementation plan for the build-plan.md / site-spec structured authoring flow, later retired."
+tags: ["build-plan", "authoring"]
+status: superseded
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Structured Build Plan Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

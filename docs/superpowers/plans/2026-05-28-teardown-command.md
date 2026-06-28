@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "`/teardown` Command Implementation Plan"
+description: "Implementation plan for the /teardown command."
+tags: ["teardown", "commands"]
+status: shipped
+timestamp: 2026-05-28T00:00:00Z
+---
+
 # `/teardown` Command Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

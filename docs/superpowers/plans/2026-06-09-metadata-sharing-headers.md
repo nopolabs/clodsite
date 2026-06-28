@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Metadata, Sharing, and Response Headers — Implementation Plan"
+description: "Implementation plan for metadata, sharing, and response headers."
+tags: ["metadata", "headers", "seo"]
+status: shipped
+timestamp: 2026-06-09T00:00:00Z
+---
+
 # Metadata, Sharing, and Response Headers — Implementation Plan
 
 > Execute this plan task by task. Do not begin a later task until the current

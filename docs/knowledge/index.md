@@ -92,11 +92,11 @@ lockstep with the vocabulary table above.
 
 This is an incremental adoption, not a big-bang reformat.
 
-- **Done:** `AGENTS.md` and the hand-authored `docs/` guides and references carry
-  frontmatter; this OKF contract exists; `scripts/lib/validate-okf.mjs` enforces
-  it in the test suite.
-- **Planned:** frontmatter the dated `Spec`/`Plan` records (the biggest
-  queryability win); make generators emit OKF-native `Component` and `Site`
-  concepts; optionally render the bundle with the OKF static visualizer.
+- **Done:** every doc on the knowledge surface carries frontmatter — `AGENTS.md`,
+  the `docs/` guides and references, and all dated `Spec`/`Plan` records (with
+  `status` and `supersedes` set); `scripts/lib/validate-okf.mjs` enforces it in
+  the test suite (`✓ OKF: 68 conformant, 0 not yet adopted`).
+- **Planned:** make generators emit OKF-native `Component` and `Site` concepts;
+  optionally render the bundle with the OKF static visualizer.
 
 `ROADMAP.md` tracks these as they move.

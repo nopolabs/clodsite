@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Declarative Per-Site Secret Binding Design"
+description: "Design for declarative per-site secret binding in build-plan.yaml."
+tags: ["secrets", "env", "commerce"]
+status: shipped
+timestamp: 2026-06-26T00:00:00Z
+---
+
 # Declarative Per-Site Secret Binding Design
 
 **Date:** 2026-06-26

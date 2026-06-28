@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "General Proxy Functions & bbpp Port — Design"
+description: "Design for general proxy Pages Functions and the bbpp port."
+tags: ["commerce", "proxy", "bbpp", "functions"]
+status: shipped
+timestamp: 2026-06-12T00:00:00Z
+---
+
 # General Proxy Functions & bbpp Port — Design
 
 **Date:** 2026-06-12

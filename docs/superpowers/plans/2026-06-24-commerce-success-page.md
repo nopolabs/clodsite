@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Commerce Success Page Return URLs"
+description: "Implementation plan for post-checkout success page return URLs."
+tags: ["commerce", "checkout"]
+status: shipped
+timestamp: 2026-06-24T00:00:00Z
+---
+
 # Commerce Success Page Return URLs
 
 ## Goal

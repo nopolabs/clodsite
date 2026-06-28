@@ -1,3 +1,11 @@
+---
+type: Reference
+title: "Demo Shot List — clodsite.com"
+description: "Shot list for the clodsite.com demo recording."
+tags: ["demo", "video"]
+timestamp: 2026-06-13T00:00:00Z
+---
+
 # Demo Shot List — clodsite.com
 
 **Target length:** under 3 minutes (2:45–2:55 is the sweet spot).

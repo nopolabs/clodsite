@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Per-Site Scaffold Isolation — Design Spec"
+description: "Design for isolating each site's scaffold during builds."
+tags: ["scaffold", "isolation", "multi-site"]
+status: shipped
+timestamp: 2026-05-27T00:00:00Z
+---
+
 # Per-Site Scaffold Isolation — Design Spec
 
 **Date:** 2026-05-27

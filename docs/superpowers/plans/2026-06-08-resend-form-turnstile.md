@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Turnstile Protection for `resend-form` — Implementation Plan"
+description: "Implementation plan for Turnstile protection on resend-form."
+tags: ["resend", "turnstile", "security"]
+status: shipped
+timestamp: 2026-06-08T00:00:00Z
+---
+
 # Turnstile Protection for `resend-form` — Implementation Plan
 
 > Execute this plan task by task. Do not begin a later task until the current

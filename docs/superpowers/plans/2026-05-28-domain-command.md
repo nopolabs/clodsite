@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "`/domain` Command Implementation Plan"
+description: "Implementation plan for the /domain custom-domain command."
+tags: ["domain", "dns", "commands"]
+status: shipped
+timestamp: 2026-05-28T00:00:00Z
+---
+
 # `/domain` Command Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Unified Build Contract Design"
+description: "Design to merge spec config into the build plan."
+tags: ["build-plan", "contract"]
+status: shipped
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Unified Build Contract Design
 
 **Date:** 2026-05-29

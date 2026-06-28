@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Printful Non-Apparel Product Support — Implementation Plan"
+description: "Implementation plan for Printful non-apparel (mug) product support."
+tags: ["commerce", "printful"]
+status: shipped
+timestamp: 2026-06-26T00:00:00Z
+---
+
 # Printful Non-Apparel Product Support — Implementation Plan
 
 > Execute task by task. Do not create a real Printful order without explicit

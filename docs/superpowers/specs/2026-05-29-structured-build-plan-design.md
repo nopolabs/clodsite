@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Structured Build Plan Design"
+description: "Design for the build-plan.md / site-spec structured authoring flow, later retired."
+tags: ["build-plan", "authoring"]
+status: superseded
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Structured Build Plan Design
 
 ## Problem

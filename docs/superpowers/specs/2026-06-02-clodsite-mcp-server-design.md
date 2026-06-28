@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Clodsite MCP Server — Design"
+description: "Design for the Clodsite MCP server."
+tags: ["mcp", "server"]
+status: shipped
+timestamp: 2026-06-02T00:00:00Z
+---
+
 # Clodsite MCP Server — Design
 
 **Date:** 2026-06-02

@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Goal-Oriented Informational Components — Design"
+description: "Design for the goal-oriented informational components."
+tags: ["components"]
+status: shipped
+timestamp: 2026-06-09T00:00:00Z
+---
+
 # Goal-Oriented Informational Components — Design
 
 **Date:** 2026-06-09
