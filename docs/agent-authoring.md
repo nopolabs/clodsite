@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Authoring Sites With Clodsite
+description: How to use Clodsite to build or modify a site — collect intent, write build-plan.yaml, validate, build, deploy.
+tags: [agents, authoring]
+timestamp: 2026-06-26T00:00:00Z
+---
+
 # Agent Guide: Authoring Sites With Clodsite
 
 Use this guide when you are asked to create or modify a website with Clodsite.

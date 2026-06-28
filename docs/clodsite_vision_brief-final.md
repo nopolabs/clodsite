@@ -1,3 +1,11 @@
+---
+type: Reference
+title: Clodsite Vision
+description: Product thesis, architecture direction, and claims discipline.
+tags: [vision, product]
+timestamp: 2026-06-13T00:00:00Z
+---
+
 # Clodsite Vision
 
 ## The vision

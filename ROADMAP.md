@@ -17,7 +17,13 @@ larger, multi-step efforts with agreed milestones, or for active work another
 agent should avoid overlapping. Remove entries promptly when merged, abandoned,
 or moved into Pending/Completed.
 
-- None currently.
+- **OKF knowledge format adoption** (claude). Pilot landing now: `AGENTS.md` and
+  the hand-authored `docs/` guides/references carry OKF frontmatter, and
+  `docs/knowledge/index.md` defines the contract. Remaining: frontmatter the
+  dated `superpowers/specs|plans` records; make `generate-catalog-md.sh` emit
+  OKF-native `Component` concepts and add a `Site` producer off `/status`; add a
+  frontmatter conformance check. Avoid overlapping on `docs/knowledge/` and bulk
+  frontmatter edits while this is in flight.
 
 ## Pending
 

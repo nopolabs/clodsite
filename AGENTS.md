@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Clodsite Agent Guide
+description: Canonical, agent-neutral guidance — the workflow contract, architecture boundary, and multi-agent coordination norms.
+tags: [agents, workflow, canonical]
+timestamp: 2026-06-28T00:00:00Z
+---
+
 # Clodsite — Agent Guide
 
 Canonical, agent-neutral guidance for any coding agent (Claude Code, Codex, or
@@ -40,6 +48,10 @@ guided way to produce the plan, not a requirement.
   [`docs/agent-authoring.md`](docs/agent-authoring.md) and
   [`components/CATALOG.md`](components/CATALOG.md).
 - Reference docs are indexed in [`docs/README.md`](docs/README.md).
+- Clodsite knowledge follows the **Open Knowledge Format** —
+  [`docs/knowledge/index.md`](docs/knowledge/index.md) defines the type
+  vocabulary and frontmatter contract. Read it before creating or editing specs,
+  plans, or reference docs.
 - `ROADMAP.md` is the prioritized "what's done / what's next" — the shared
   current-state doc.
 

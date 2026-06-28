@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Developing Clodsite
+description: How to change Clodsite itself — source map, compiler boundary, where to make changes, and how to verify them.
+tags: [agents, development]
+timestamp: 2026-06-28T00:00:00Z
+---
+
 # Agent Guide: Developing Clodsite
 
 Use this guide when you are asked to change Clodsite itself: scripts, schemas,

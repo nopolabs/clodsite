@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Authoring build-plan.yaml
+description: The detailed build-plan.yaml authoring contract — the inference boundary between collaboration and deterministic build.
+tags: [authoring, build-plan]
+timestamp: 2026-06-27T00:00:00Z
+---
+
 # Authoring a Clodsite `build-plan.yaml`
 
 Read this first. It tells you everything you need to author a site without

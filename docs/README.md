@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Clodsite Documentation Index
+description: Role-based router into Clodsite's documentation.
+tags: [docs, index]
+timestamp: 2026-06-28T00:00:00Z
+---
+
 # Clodsite Documentation
 
 The canonical agent guide is [`../AGENTS.md`](../AGENTS.md) — start there for the
@@ -26,6 +34,7 @@ only after the plan is reviewable.
 
 | Document | Purpose |
 |---|---|
+| [`knowledge/index.md`](knowledge/index.md) | Knowledge format (OKF) — type vocabulary and frontmatter contract for these docs |
 | [`authoring-build-plan.md`](authoring-build-plan.md) | Detailed `build-plan.yaml` authoring contract |
 | [`../components/CATALOG.md`](../components/CATALOG.md) | Generated component vocabulary and examples |
 | [`testing.md`](testing.md) | Test layout, commands, result interpretation, fixtures, and where to add coverage |

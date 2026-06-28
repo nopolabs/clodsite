@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Themes
+description: The theme contract and theme-authoring notes — what a theme CSS file must contain.
+tags: [themes]
+timestamp: 2026-06-17T00:00:00Z
+---
+
 # Themes
 
 A theme is just a CSS file in `scaffold/src/css/themes/`. The file name is the theme name: `scaffold/src/css/themes/bold.css` is selected by `style: bold` in a site's `build-plan.yaml`.
