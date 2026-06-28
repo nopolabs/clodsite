@@ -1,3 +1,11 @@
+---
+type: Reference
+title: Theme System — Working Notes
+description: Current theme-system experiments, findings, and open questions.
+tags: [themes, notes]
+timestamp: 2026-06-27T00:00:00Z
+---
+
 # Theme System — Working Notes
 
 > Living notes (not a spec). Captures what we're learning about Clodsite's theme

@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Superpowers Design Records
+description: How to use the dated specs and plans as historical design records.
+tags: [history, index]
+timestamp: 2026-06-17T00:00:00Z
+---
+
 # Superpowers Design Records
 
 This directory contains dated specs and implementation plans.

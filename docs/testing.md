@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Testing Clodsite
+description: Test layout, commands, result interpretation, fixtures, and where to add coverage.
+tags: [testing]
+timestamp: 2026-06-26T00:00:00Z
+---
+
 # Testing Clodsite
 
 Use this guide when you need to understand, run, or extend Clodsite's tests.

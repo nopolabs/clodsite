@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Clodsite Benchmark Protocol
+description: Measurement protocol for Clodsite's core claims.
+tags: [benchmark, protocol]
+timestamp: 2026-06-16T00:00:00Z
+---
+
 # Clodsite Benchmark Protocol
 
 A repeatable way to measure whether Clodsite's central claim is true:
