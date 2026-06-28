@@ -28,6 +28,22 @@ Those dated documents explain why earlier decisions were made. They can be
 useful context, but they are not automatically current instructions. Prefer the
 code, tests, and current docs when they disagree.
 
+## Development-Agent Startup
+
+Before changing Clodsite itself, follow the coordination checklist in
+[`AGENTS.md`](../AGENTS.md):
+
+1. Pull `origin/main`.
+2. Check `ROADMAP.md` for active `In Flight` work and nearby Pending items.
+3. Work on a topic branch, not `main`.
+4. Keep durable decisions in repo docs, not in a private chat transcript.
+
+If a request crosses the product boundary — for example, a site needs behavior
+that Clodsite cannot express yet — keep the site-authoring change and the
+Clodsite capability change conceptually separate. It is fine for one PR to
+include both only when the scope is small and the tests/docs make the product
+change clear.
+
 ## Architecture Boundary
 
 `build-plan.yaml` is the source language. Generated HTML, CSS bundles, Nunjucks
