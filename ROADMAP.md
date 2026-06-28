@@ -23,9 +23,10 @@ or moved into Pending/Completed.
   the test suite; all dated `superpowers/specs|plans` records carry frontmatter
   with `status`/`supersedes`; `generate-catalog-md.sh` also emits an OKF
   `Component` bundle under `docs/knowledge/components/` (84 conformant, full
-  coverage). Remaining: a `Site` producer off `/status`; optional static
-  visualizer. Avoid overlapping on `docs/knowledge/` and bulk frontmatter edits
-  while this is in flight.
+  coverage); `scripts/generate-site-docs.sh` writes a `Site` concept into each
+  site's `docs/index.md` in the sites repo (offline from `build-plan.yaml`).
+  Remaining: optional static visualizer. Avoid overlapping on `docs/knowledge/`
+  and bulk frontmatter edits while this is in flight.
 
 ## Pending
 
