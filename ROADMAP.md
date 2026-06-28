@@ -9,6 +9,16 @@ deliberate review cycle.
 
 ---
 
+## In Flight
+
+Keep ordinary work increments small enough that they do not need to linger here:
+a short-lived branch plus PR is usually enough. Use this section only for
+larger, multi-step efforts with agreed milestones, or for active work another
+agent should avoid overlapping. Remove entries promptly when merged, abandoned,
+or moved into Pending/Completed.
+
+- None currently.
+
 ## Pending
 
 Items are ordered by proposed implementation priority.

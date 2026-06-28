@@ -341,23 +341,63 @@ its **own checkout**. They cannot see each other's working tree. Alignment is
 maintained through what is written down and shared, not through anything in any
 one agent's head.
 
+## Coordination checklist
+
+Before starting Clodsite work:
+
+- Pull `origin/main`.
+- Check `ROADMAP.md`, especially `In Flight`, for active or recently completed
+  work.
+- State whether you are acting as a **development agent** (changing Clodsite) or
+  an **authoring agent** (using Clodsite to modify a site). If the request spans
+  both, say so and keep the two scopes separate.
+- Use a short topic branch for implementation work, and keep ordinary work
+  increments small enough to complete through one PR.
+- If the change teaches a durable rule, update this file or the nearest relevant
+  doc in the same PR.
+- If the change affects shared behavior, update or add tests in the same PR.
+
 - **Durable, shared truth lives in git.** This file, `docs/`, `ROADMAP.md`, and
   the code are the shared brain. If a fact must be true for every agent, it
   belongs here or in `docs/` — not in one agent's private memory or a past
   conversation.
 - **Promote knowledge down into the repo.** When the user states a durable
-  decision, write it into the relevant doc so the *other* agents learn it too.
-  Treat per-agent private memory as scratch.
+  decision, write it into the relevant doc so the *other* agents learn it too:
+  `AGENTS.md` for workflow rules, `docs/agent-development.md` for Clodsite
+  implementation guidance, `docs/agent-authoring.md` for site-authoring
+  behavior, and `ROADMAP.md` for planned or completed product direction. Treat
+  per-agent private memory as scratch.
 - **The remote is the coordination bus.** Pull before starting work; you only see
   another agent's changes once they are merged. Never assume uncommitted work in
   another checkout exists.
 - **Keep `ROADMAP.md` current** as the shared "what's done / in flight" so agents
   don't collide or duplicate.
 
+## Agent handoffs
+
+When one agent leaves work for another, record enough context for a clean pickup
+in the PR description, `ROADMAP.md`, or the relevant spec/plan:
+
+```md
+Context:
+Decision:
+Branch or PR:
+Files likely affected:
+Tests to run:
+Deployment impact:
+Open questions:
+```
+
+Clear handoffs are especially important when design and implementation are split
+across agents, or when a site-specific request also requires a Clodsite product
+change.
+
 # Git & change rules
 
 - `main` is protected. Do not commit implementation work directly to `main`
   unless the user explicitly asks — branch and open a PR.
+- Branch names should be short and descriptive. Prefer prefixes that reveal the
+  worker or scope, such as `codex/<topic>`, `claude/<topic>`, or `docs/<topic>`.
 - Keep edits small and documented; do not revert the user's changes.
 - Keep generated files, secrets, logs, and local runtime state out of commits.
 - When instructions become durable, update this file or the nearest relevant doc.
