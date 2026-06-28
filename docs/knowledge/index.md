@@ -53,7 +53,7 @@ Only `type` is required. Add fields when they carry signal; don't pad.
 | `Plan` | A dated implementation plan | `docs/superpowers/plans/*.md` |
 | `Component` | A build-plan component (hero, feature-grid, …) | generated into `docs/knowledge/components/` from component schemas |
 | `Theme` | A built-in visual theme | `docs/THEMES.md` + theme files *(planned)* |
-| `Site` | A live deployed site (operational catalog) | generated from `build-plan.yaml` + `/status` *(planned)* |
+| `Site` | A live deployed site (operational catalog) | generated into each site's `docs/index.md` from its `build-plan.yaml` (in the sites repo) |
 
 Producers may add new types as the need arises — `type` defines the
 interoperability surface, not a closed list.
@@ -98,7 +98,10 @@ This is an incremental adoption, not a big-bang reformat.
   `docs/knowledge/components/` (produced from component schemas by
   `scripts/generate-catalog-md.sh`); `scripts/lib/validate-okf.mjs` enforces it in
   the test suite (`✓ OKF: 84 conformant, 0 not yet adopted`).
-- **Planned:** add a `Site` producer off `/status` (an operational catalog of
-  live sites); optionally render the bundle with the OKF static visualizer.
+- **Done (sites repo):** `scripts/generate-site-docs.sh` writes a `Site` concept
+  into each site's `docs/index.md` from its `build-plan.yaml` (offline,
+  re-runnable). Each site's `docs/` is its own OKF bundle (the `Site` concept
+  plus any hand-written `Reference` notes).
+- **Planned:** optionally render the bundle(s) with the OKF static visualizer.
 
 `ROADMAP.md` tracks these as they move.
