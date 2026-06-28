@@ -7,9 +7,11 @@ components, themes, docs, tests, or deployment behavior.
 
 Current operating documents:
 
+- [`AGENTS.md`](../AGENTS.md) — canonical agent guide: the workflow contract
+  (Setup, Interview, Build, Deploy, Domain, Teardown, Status), architecture
+  boundary, and multi-agent norms. (`CLAUDE.md` is a pure pointer to it; Claude
+  Code slash commands are thin triggers over these workflows.)
 - [`README.md`](../README.md) for product overview and setup.
-- [`CLAUDE.md`](../CLAUDE.md) for command behavior and the agent-facing command
-  contract.
 - [`docs/agent-authoring.md`](agent-authoring.md) and
   [`docs/authoring-build-plan.md`](authoring-build-plan.md) for site-authoring
   behavior.
@@ -43,7 +45,8 @@ When changing Clodsite, preserve this boundary:
 
 | Area | Files |
 |---|---|
-| Command docs | `.claude/commands/*.md`, `CLAUDE.md` |
+| Workflow contract | `AGENTS.md` (canonical; `CLAUDE.md` points to it) |
+| Slash-command triggers | `.claude/commands/*.md` (thin pointers to `AGENTS.md` workflows) |
 | Build/deploy scripts | `scripts/*.sh` |
 | Shared JS libraries | `scripts/lib/*.mjs` |
 | Component schemas/templates/styles | `components/<name>/schema.json`, `component.njk`, `component.css` |
@@ -204,7 +207,8 @@ specs/plans unless the task is explicitly to correct the historical record.
 
 Use this rule of thumb:
 
-- Current behavior changed? Update README, `CLAUDE.md`, authoring docs, catalog,
-  theme docs, or command docs as appropriate.
+- Current behavior changed? Update `AGENTS.md` (the workflow contract), README,
+  authoring docs, catalog, or theme docs as appropriate. Edit workflow behavior
+  in `AGENTS.md`, not in the thin `.claude/commands/*.md` triggers.
 - Design rationale changed? Add or update a dated spec/plan.
 - Roadmap priority changed? Update `ROADMAP.md`.
