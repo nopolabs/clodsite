@@ -11,6 +11,13 @@
   margin-block-start: 1.5rem;
 }
 
+.c-prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+
 .c-prose table {
   width: 100%;
   margin-block-end: 1.5rem;
