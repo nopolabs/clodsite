@@ -2710,6 +2710,7 @@ assert_contains "HTML has the buy-now button" "Buy now" "$PERSONALIZED_HTML"
 assert_contains "HTML has the missing-token explanation" "personalization link" "$PERSONALIZED_HTML"
 assert_not_contains "HTML never carries fulfillment refs" "bbpp-print" "$PERSONALIZED_HTML"
 assert_contains "personalized CSS is aggregated" ".c-personalized-product" "$(cat scaffold/src/css/components.css)"
+assert_contains "personalized description preserves line breaks" "white-space: pre-line" "$(cat scaffold/src/css/components.css)"
 rm -rf "${SITE_DIR}/commerce" "${SITE_DIR}/functions"
 
 # ── commerce sync (commerce-sync.sh gating) ───────────────────────────────────
