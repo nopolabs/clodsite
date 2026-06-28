@@ -74,15 +74,29 @@ interoperability surface, not a closed list.
 **Do not** retro-edit dated `Spec`/`Plan` records to match current reality —
 those are history. Write a new record and link it with `supersedes`.
 
+## Validation
+
+Run the conformance check:
+
+```
+node scripts/lib/validate-okf.mjs        # scans AGENTS.md + docs/**.md
+```
+
+It validates every file that has frontmatter — a file *without* frontmatter is
+"not yet adopted", which is reported but not an error, so adoption stays
+incremental. The check is part of the test suite
+(`scripts/lib/validate-okf.test.mjs`), and a test keeps the enforced type list in
+lockstep with the vocabulary table above.
+
 ## Rollout status
 
 This is an incremental adoption, not a big-bang reformat.
 
-- **Done (this pilot):** `AGENTS.md` and the hand-authored `docs/` guides and
-  references carry frontmatter; this OKF contract exists.
+- **Done:** `AGENTS.md` and the hand-authored `docs/` guides and references carry
+  frontmatter; this OKF contract exists; `scripts/lib/validate-okf.mjs` enforces
+  it in the test suite.
 - **Planned:** frontmatter the dated `Spec`/`Plan` records (the biggest
   queryability win); make generators emit OKF-native `Component` and `Site`
-  concepts; add a conformance check (every concept file has a valid `type`); and
-  optionally render the bundle with the OKF static visualizer.
+  concepts; optionally render the bundle with the OKF static visualizer.
 
 `ROADMAP.md` tracks these as they move.
