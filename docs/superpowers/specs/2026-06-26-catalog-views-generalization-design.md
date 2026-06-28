@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Product-Level Catalog Views Design"
+description: "Design for product-level catalog views, decoupled from color options."
+tags: ["commerce", "catalog", "images"]
+status: shipped
+timestamp: 2026-06-26T00:00:00Z
+---
+
 # Product-Level Catalog Views Design
 
 **Date:** 2026-06-26

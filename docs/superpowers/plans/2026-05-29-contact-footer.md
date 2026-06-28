@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Contact Footer Implementation Plan"
+description: "Implementation plan for the site-wide contact footer."
+tags: ["contact", "footer"]
+status: shipped
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Contact Footer Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

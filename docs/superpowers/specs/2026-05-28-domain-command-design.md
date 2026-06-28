@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "`/domain` Command — Design Spec"
+description: "Design for the /domain custom-domain command."
+tags: ["domain", "dns", "commands"]
+status: shipped
+timestamp: 2026-05-28T00:00:00Z
+---
+
 # `/domain` Command — Design Spec
 
 **Date:** 2026-05-28

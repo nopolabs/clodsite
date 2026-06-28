@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "`resend-form` Component Implementation Plan"
+description: "Implementation plan for the Resend-backed contact form component."
+tags: ["resend", "forms", "components"]
+status: shipped
+timestamp: 2026-06-02T00:00:00Z
+---
+
 # `resend-form` Component Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

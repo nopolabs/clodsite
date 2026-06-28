@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Static assets + favicons (page-types slice 1)"
+description: "Design for static assets and favicons (page-types slice 1)."
+tags: ["assets", "favicons"]
+status: shipped
+timestamp: 2026-05-31T00:00:00Z
+---
+
 # Static assets + favicons (page-types slice 1)
 
 **Status:** approved, ready for implementation plan

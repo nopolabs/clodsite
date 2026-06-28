@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Commerce (v1) — Design"
+description: "Commerce v1 design: catalog, Stripe checkout, and fulfillment providers."
+tags: ["commerce", "stripe", "checkout"]
+status: shipped
+timestamp: 2026-06-10T00:00:00Z
+---
+
 # Commerce (v1) — Design
 
 **Date:** 2026-06-10

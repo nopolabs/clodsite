@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Turnstile Protection for `resend-form` — Design"
+description: "Design for Turnstile protection on resend-form."
+tags: ["resend", "turnstile", "security"]
+status: shipped
+timestamp: 2026-06-08T00:00:00Z
+---
+
 # Turnstile Protection for `resend-form` — Design
 
 **Date:** 2026-06-08

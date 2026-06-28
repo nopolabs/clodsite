@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Printful Non-Apparel Product Support — Anchovy Mug Design"
+description: "Design for Printful non-apparel (anchovy mug) product support."
+tags: ["commerce", "printful"]
+status: shipped
+timestamp: 2026-06-26T00:00:00Z
+---
+
 # Printful Non-Apparel Product Support — Anchovy Mug Design
 
 **Date:** 2026-06-26

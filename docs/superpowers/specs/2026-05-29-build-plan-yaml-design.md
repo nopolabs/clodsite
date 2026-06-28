@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Build Plan YAML Format Design"
+description: "Design for the GFM build-plan.yaml format."
+tags: ["build-plan", "authoring"]
+status: shipped
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Build Plan YAML Format Design
 
 **Date:** 2026-05-29

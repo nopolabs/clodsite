@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "`media-section` Component — Design"
+description: "Design for the media-section component."
+tags: ["components", "media"]
+status: shipped
+timestamp: 2026-06-07T00:00:00Z
+---
+
 # `media-section` Component — Design
 
 **Date:** 2026-06-07

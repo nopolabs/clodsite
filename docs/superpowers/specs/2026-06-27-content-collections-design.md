@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Content Collections (Blog / Journal) Design"
+description: "Design for content collections (blog / journal). Not yet implemented."
+tags: ["content", "collections", "blog"]
+status: accepted
+timestamp: 2026-06-27T00:00:00Z
+---
+
 # Content Collections (Blog / Journal) Design
 
 **Date:** 2026-06-27

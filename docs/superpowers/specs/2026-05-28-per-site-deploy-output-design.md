@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Per-Site Deploy Output Files — Design Spec"
+description: "Design for per-site deploy output files."
+tags: ["deploy", "output"]
+status: shipped
+timestamp: 2026-05-28T00:00:00Z
+---
+
 # Per-Site Deploy Output Files — Design Spec
 
 **Date:** 2026-05-28

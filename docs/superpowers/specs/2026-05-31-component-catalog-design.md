@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Component Catalog (v1) — Design"
+description: "Design for the v1 component catalog."
+tags: ["components", "catalog"]
+status: shipped
+timestamp: 2026-05-31T00:00:00Z
+---
+
 # Component Catalog (v1) — Design
 
 **Date:** 2026-05-31

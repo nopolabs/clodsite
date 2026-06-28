@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "bbpp Certificate Commerce — Design"
+description: "Design for bbpp certificate-print commerce."
+tags: ["commerce", "bbpp", "certificate"]
+status: shipped
+timestamp: 2026-06-11T00:00:00Z
+---
+
 # bbpp Certificate Commerce — Design
 
 **Date:** 2026-06-11

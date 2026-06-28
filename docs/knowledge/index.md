@@ -51,7 +51,7 @@ Only `type` is required. Add fields when they carry signal; don't pad.
 | `Reference` | Background, rationale, working notes | `docs/clodsite_vision_brief-final.md`, `docs/theme-system-notes.md` |
 | `Spec` | A dated design record | `docs/superpowers/specs/*.md` |
 | `Plan` | A dated implementation plan | `docs/superpowers/plans/*.md` |
-| `Component` | A build-plan component (hero, feature-grid, …) | generated into `components/CATALOG.md` *(planned)* |
+| `Component` | A build-plan component (hero, feature-grid, …) | generated into `docs/knowledge/components/` from component schemas |
 | `Theme` | A built-in visual theme | `docs/THEMES.md` + theme files *(planned)* |
 | `Site` | A live deployed site (operational catalog) | generated from `build-plan.yaml` + `/status` *(planned)* |
 
@@ -92,11 +92,13 @@ lockstep with the vocabulary table above.
 
 This is an incremental adoption, not a big-bang reformat.
 
-- **Done:** `AGENTS.md` and the hand-authored `docs/` guides and references carry
-  frontmatter; this OKF contract exists; `scripts/lib/validate-okf.mjs` enforces
-  it in the test suite.
-- **Planned:** frontmatter the dated `Spec`/`Plan` records (the biggest
-  queryability win); make generators emit OKF-native `Component` and `Site`
-  concepts; optionally render the bundle with the OKF static visualizer.
+- **Done:** every doc on the knowledge surface carries frontmatter — `AGENTS.md`,
+  the `docs/` guides and references, all dated `Spec`/`Plan` records (with
+  `status` and `supersedes` set), and the generated `Component` bundle under
+  `docs/knowledge/components/` (produced from component schemas by
+  `scripts/generate-catalog-md.sh`); `scripts/lib/validate-okf.mjs` enforces it in
+  the test suite (`✓ OKF: 84 conformant, 0 not yet adopted`).
+- **Planned:** add a `Site` producer off `/status` (an operational catalog of
+  live sites); optionally render the bundle with the OKF static visualizer.
 
 `ROADMAP.md` tracks these as they move.

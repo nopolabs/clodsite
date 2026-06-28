@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Per-Site Deploy Output Files Implementation Plan"
+description: "Implementation plan for per-site deploy output files (NEXT-STEPS)."
+tags: ["deploy", "output"]
+status: shipped
+timestamp: 2026-05-28T00:00:00Z
+---
+
 # Per-Site Deploy Output Files Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

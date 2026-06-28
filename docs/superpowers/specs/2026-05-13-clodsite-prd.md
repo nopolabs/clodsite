@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Clodsite — Product Requirements Document"
+description: "The original Clodsite v1 product requirements document."
+tags: ["prd", "foundational", "product"]
+status: shipped
+timestamp: 2026-05-13T00:00:00Z
+---
+
 # Clodsite — Product Requirements Document
 
 **Version:** 1.0  

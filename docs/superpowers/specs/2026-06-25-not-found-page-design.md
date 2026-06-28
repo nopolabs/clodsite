@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Generated Not-Found Page Design"
+description: "Design for the generated 404 not-found page."
+tags: ["404", "pages"]
+status: shipped
+timestamp: 2026-06-25T00:00:00Z
+---
+
 # Generated Not-Found Page Design
 
 **Date:** 2026-06-25

@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Unified Build Contract Implementation Plan"
+description: "Implementation plan to merge spec config into the build plan."
+tags: ["build-plan", "contract"]
+status: shipped
+timestamp: 2026-05-29T00:00:00Z
+---
+
 # Unified Build Contract Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

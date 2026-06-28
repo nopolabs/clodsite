@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "`resend-form` Component — Design"
+description: "Design for the Resend-backed contact form component."
+tags: ["resend", "forms", "components"]
+status: shipped
+timestamp: 2026-06-02T00:00:00Z
+---
+
 # `resend-form` Component — Design
 
 **Date:** 2026-06-02

@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Goal-Oriented Informational Components — Implementation Plan"
+description: "Implementation plan for the goal-oriented informational components."
+tags: ["components"]
+status: shipped
+timestamp: 2026-06-09T00:00:00Z
+---
+
 # Goal-Oriented Informational Components — Implementation Plan
 
 > Execute task by task. Do not begin a later task until the current task's

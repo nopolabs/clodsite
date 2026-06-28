@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "`/teardown` Command — Design Spec"
+description: "Design for the /teardown command."
+tags: ["teardown", "commands"]
+status: shipped
+timestamp: 2026-05-28T00:00:00Z
+---
+
 # `/teardown` Command — Design Spec
 
 **Date:** 2026-05-28

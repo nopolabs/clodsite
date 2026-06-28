@@ -1,3 +1,11 @@
+---
+type: Reference
+title: "Interview Answers — clodsite.com demo"
+description: "Sample interview answers for the clodsite.com demo recording."
+tags: ["demo", "interview"]
+timestamp: 2026-06-13T00:00:00Z
+---
+
 # Interview Answers — clodsite.com demo
 
 Use these to answer the questions in `/interview` during the demo recording.

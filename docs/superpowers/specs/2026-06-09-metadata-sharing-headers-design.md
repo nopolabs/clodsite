@@ -1,3 +1,12 @@
+---
+type: Spec
+title: "Metadata, Sharing, and Response Headers — Design"
+description: "Design for metadata, sharing, and response headers."
+tags: ["metadata", "headers", "seo"]
+status: shipped
+timestamp: 2026-06-09T00:00:00Z
+---
+
 # Metadata, Sharing, and Response Headers — Design
 
 **Date:** 2026-06-09
