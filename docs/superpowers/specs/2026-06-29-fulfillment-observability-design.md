@@ -35,8 +35,9 @@ fixes the **mechanism**: failures return `500` so Stripe retries, and a durable
 (no-TTL) KV state machine records `processing`/`completed`/`failed` with
 `last_error`. What is still missing is **visibility**: nothing tells a human when
 an order ends up `failed`, when Stripe gives up retrying, or when a paid session
-produced *no record at all* (webhook never ran / wrong account — the exact shape
-that hid this incident). This spec adds that.
+produced *no record at all* (webhook never ran, or a payment landed on an account
+whose webhook isn't ours — a class the wrong-account defect could create). This
+spec adds that.
 
 ## Gaps (given the current state machine)
 
@@ -46,8 +47,11 @@ that hid this incident). This spec adds that.
    state across sites. `/status` reports *deploy* state, not *order* state.
 3. **No detection of missing records.** KV-only visibility can't see a paid
    session that never reached the webhook (endpoint down, or charged on an
-   account whose webhook isn't ours). That class leaves **no KV record** — and is
-   precisely what happened in June.
+   account whose webhook isn't ours). That class leaves **no KV record** — the
+   wrong-account defect could create exactly it, and this investigation showed we
+   must cover it (the June orders themselves were lost differently — silently, by
+   the old worker — but both are the same operator-facing failure: paid, not
+   fulfilled, nobody told).
 4. **Logs evaporate.** Workers/Pages Functions logs retain only days, so
    post-hoc forensics is impossible after ~a week (the June logs were long gone).
 
@@ -77,9 +81,11 @@ operator token; no new storage.
 ### 3. Stripe ⇄ KV reconciliation (the real safety net)
 A scheduled/on-demand job that lists recent paid sessions per Stripe account and
 cross-checks them against the owning site's KV, flagging any
-**paid-but-not-completed** session. This is the only layer that catches the
-*missing-record* class (gap 3) — it would have caught both June orders the next
-day.
+**paid-but-not-completed** session. It works from the Stripe side, so it is the
+only layer that catches the *missing-record* class (gap 3) — and because it keys
+off "paid but not fulfilled" rather than any particular failure mode, it is also
+the standing net for silent losses like June's: whatever the cause, an order paid
+and not fulfilled gets flagged within a day.
 
 **Account/source enumeration.** There is no manifest of Stripe accounts; the
 registry is env vars plus site plans. So the job derives its work list by
