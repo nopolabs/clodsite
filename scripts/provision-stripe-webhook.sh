@@ -141,15 +141,17 @@ fi
 
 # Item 21 account-change guard. The resolved key decides which Stripe account
 # this store transacts on; silently moving a live store between accounts is the
-# footgun the per-store-keys design guards. Fetch the key's account id and
-# compare it to the recorded one before provisioning anything.
+# footgun the per-store-keys design guards. Fetch the key's account id (GET
+# /v1/account needs no special restricted-key permission) and compare it to the
+# recorded one before provisioning anything.
 set +e
 ACCOUNT_RESPONSE=$(stripe_request GET "${STRIPE_API_BASE}/account")
 ACCOUNT_STATUS=$?
 set -e
 if [ "$ACCOUNT_STATUS" -ne 0 ]; then
-  echo "Error: could not read the Stripe account for the resolved key"
-  echo "(a restricted key needs the 'Account' read permission for this guard)."
+  echo "Error: the resolved Stripe key could not read its own account (GET /v1/account)."
+  echo "A restricted key needs the \"Basic Business Contact Information\" (Read) permission"
+  echo "(accounts_kyc_basic_read) — note Stripe does not list it under \"Account\"."
   exit 1
 fi
 ACCOUNT_ID=$(RESPONSE="$ACCOUNT_RESPONSE" node -e "process.stdout.write(JSON.parse(process.env.RESPONSE).id || '')")
@@ -167,20 +169,23 @@ try {
 } catch {}
 ")
 fi
-if [ -n "$STATE_ACCOUNT" ] && [ "$STATE_ACCOUNT" != "$ACCOUNT_ID" ]; then
+# Compare only within the same mode. A test<->live switch legitimately changes
+# accounts — a Stripe Sandbox (test) has its own acct_ id, distinct from the live
+# account — so a differing account across a mode switch is expected, not a swap.
+if [ -n "$STATE_ACCOUNT" ] && [ "$STATE_MODE" = "$STRIPE_MODE" ] && [ "$STATE_ACCOUNT" != "$ACCOUNT_ID" ]; then
   if [ "${CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE:-}" = "1" ]; then
-    echo "Stripe account change for '${SITE_NAME}': ${STATE_ACCOUNT} → ${ACCOUNT_ID}"
+    echo "Stripe account change for '${SITE_NAME}' (${STRIPE_MODE} mode): ${STATE_ACCOUNT} → ${ACCOUNT_ID}"
     echo "(allowed by CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE=1)."
   else
-    echo "Error: the resolved Stripe key belongs to account ${ACCOUNT_ID}, but ${STATE}"
-    echo "records ${STATE_ACCOUNT}. Moving a store between Stripe accounts is almost never"
-    echo "intended — checkout, webhooks, and order history would split across accounts."
-    echo "If this is deliberate, re-run with CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE=1."
+    echo "Error: the resolved ${STRIPE_MODE}-mode Stripe key belongs to account ${ACCOUNT_ID},"
+    echo "but ${STATE} records ${STATE_ACCOUNT} for this mode. Moving a store between Stripe"
+    echo "accounts is almost never intended — checkout, webhooks, and order history would"
+    echo "split across accounts. If deliberate, re-run with CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE=1."
     exit 1
   fi
 fi
-# First deploy (or a pre-item-21 state file with no account_id) records the id
-# below without prompting — there is nothing to change from.
+# First deploy (or a pre-item-21 state file with no account_id), and any
+# test<->live switch, records the id below without prompting.
 
 # A key-mode switch (test <-> live) makes the recorded endpoint unreachable:
 # endpoints live in one mode's workspace and the current key opens the other.

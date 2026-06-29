@@ -2514,6 +2514,7 @@ assert_file_exists "Stripe webhook state recorded" "${SITE_DIR}/.stripe-webhook-
 CHECKOUT_STATE=$(cat "${SITE_DIR}/.stripe-webhook-state.json")
 assert_contains "webhook state records the endpoint id" "we_test1" "$CHECKOUT_STATE"
 assert_contains "webhook state records the Stripe mode" '"mode": "test"' "$CHECKOUT_STATE"
+assert_contains "webhook state records the Stripe account id" '"account_id": "acct_test"' "$CHECKOUT_STATE"
 assert_not_contains "webhook state NEVER records the signing secret" "whsec_test_secret_xyz" "$CHECKOUT_STATE"
 
 # second deploy reuses the endpoint without re-pushing the signing secret
