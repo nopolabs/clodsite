@@ -139,6 +139,49 @@ try {
 ")
 fi
 
+# Item 21 account-change guard. The resolved key decides which Stripe account
+# this store transacts on; silently moving a live store between accounts is the
+# footgun the per-store-keys design guards. Fetch the key's account id and
+# compare it to the recorded one before provisioning anything.
+set +e
+ACCOUNT_RESPONSE=$(stripe_request GET "${STRIPE_API_BASE}/account")
+ACCOUNT_STATUS=$?
+set -e
+if [ "$ACCOUNT_STATUS" -ne 0 ]; then
+  echo "Error: could not read the Stripe account for the resolved key"
+  echo "(a restricted key needs the 'Account' read permission for this guard)."
+  exit 1
+fi
+ACCOUNT_ID=$(RESPONSE="$ACCOUNT_RESPONSE" node -e "process.stdout.write(JSON.parse(process.env.RESPONSE).id || '')")
+unset ACCOUNT_RESPONSE
+if [ -z "$ACCOUNT_ID" ]; then
+  echo "Error: Stripe did not return an account id."
+  exit 1
+fi
+
+STATE_ACCOUNT=""
+if [ -f "$STATE" ]; then
+  STATE_ACCOUNT=$(STATE="$STATE" node -e "
+try {
+  process.stdout.write(JSON.parse(require('fs').readFileSync(process.env.STATE,'utf8')).account_id || '');
+} catch {}
+")
+fi
+if [ -n "$STATE_ACCOUNT" ] && [ "$STATE_ACCOUNT" != "$ACCOUNT_ID" ]; then
+  if [ "${CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE:-}" = "1" ]; then
+    echo "Stripe account change for '${SITE_NAME}': ${STATE_ACCOUNT} → ${ACCOUNT_ID}"
+    echo "(allowed by CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE=1)."
+  else
+    echo "Error: the resolved Stripe key belongs to account ${ACCOUNT_ID}, but ${STATE}"
+    echo "records ${STATE_ACCOUNT}. Moving a store between Stripe accounts is almost never"
+    echo "intended — checkout, webhooks, and order history would split across accounts."
+    echo "If this is deliberate, re-run with CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE=1."
+    exit 1
+  fi
+fi
+# First deploy (or a pre-item-21 state file with no account_id) records the id
+# below without prompting — there is nothing to change from.
+
 # A key-mode switch (test <-> live) makes the recorded endpoint unreachable:
 # endpoints live in one mode's workspace and the current key opens the other.
 # Don't bother fetching it — announce the switch and provision fresh.
@@ -242,12 +285,13 @@ process.stdout.write(JSON.parse(process.env.RESPONSE).secret || '');
   unset WEBHOOK_SIGNING_SECRET
 fi
 
-ENDPOINT_ID="$ENDPOINT_ID" WEBHOOK_URL="$WEBHOOK_URL" STRIPE_MODE="$STRIPE_MODE" STATE="$STATE" node <<'NODE'
+ENDPOINT_ID="$ENDPOINT_ID" WEBHOOK_URL="$WEBHOOK_URL" STRIPE_MODE="$STRIPE_MODE" ACCOUNT_ID="$ACCOUNT_ID" STATE="$STATE" node <<'NODE'
 const fs = require('fs');
 fs.writeFileSync(process.env.STATE, JSON.stringify({
   endpoint_id: process.env.ENDPOINT_ID,
   url: process.env.WEBHOOK_URL,
   mode: process.env.STRIPE_MODE,
+  account_id: process.env.ACCOUNT_ID,
 }, null, 2) + '\n');
 NODE
 

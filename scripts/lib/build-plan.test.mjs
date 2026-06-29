@@ -11,6 +11,7 @@ import {
   getSecretBindings,
   getSlug,
   getStripeMode,
+  getStripeSecretKeyEnv,
   getStyle,
   isResendTurnstileEnabled,
   readBuildPlan,
@@ -149,6 +150,41 @@ test('getSecretBindings is empty when nothing is declared (bare-name path)', () 
   assert.deepEqual(
     getSecretBindings({ commerce: { provider: 'printful', printful: { store_id: 1 } } }),
     []
+  );
+});
+
+test('getStripeSecretKeyEnv resolves <base>_<MODE>; shared base by default (item 21)', () => {
+  const ck = (checkout) => ({ commerce: { checkout } });
+  assert.equal(getStripeSecretKeyEnv(ck({ mode: 'live' })), 'STRIPE_SECRET_KEY_LIVE');
+  assert.equal(getStripeSecretKeyEnv(ck({ mode: 'test' })), 'STRIPE_SECRET_KEY_TEST');
+  assert.equal(
+    getStripeSecretKeyEnv(ck({ mode: 'live', secret_key_env: 'HMC_STRIPE_SECRET_KEY' })),
+    'HMC_STRIPE_SECRET_KEY_LIVE'
+  );
+  assert.equal(
+    getStripeSecretKeyEnv(ck({ mode: 'test', secret_key_env: ' BBPP_STRIPE_SECRET_KEY ' })),
+    'BBPP_STRIPE_SECRET_KEY_TEST'
+  );
+  // No mode → no source (bare STRIPE_SECRET_KEY behavior), even with a base.
+  assert.equal(getStripeSecretKeyEnv(ck({ secret_key_env: 'HMC_STRIPE_SECRET_KEY' })), '');
+  assert.equal(getStripeSecretKeyEnv({}), '');
+});
+
+test('getSecretBindings uses the per-site Stripe key base when declared (item 21)', () => {
+  assert.deepEqual(
+    getSecretBindings({ commerce: { checkout: { mode: 'live', secret_key_env: 'HMC_STRIPE_SECRET_KEY' } } }),
+    [{ canonical: 'STRIPE_SECRET_KEY', source: 'HMC_STRIPE_SECRET_KEY_LIVE' }]
+  );
+});
+
+test('stripe-secret-key-env CLI selector resolves the source var', () => {
+  withPlanFile(
+    'commerce:\n  checkout:\n    mode: live\n    secret_key_env: HMC_STRIPE_SECRET_KEY\n',
+    (planPath) => {
+      const result = spawnSync('node', [modulePath, planPath, 'stripe-secret-key-env'], { encoding: 'utf8' });
+      assert.equal(result.status, 0);
+      assert.equal(result.stdout.trim(), 'HMC_STRIPE_SECRET_KEY_LIVE');
+    }
   );
 });
 

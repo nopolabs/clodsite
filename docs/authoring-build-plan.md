@@ -183,6 +183,14 @@ commerce:
       maximum: { unit: business_day, value: 10 }
 ```
 
+`checkout.mode` (`test` | `live`) selects which Stripe key the deploy binds, and
+optional `checkout.secret_key_env` names the per-store base var supplying it,
+resolved as `<secret_key_env>_<MODE>` (e.g. `HMC_STRIPE_SECRET_KEY` →
+`HMC_STRIPE_SECRET_KEY_LIVE`). Omit `secret_key_env` to use the shared
+`STRIPE_SECRET_KEY_{LIVE,TEST}`; set it so a store runs checkout and its webhook
+on its own Stripe account (mirrors `commerce.printful.api_key_env`). Values stay
+in the environment, never in the plan.
+
 `checkout.success_url` and `checkout.cancel_url` are site-root-relative paths.
 `success_url` must include `{CHECKOUT_SESSION_ID}` so Stripe returns a session
 marker and Clodsite can clear the cart on the success page. Use a page such as

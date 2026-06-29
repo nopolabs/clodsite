@@ -342,6 +342,13 @@ store between accounts. Surfaced by the June 2026 hmc-cycling.org incident.
 Design (accepted):
 `docs/superpowers/specs/2026-06-29-per-store-stripe-keys-design.md`.
 
+**Capability implemented** (`secret_key_env` resolution, deploy preflight, and the
+account-change guard in `provision-stripe-webhook.sh`). **Remaining (operator
+migration):** create the bbpp Stripe account, roll restricted hmc/anchovy keys,
+add the six `*_STRIPE_SECRET_KEY_{LIVE,TEST}` registry vars, set `secret_key_env`
+in each commerce site's plan, retire the shared `STRIPE_SECRET_KEY_LIVE`, and
+redeploy. Moves to Completed once the live stores are migrated.
+
 ### 22. Fulfillment observability and alerting
 
 The webhook's KV state machine already records `processing`/`completed`/`failed`

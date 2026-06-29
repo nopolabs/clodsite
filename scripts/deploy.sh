@@ -114,7 +114,11 @@ if [ -f "${SITE_DIR}/functions/api/checkout.js" ]; then
   # carry the matching prefix — a mis-populated registry (mode: live bound to
   # an sk_test_ value) is rejected here, not trusted.
   if [ -n "$STRIPE_DECLARED_MODE" ]; then
-    STRIPE_SOURCE_VAR="STRIPE_SECRET_KEY_$(echo "$STRIPE_DECLARED_MODE" | tr '[:lower:]' '[:upper:]')"
+    # Item 21: the source var is <base>_<MODE> where base is the shared
+    # STRIPE_SECRET_KEY or a per-site commerce.checkout.secret_key_env. Resolve it
+    # from the plan so the error names the var the operator must actually set.
+    STRIPE_SOURCE_VAR=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
+      "${SITE_DIR}/build-plan.yaml" stripe-secret-key-env)
     if [ -z "${!STRIPE_SOURCE_VAR:-}" ]; then
       echo "Error: commerce.checkout.mode is ${STRIPE_DECLARED_MODE} but ${STRIPE_SOURCE_VAR} is not set in .env."
       echo "Add ${STRIPE_SOURCE_VAR}=sk_${STRIPE_DECLARED_MODE}_... to .env and redeploy."

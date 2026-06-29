@@ -170,6 +170,7 @@ Grant exactly these scopes (verified against the code), everything else **None**
 |---|---|
 | **Checkout Sessions — Write** | checkout function `POST /v1/checkout/sessions` (`checkout.template.js`) |
 | **Webhook Endpoints — Write** | `provision-stripe-webhook.sh` does GET/list/POST/DELETE on `/v1/webhook_endpoints` at deploy (Stripe "Write" includes the reads); the signing secret it returns is installed as a Pages secret, **not** stored in the registry |
+| **Account — Read** | the deploy-time account-change guard fetches `GET /v1/account` to detect a store moving between Stripe accounts |
 | **Checkout Sessions — Read** + **Events — Read** | Stripe⇄KV reconciliation in the [fulfillment-observability spec](2026-06-29-fulfillment-observability-design.md) — grant now so keys minted today don't need re-rolling |
 
 Inline `price_data` checkout uses no Product/Price objects and the code issues no
@@ -205,6 +206,7 @@ live and test keyspaces):
    - **Checkout Sessions → Write** (Write includes read, which covers
      reconciliation)
    - **Webhook Endpoints → Write**
+   - **Account → Read** (the deploy account-change guard reads `GET /v1/account`)
    - **Events → Read**
 4. **Create key**, reveal, and copy the `rk_live_…` / `rk_test_…` value.
 5. Put it in `~/.config/clodsite/env` as `<BASE>_STRIPE_SECRET_KEY_<MODE>`
