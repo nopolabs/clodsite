@@ -12,7 +12,7 @@ timestamp: 2026-06-29T00:00:00Z
 **Date:** 2026-06-29
 **Status:** Proposed
 **Builds on:** [Declarative Per-Site Secret Binding](2026-06-26-per-site-env-layers-design.md) (item 12)
-**Motivated by:** the June 2026 hmc-cycling.org fulfillment incident
+**Surfaced by:** investigating the June 2026 hmc-cycling.org incident — a latent defect *distinct* from that incident's root cause (see [Fulfillment Observability](2026-06-29-fulfillment-observability-design.md))
 
 ---
 
@@ -33,7 +33,7 @@ single-account sites are unaffected.
 
 ## Problem
 
-The June incident surfaced two faces of the same gap:
+Investigating the June incident surfaced two faces of the same gap:
 
 - **Stranded history.** hmc-cycling.org's pre-port orders were taken on HMC's own
   Stripe account. The clodsite registry's live key is a *different* account, so
@@ -44,6 +44,13 @@ The June incident surfaced two faces of the same gap:
   the Anchovy account.** The checkout function reads `context.env.STRIPE_SECRET_KEY`
   (`scripts/lib/commerce/checkout.template.js`); whatever single key deploy
   installed is the account every live store transacts on.
+
+**This account gap did not cause the June unfulfillment.** Those orders failed
+inside the old `nopolabs/hmc` worker's fulfillment path — correctly on HMC's own
+account — and were lost silently (the root cause; see the
+[fulfillment-observability spec](2026-06-29-fulfillment-observability-design.md)).
+The investigation merely exposed that clodsite's shared key points elsewhere,
+which strands that history and would misroute *future* HMC payments.
 
 Printful already solved the multi-store version of this with `api_key_env`
 (e.g. `HMC_PRINTFUL_API_KEY`). Stripe needs the same treatment.
@@ -83,11 +90,21 @@ new field needed, but provisioning must use the resolved per-site key.
   (`sk_live_…`/`sk_test_…` matches `mode`) before any live action — reuse the
   existing key-shape verifier.
 
-**Account-change guard (incident-driven).** Record the resolved Stripe account
-id in the site's deploy state. On deploy, if the account would change from the
-last deploy, **refuse without an explicit confirm flag** — silently moving a
-live store between Stripe accounts is exactly the footgun this incident is made
-of (cf. [[deploy-stripe-mode-follows-env]]).
+**Account-change guard (incident-driven).** Mechanics:
+
+1. After resolving the key, fetch its account id: `GET /v1/account` → `id`
+   (e.g. `acct_…`).
+2. Compare to `account_id` stored in the site's `.stripe-webhook-state.json`
+   (the same state file `provision-stripe-webhook.sh` already maintains).
+3. **First deploy / no recorded `account_id`** (incl. pre-migration state):
+   record the id and proceed — there is nothing to change *from*.
+4. **`account_id` present and unchanged:** proceed.
+5. **`account_id` present and different:** **abort the deploy** unless
+   `CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE=1` is set, then record the new id.
+
+The check runs before webhook provisioning (so we never create an endpoint on
+the wrong account). Silently moving a live store between Stripe accounts is
+exactly the footgun this guards (cf. [[deploy-stripe-mode-follows-env]]).
 
 ## Decisions
 
@@ -174,3 +191,28 @@ of scope here.
 - Resolution tests: `<base>_<MODE>` selection; fallback to shared when unset.
 - Deploy guard: mode/shape mismatch errors; account-change refusal without the
   confirm flag.
+
+---
+
+## Appendix — creating a restricted key (Stripe Dashboard)
+
+Per account, and **once per mode** (the Test-mode toggle switches between the
+live and test keyspaces):
+
+1. **Developers → API keys → Create restricted key**.
+2. Name it for the store + mode, e.g. `clodsite hmc (live)`.
+3. Set these permissions; leave **everything else None**:
+   - **Checkout Sessions → Write** (Write includes read, which covers
+     reconciliation)
+   - **Webhook Endpoints → Write**
+   - **Events → Read**
+4. **Create key**, reveal, and copy the `rk_live_…` / `rk_test_…` value.
+5. Put it in `~/.config/clodsite/env` as `<BASE>_STRIPE_SECRET_KEY_<MODE>`
+   (e.g. `HMC_STRIPE_SECRET_KEY_LIVE`, `HMC_STRIPE_SECRET_KEY_TEST`). Never commit
+   it.
+
+Repeat for **live and test** in each of the three accounts → the six keys in the
+target table. For the new **bbpp** account, create the account first; both the
+live and test keyspaces exist immediately. To verify a key before storing it:
+`curl -s https://api.stripe.com/v1/account -u "rk_…:"` returns the account `id`
+(also the value the account-change guard records).

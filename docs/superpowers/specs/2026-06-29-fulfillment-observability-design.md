@@ -24,7 +24,11 @@ old standalone worker (`nopolabs/hmc`): it marked the session processed and
 returned `200` to Stripe *before* fulfilling, ran the Printful call in an
 unawaited `ctx.waitUntil` with no error handling, and used a 30-day idempotency
 TTL — so any Printful error produced a paid, unfulfilled order with retries
-suppressed and no alert.
+suppressed and no alert. (The shared-Stripe-account gap the investigation also
+turned up is a *separate* latent defect, addressed by the
+[per-store Stripe keys spec](2026-06-29-per-store-stripe-keys-design.md); it did
+not cause this unfulfillment, but is one way a future order could land with *no*
+KV record — which §3 covers.)
 
 The current clodsite webhook (`scripts/lib/commerce/webhook.template.js`) already
 fixes the **mechanism**: failures return `500` so Stripe retries, and a durable
@@ -52,9 +56,17 @@ that hid this incident). This spec adds that.
 ### 1. Alert on failure (immediate)
 When the webhook writes `state: failed`, emit an operator alert (reuse the
 existing Resend integration) to a configured operator address: site, session id,
-attempts, `last_error.message`, and `provider_detail`. Also alert when a record
-is `processing` past the stale threshold. This turns a silent KV write into a
-push.
+attempts, `last_error.message`, and `provider_detail`. This turns a silent KV
+write into a push.
+
+**Throttling (required).** Stripe retries the same failing event repeatedly, so
+alerting on every `failed` write would spam one session's failure into many
+emails. Record alert state on the KV record — `alerted_at` and `alert_count` —
+and send only when no alert has gone out yet, or after a backoff window (e.g.
+≥ 6h since `alerted_at`). The alert state lives on the same `ORDERS` record as
+the state machine, so it's read/written in the path that already touches KV. A
+`completed` write clears the need to alert further. (Stale-`processing` alerts
+follow the same once-per-window rule.)
 
 ### 2. Order audit (on-demand)
 A `/orders [site]` report (or an extension of `/status`) that reads each site's
@@ -63,13 +75,32 @@ A `/orders [site]` report (or an extension of `/status`) that reads each site's
 operator token; no new storage.
 
 ### 3. Stripe ⇄ KV reconciliation (the real safety net)
-A scheduled/on-demand job that, **per Stripe account**, lists recent paid
-`checkout.session.completed` sessions and cross-checks them against that site's
-KV `completed` set, flagging any **paid-but-not-completed** session. This is the
-only layer that catches the *missing-record* class (gap 3) — it would have caught
-both June orders the next day. Naturally becomes multi-account once
-[per-store Stripe keys](2026-06-29-per-store-stripe-keys-design.md) land (iterate
-the accounts the registry knows).
+A scheduled/on-demand job that lists recent paid sessions per Stripe account and
+cross-checks them against the owning site's KV, flagging any
+**paid-but-not-completed** session. This is the only layer that catches the
+*missing-record* class (gap 3) — it would have caught both June orders the next
+day.
+
+**Account/source enumeration.** There is no manifest of Stripe accounts; the
+registry is env vars plus site plans. So the job derives its work list by
+scanning every site `build-plan.yaml` under `SITES_DIR`:
+
+1. For each commerce site, resolve its Stripe key the same way deploy does —
+   `commerce.checkout.secret_key_env` + `mode`, falling back to the shared
+   `STRIPE_SECRET_KEY_<MODE>` when unset.
+2. Group sites by **resolved account** (multiple sites can share one — e.g.
+   `anchovy` + `anchovy-mug`; and pre-migration, several share the default). Query
+   each distinct account once.
+3. For each account, list recent paid `checkout.session.completed` sessions and,
+   **filter by `metadata.site`** so a session is only checked against *its own*
+   site's `ORDERS` KV — shared-account sites must not flag each other's orders
+   (the same `metadata.site` discipline the webhook already enforces).
+4. A paid session whose `metadata.site` names a site but has no `completed` KV
+   record for that site is flagged.
+
+This works today (one shared account) and scales to per-account automatically
+once [per-store Stripe keys](2026-06-29-per-store-stripe-keys-design.md) land —
+the enumeration is the same, the grouping just yields more accounts.
 
 ### 4. Durable logs via Logpush → R2 (forensic depth, optional)
 Enable Logpush on commerce Pages projects to an R2 bucket so the webhook's
@@ -98,6 +129,11 @@ priority; reconciliation + `last_error` already cover the common cases.
 ## Testing
 
 - Webhook failure path emits an alert (mock transport); no alert on `completed`.
+- **Alert throttling:** repeated `failed` writes within the backoff window send
+  one email and bump `alert_count`; a write after the window re-alerts.
 - Reconciliation flags a seeded paid-session-with-no-`completed` record and
   ignores matched ones.
+- **Enumeration:** account grouping dedupes sites sharing a key; a paid session is
+  checked only against the site named in its `metadata.site` (shared-account sites
+  don't flag each other).
 - Audit lists `failed`/stale `processing`/`completed` correctly from seeded KV.
