@@ -91,11 +91,13 @@ of (cf. [[deploy-stripe-mode-follows-env]]).
 
 ## Decisions
 
-1. **Fallback to the shared key is allowed.** Sites without `secret_key_env`
-   behave exactly as today; per-store accounts are opt-in per site. (Pre-1.0,
-   internal only — see [[clodsite-no-backcompat]] — but several live sites use
-   the shared key, so a clean cutover means migrating them deliberately, not
-   breaking them in this change.)
+1. **Shared-key fallback stays for test/preview only.** A site without
+   `secret_key_env` resolves the shared `STRIPE_SECRET_KEY_<MODE>` as today — kept
+   for test-only sites like `clodsite-demo`. For **live** sites, `secret_key_env`
+   becomes required once migration completes: deploy refuses a live store with no
+   per-store key, so nothing can silently fall back to a shared live account.
+   (Pre-1.0, internal only — see [[clodsite-no-backcompat]] — so the live sites
+   are migrated deliberately in one pass, not broken incrementally.)
 2. **Keep `metadata.site` fan-out filtering.** The webhook already ignores
    sessions not stamped for its own `SITE` (`webhook.template.js`). With separate
    accounts the cross-tenant risk drops, but sites that still share an account
@@ -103,14 +105,62 @@ of (cf. [[deploy-stripe-mode-follows-env]]).
 3. **Webhook account follows the key.** No separate account field; the resolved
    secret key is the single source of which account a store uses.
 
-## Migration (hmc-next-gen)
+## Migration
 
-1. Add `HMC_STRIPE_SECRET_KEY_{LIVE,TEST}` to the shared registry.
-2. Set `commerce.checkout.secret_key_env: HMC_STRIPE_SECRET_KEY` in
-   `hmc-next-gen/build-plan.yaml`.
-3. Re-provision the webhook on HMC's account; redeploy.
-4. Historical orders remain on HMC's prior account and are reconciled by hand —
-   out of scope here (see the fulfillment-observability spec).
+### Target key set in the clodsite registry
+
+Each commerce **business** gets its own Stripe account, named with a per-store
+base (`<BASE>_STRIPE_SECRET_KEY`) resolved as `<BASE>_STRIPE_SECRET_KEY_<MODE>`.
+End state in `~/.config/clodsite/env` — six keys across three accounts:
+
+| Registry var (× `_LIVE` and `_TEST`) | Stripe account | Used by (`secret_key_env`) |
+|---|---|---|
+| `ANCHOVY_STRIPE_SECRET_KEY_{LIVE,TEST}` | Anchovy (existing, `acct_1ThEUGQ…`) | `anchovy`, `anchovy-mug` |
+| `BBPP_STRIPE_SECRET_KEY_{LIVE,TEST}` | Big Beautiful Peace Prize (**new account**) | `bbpp` |
+| `HMC_STRIPE_SECRET_KEY_{LIVE,TEST}` | HMC (its own account) | `hmc-next-gen` |
+
+`anchovy-mug` shares the Anchovy account (same business). `clodsite-demo` is
+test-mode + preview only and keeps the shared `STRIPE_SECRET_KEY_TEST` default
+(no dedicated account). The shared `STRIPE_SECRET_KEY_LIVE` is **retired** — after
+migration no live store falls back to a shared account.
+
+### Account actions
+- **bbpp** — create a new Stripe account; capture its live **and** test keys.
+- **hmc, anchovy** — roll fresh per-store keys in each existing account and
+  retire the old shared live value (it has been broadly used and currently backs
+  every live store).
+
+### Per-site plan changes
+Set `commerce.checkout.secret_key_env`: `anchovy` / `anchovy-mug` →
+`ANCHOVY_STRIPE_SECRET_KEY`; `bbpp` → `BBPP_STRIPE_SECRET_KEY`; `hmc-next-gen` →
+`HMC_STRIPE_SECRET_KEY`. Then re-provision each site's webhook (it lands on the
+correct account automatically) and redeploy.
+
+### Key type & permissions
+The deploy shape-check accepts both **standard** (`sk_test_`/`sk_live_`) and
+**restricted** (`rk_test_`/`rk_live_`) keys for the declared mode. Mint **both** a
+live and a test key per account (Stripe modes are separate).
+
+- **Standard secret keys** — simplest (full access); match what the functions
+  assume today.
+- **Restricted keys** (recommended, least privilege) — grant exactly the
+  resources the pipeline touches, everything else **None**:
+  - **Checkout Sessions — Write** — the checkout function creates sessions.
+  - **Webhook Endpoints — Write** — deploy provisions the per-site endpoint; the
+    webhook **signing secret** is created here and installed as a Pages secret
+    (it is *not* stored in the registry).
+  - **Checkout Sessions — Read** + **Events — Read** — for the Stripe⇄KV
+    reconciliation in the
+    [fulfillment-observability spec](2026-06-29-fulfillment-observability-design.md);
+    grant now so keys minted today don't need re-rolling later.
+
+  (Inline `price_data` checkout uses no Product/Price objects and the code issues
+  no refunds, so no Products/Prices/Refunds permissions are required.)
+
+### History
+Pre-migration orders stay on whichever account originally captured them
+(hmc-cycling.org's are on HMC's prior account) and are reconciled by hand — out
+of scope here.
 
 ## Testing
 
