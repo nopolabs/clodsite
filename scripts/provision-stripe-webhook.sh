@@ -150,8 +150,8 @@ ACCOUNT_STATUS=$?
 set -e
 if [ "$ACCOUNT_STATUS" -ne 0 ]; then
   echo "Error: the resolved Stripe key could not read its own account (GET /v1/account)."
-  echo "A restricted key needs the \"Basic Business Contact Information\" (Read) permission"
-  echo "(accounts_kyc_basic_read) — note Stripe does not list it under \"Account\"."
+  echo "A restricted key needs Connect → Accounts (Read) in the Stripe dashboard"
+  echo "(API id accounts_kyc_basic_read; not listed under \"Account\")."
   exit 1
 fi
 ACCOUNT_ID=$(RESPONSE="$ACCOUNT_RESPONSE" node -e "process.stdout.write(JSON.parse(process.env.RESPONSE).id || '')")
