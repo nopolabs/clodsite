@@ -330,6 +330,29 @@ discipline holds. Prerequisite for item 15; raises the stakes for item 18 (it
 adds long-form reading typography to the theme contract). Design (proposed):
 `docs/superpowers/specs/2026-06-27-content-collections-design.md`.
 
+### 21. Per-store Stripe keys
+
+Per-site secret binding (item 12) made the Printful key and the Stripe mode
+per-site, but the Stripe secret key and webhook secret still resolve to a single
+shared account — so every live store currently transacts on one Stripe account.
+Add an optional declarative `commerce.checkout.secret_key_env` (mirroring
+`commerce.printful.api_key_env`) so each store runs checkout and its webhook on
+its own Stripe account, with a deploy-time guard against silently moving a live
+store between accounts. Surfaced by the June 2026 hmc-cycling.org incident.
+Design (proposed):
+`docs/superpowers/specs/2026-06-29-per-store-stripe-keys-design.md`.
+
+### 22. Fulfillment observability and alerting
+
+The webhook's KV state machine already records `processing`/`completed`/`failed`
+with `last_error` and retries via Stripe, but nothing surfaces a stuck order: a
+`failed` record (or a paid session that produced no record at all) sits silent.
+Add failure alerting (via Resend), an order-state audit (`/orders` or `/status`
+extension reading KV), and Stripe⇄KV reconciliation that flags paid-but-unfulfilled
+sessions per account — the layer that would have caught the June incident the next
+day. Optional Logpush→R2 for durable forensic logs. Design (proposed):
+`docs/superpowers/specs/2026-06-29-fulfillment-observability-design.md`.
+
 ---
 
 ## Completed
