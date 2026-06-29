@@ -137,25 +137,30 @@ Set `commerce.checkout.secret_key_env`: `anchovy` / `anchovy-mug` →
 correct account automatically) and redeploy.
 
 ### Key type & permissions
-The deploy shape-check accepts both **standard** (`sk_test_`/`sk_live_`) and
-**restricted** (`rk_test_`/`rk_live_`) keys for the declared mode. Mint **both** a
-live and a test key per account (Stripe modes are separate).
 
-- **Standard secret keys** — simplest (full access); match what the functions
-  assume today.
-- **Restricted keys** (recommended, least privilege) — grant exactly the
-  resources the pipeline touches, everything else **None**:
-  - **Checkout Sessions — Write** — the checkout function creates sessions.
-  - **Webhook Endpoints — Write** — deploy provisions the per-site endpoint; the
-    webhook **signing secret** is created here and installed as a Pages secret
-    (it is *not* stored in the registry).
-  - **Checkout Sessions — Read** + **Events — Read** — for the Stripe⇄KV
-    reconciliation in the
-    [fulfillment-observability spec](2026-06-29-fulfillment-observability-design.md);
-    grant now so keys minted today don't need re-rolling later.
+**Use restricted keys (`rk_…`).** We are minting/rolling all six keys in this
+migration, so the least-privilege posture costs nothing extra, and the deploy
+shape-check already accepts the `rk_test_`/`rk_live_` prefixes — no code change.
+A restricted key bounds a leaked key to "create checkout sessions + manage this
+site's webhook"; a standard `sk_` key can issue refunds, move money, and read all
+customer/payment data — a far larger blast radius given the key lives in the
+shared registry, each Pages project, and the deploy path, across three
+businesses.
 
-  (Inline `price_data` checkout uses no Product/Price objects and the code issues
-  no refunds, so no Products/Prices/Refunds permissions are required.)
+Grant exactly these scopes (verified against the code), everything else **None**:
+
+| Scope | Required by |
+|---|---|
+| **Checkout Sessions — Write** | checkout function `POST /v1/checkout/sessions` (`checkout.template.js`) |
+| **Webhook Endpoints — Write** | `provision-stripe-webhook.sh` does GET/list/POST/DELETE on `/v1/webhook_endpoints` at deploy (Stripe "Write" includes the reads); the signing secret it returns is installed as a Pages secret, **not** stored in the registry |
+| **Checkout Sessions — Read** + **Events — Read** | Stripe⇄KV reconciliation in the [fulfillment-observability spec](2026-06-29-fulfillment-observability-design.md) — grant now so keys minted today don't need re-rolling |
+
+Inline `price_data` checkout uses no Product/Price objects and the code issues no
+refunds, so no Products/Prices/Refunds scopes are required. Mint **both** a live
+and a test key per account (Stripe modes are separate). Missing scopes fail
+*closed* — a `403` at deploy (webhook provisioning) or first checkout — so set the
+full set at creation. Standard `sk_` keys still pass the shape-check as a
+fallback if ever needed.
 
 ### History
 Pre-migration orders stay on whichever account originally captured them
