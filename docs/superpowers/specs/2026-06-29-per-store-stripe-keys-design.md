@@ -3,14 +3,14 @@ type: Spec
 title: "Per-Store Stripe Keys Design"
 description: "Declarative per-site Stripe secret key binding so each store's checkout and webhook run on its own Stripe account, mirroring per-site Printful keys."
 tags: ["secrets", "stripe", "commerce", "multi-tenant"]
-status: draft
+status: accepted
 timestamp: 2026-06-29T00:00:00Z
 ---
 
 # Per-Store Stripe Keys Design
 
 **Date:** 2026-06-29
-**Status:** Proposed
+**Status:** Accepted
 **Builds on:** [Declarative Per-Site Secret Binding](2026-06-26-per-site-env-layers-design.md) (item 12)
 **Surfaced by:** investigating the June 2026 hmc-cycling.org incident — a latent defect *distinct* from that incident's root cause (see [Fulfillment Observability](2026-06-29-fulfillment-observability-design.md))
 

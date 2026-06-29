@@ -3,14 +3,14 @@ type: Spec
 title: "Fulfillment Observability and Alerting Design"
 description: "Detect, surface, and alert on paid-but-unfulfilled commerce orders so a fulfillment failure can never sit silent again."
 tags: ["commerce", "observability", "alerting", "ops", "reconciliation"]
-status: draft
+status: accepted
 timestamp: 2026-06-29T00:00:00Z
 ---
 
 # Fulfillment Observability and Alerting Design
 
 **Date:** 2026-06-29
-**Status:** Proposed
+**Status:** Accepted
 **Motivated by:** the June 2026 hmc-cycling.org fulfillment incident
 **Related:** [Per-Store Stripe Keys](2026-06-29-per-store-stripe-keys-design.md), [[commerce-v1-status]]
 

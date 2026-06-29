@@ -339,7 +339,7 @@ Add an optional declarative `commerce.checkout.secret_key_env` (mirroring
 `commerce.printful.api_key_env`) so each store runs checkout and its webhook on
 its own Stripe account, with a deploy-time guard against silently moving a live
 store between accounts. Surfaced by the June 2026 hmc-cycling.org incident.
-Design (proposed):
+Design (accepted):
 `docs/superpowers/specs/2026-06-29-per-store-stripe-keys-design.md`.
 
 ### 22. Fulfillment observability and alerting
@@ -350,7 +350,7 @@ with `last_error` and retries via Stripe, but nothing surfaces a stuck order: a
 Add failure alerting (via Resend), an order-state audit (`/orders` or `/status`
 extension reading KV), and Stripe⇄KV reconciliation that flags paid-but-unfulfilled
 sessions per account — the layer that would have caught the June incident the next
-day. Optional Logpush→R2 for durable forensic logs. Design (proposed):
+day. Optional Logpush→R2 for durable forensic logs. Design (accepted):
 `docs/superpowers/specs/2026-06-29-fulfillment-observability-design.md`.
 
 ---
