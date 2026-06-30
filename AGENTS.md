@@ -284,6 +284,18 @@ local sites against live Cloudflare Pages state: production URL, custom domain,
 last deploy timestamp per site; flags local sites with no live project as "not
 deployed"; lists Pages projects outside `SITES_DIR` as a footer.
 
+## Orders
+
+**Trigger:** `/orders [site]`. **[SCRIPT]** `bash scripts/orders.sh [site]` — a
+**read-only** audit of commerce fulfillment state. Lists each commerce site's
+`ORDERS` KV records grouped by state and **highlights `failed` and stale
+`processing`** orders; pass a site slug to narrow the report. Reads KV via the
+Cloudflare API (needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`); never
+calls Stripe or fulfillment providers and never writes. Use it to answer "is
+anything stuck?" between deploys. (Stripe⇄KV reconciliation — catching paid
+sessions with *no* KV record — is a separate effort; see
+[`docs/superpowers/specs/2026-06-29-fulfillment-observability-design.md`](docs/superpowers/specs/2026-06-29-fulfillment-observability-design.md).)
+
 ---
 
 # Authoring `build-plan.yaml`
