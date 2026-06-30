@@ -613,7 +613,7 @@ if ('commerce' in plan) {
       if (!isObject(commerce.checkout)) {
         errors.push('commerce.checkout must be an object ({ provider: stripe, success_url, cancel_url })');
       } else {
-        const allowedCheckout = new Set(['provider', 'success_url', 'cancel_url', 'mode']);
+        const allowedCheckout = new Set(['provider', 'success_url', 'cancel_url', 'mode', 'secret_key_env']);
         for (const field of Object.keys(commerce.checkout)) {
           if (!allowedCheckout.has(field))
             errors.push('commerce.checkout has unknown field "' + field + '"');
@@ -625,6 +625,15 @@ if ('commerce' in plan) {
         // point of use, so plan validation stays runnable without secrets.
         if ('mode' in commerce.checkout && commerce.checkout.mode !== 'test' && commerce.checkout.mode !== 'live')
           errors.push('commerce.checkout.mode must be "test" or "live" (got: ' + commerce.checkout.mode + ')');
+        // Item 21: secret_key_env names the per-store base var supplying this
+        // site's Stripe key, resolved as <base>_<MODE>. Syntax check only; it is
+        // meaningless without a mode to suffix, so require mode when present.
+        if ('secret_key_env' in commerce.checkout) {
+          if (!isEnvVarName(commerce.checkout.secret_key_env))
+            errors.push('commerce.checkout.secret_key_env must be a valid environment-variable name (^[A-Za-z_][A-Za-z0-9_]*$)');
+          if (!('mode' in commerce.checkout))
+            errors.push('commerce.checkout.secret_key_env requires commerce.checkout.mode (it is resolved as <secret_key_env>_<MODE>)');
+        }
         if (!('success_url' in commerce.checkout))
           errors.push('commerce.checkout.success_url is required');
         else

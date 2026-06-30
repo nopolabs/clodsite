@@ -258,6 +258,32 @@ assert_exit "declared binding overrides an ambient canonical value" 0 $?
   [ -z "${STRIPE_SECRET_KEY:-}" ] && [ -z "${PRINTFUL_API_KEY:-}" ] )
 assert_exit "absent sources leave canonical names unset (plain build path)" 0 $?
 
+# Item 21: a per-site commerce.checkout.secret_key_env makes the Stripe source
+# <base>_<MODE>, so the canonical STRIPE_SECRET_KEY binds from the store's own
+# key and wins over the shared STRIPE_SECRET_KEY_LIVE.
+PERSITE_SITE=$(mktemp -d)
+cat > "${PERSITE_SITE}/build-plan.yaml" <<'PERSITEPLAN'
+slug: persite-test
+name: Per-site Test
+overview: x
+style: minimal
+tone: professional
+commerce:
+  enabled: true
+  provider: printful
+  currency: usd
+  checkout: { provider: stripe, mode: live, secret_key_env: HMC_STRIPE_SECRET_KEY, success_url: "/s/?session_id={CHECKOUT_SESSION_ID}", cancel_url: / }
+  printful: { api_key_env: HMC_PRINTFUL_API_KEY, store_id: 1, products: [ { slug: t, printful_product_id: 1, price_minor: 100, description: d } ] }
+pages: [ { id: home, title: Home, components: [ { type: prose, markdown: hi } ] } ]
+nav: { order: [home] }
+PERSITEPLAN
+( source scripts/lib/sites.sh
+  export HMC_STRIPE_SECRET_KEY_LIVE=sk_live_hmc STRIPE_SECRET_KEY_LIVE=sk_live_shared
+  export HMC_PRINTFUL_API_KEY=pf_hmc SITE_DIR="$PERSITE_SITE"
+  clodsite_init_site_dir > /dev/null 2>&1
+  [ "${STRIPE_SECRET_KEY:-}" = "sk_live_hmc" ] )
+assert_exit "per-site secret_key_env binds STRIPE_SECRET_KEY from the store's own key" 0 $?
+
 # A plan with no bindings keeps the bare-name behavior (#72): an exported
 # canonical value passes straight through.
 cat > "${BIND_SITE}/build-plan.yaml.nobind" <<'NOBINDPLAN'
@@ -1063,6 +1089,32 @@ bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid component pla
 
 cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid goal-components plan exits 0" 0 $?
+
+# Item 21: commerce.checkout.secret_key_env (structural checks). Minimal manual
+# commerce (display-only catalog, no catalog component) so validation needs no
+# Stripe/Printful credentials and exercises only the checkout block.
+mkdir -p "${SITE_DIR}/commerce"
+printf '%s' '{"products":[{"slug":"t","name":"T","description":"d","price_minor":100,"active":false}]}' \
+  > "${SITE_DIR}/commerce/catalog.json"
+write_checkout_plan() {
+  CP_FILE="${SITE_DIR}/build-plan.yaml" CP_OP="$1" node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const checkout={provider:'stripe',success_url:'/s/?session_id={CHECKOUT_SESSION_ID}',cancel_url:'/'};
+const op=process.env.CP_OP;
+if(op==='valid'){ checkout.mode='test'; checkout.secret_key_env='HMC_STRIPE_SECRET_KEY'; }
+if(op==='badname'){ checkout.mode='test'; checkout.secret_key_env='2BAD NAME'; }
+if(op==='nomode'){ checkout.secret_key_env='HMC_STRIPE_SECRET_KEY'; }
+const p={slug:'co',name:'CO',overview:'x',style:'minimal',tone:'professional',
+  commerce:{enabled:true,provider:'manual',currency:'usd',checkout,fulfillment:{to:'a@b.com',from:'c@d.com'}},
+  pages:[{id:'home',title:'Home',components:[{type:'prose',markdown:'hi'}]}],
+  nav:{order:['home']}, contact:{enabled:false}};
+fs.writeFileSync(process.env.CP_FILE, yaml.dump(p));
+"
+}
+write_checkout_plan valid;   bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "valid secret_key_env passes" 0 $?
+write_checkout_plan badname; bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "invalid secret_key_env name exits 1" 1 $?
+write_checkout_plan nomode;  bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "secret_key_env without mode exits 1" 1 $?
+rm -rf "${SITE_DIR}/commerce"
 
 for mutation in too-many-actions too-many-features unsafe-href hero-not-first second-hero; do
   cp scripts/test/fixtures/valid-build-plan-goal-components.yaml "${SITE_DIR}/build-plan.yaml"
@@ -2386,6 +2438,9 @@ case "\${url}" in
   *api.stripe.com/v1/webhook_endpoints)
     printf '%s\n200' '{"id":"we_test1","secret":"whsec_test_secret_xyz"}'
     ;;
+  *api.stripe.com/v1/account)
+    printf '%s\n200' '{"id":"acct_test"}'
+    ;;
   *storage/kv/namespaces\?*)
     printf '%s' '{"success":true,"result":[]}'
     ;;
@@ -2459,6 +2514,7 @@ assert_file_exists "Stripe webhook state recorded" "${SITE_DIR}/.stripe-webhook-
 CHECKOUT_STATE=$(cat "${SITE_DIR}/.stripe-webhook-state.json")
 assert_contains "webhook state records the endpoint id" "we_test1" "$CHECKOUT_STATE"
 assert_contains "webhook state records the Stripe mode" '"mode": "test"' "$CHECKOUT_STATE"
+assert_contains "webhook state records the Stripe account id" '"account_id": "acct_test"' "$CHECKOUT_STATE"
 assert_not_contains "webhook state NEVER records the signing secret" "whsec_test_secret_xyz" "$CHECKOUT_STATE"
 
 # second deploy reuses the endpoint without re-pushing the signing secret

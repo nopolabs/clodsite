@@ -170,6 +170,7 @@ Grant exactly these scopes (verified against the code), everything else **None**
 |---|---|
 | **Checkout Sessions — Write** | checkout function `POST /v1/checkout/sessions` (`checkout.template.js`) |
 | **Webhook Endpoints — Write** | `provision-stripe-webhook.sh` does GET/list/POST/DELETE on `/v1/webhook_endpoints` at deploy (Stripe "Write" includes the reads); the signing secret it returns is installed as a Pages secret, **not** stored in the registry |
+| **Connect → Accounts — Read** | the deploy-time account-change guard reads `GET /v1/account` for the account id. Dashboard location is **Connect → Accounts** (Read); the API id is `accounts_kyc_basic_read` (a.k.a. "Basic Business Contact Information"). It is **not** under "Account" |
 | **Checkout Sessions — Read** + **Events — Read** | Stripe⇄KV reconciliation in the [fulfillment-observability spec](2026-06-29-fulfillment-observability-design.md) — grant now so keys minted today don't need re-rolling |
 
 Inline `price_data` checkout uses no Product/Price objects and the code issues no
@@ -205,6 +206,9 @@ live and test keyspaces):
    - **Checkout Sessions → Write** (Write includes read, which covers
      reconciliation)
    - **Webhook Endpoints → Write**
+   - **Connect → Accounts → Read** (the account-change guard's `GET /v1/account`;
+     API id `accounts_kyc_basic_read` / "Basic Business Contact Information" — it
+     is **not** under "Account")
    - **Events → Read**
 4. **Create key**, reveal, and copy the `rk_live_…` / `rk_test_…` value.
 5. Put it in `~/.config/clodsite/env` as `<BASE>_STRIPE_SECRET_KEY_<MODE>`
@@ -214,5 +218,7 @@ live and test keyspaces):
 Repeat for **live and test** in each of the three accounts → the six keys in the
 target table. For the new **bbpp** account, create the account first; both the
 live and test keyspaces exist immediately. To verify a key before storing it:
-`curl -s https://api.stripe.com/v1/account -u "rk_…:"` returns the account `id`
-(also the value the account-change guard records).
+`curl -s https://api.stripe.com/v1/account -H "Authorization: Bearer rk_…"`
+returns the account `id` (also the value the account-change guard records). A
+`Permission denied` here means the **Connect → Accounts** (Read) scope above is
+missing.

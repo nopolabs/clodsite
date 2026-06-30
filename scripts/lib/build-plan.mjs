@@ -15,6 +15,7 @@ const selectors = {
   'proxy-secrets': getProxySecrets,
   'commerce-provider': getCommerceProvider,
   'stripe-mode': getStripeMode,
+  'stripe-secret-key-env': getStripeSecretKeyEnv,
   'printful-api-key-env': (plan) => {
     const printful = plan.commerce && plan.commerce.printful;
     return printful && typeof printful.api_key_env === 'string' ? printful.api_key_env.trim() : '';
@@ -115,6 +116,22 @@ export function getStripeMode(plan) {
   return mode === 'test' || mode === 'live' ? mode : '';
 }
 
+// The env var that supplies this site's Stripe secret key (item 21), resolved as
+// <base>_<MODE> from the declared mode and an optional per-site base
+// (commerce.checkout.secret_key_env). The base defaults to the shared
+// STRIPE_SECRET_KEY, so a plan without secret_key_env resolves the shared
+// STRIPE_SECRET_KEY_{LIVE,TEST} exactly as before. '' when no mode is declared
+// (bare STRIPE_SECRET_KEY behavior).
+export function getStripeSecretKeyEnv(plan) {
+  const mode = getStripeMode(plan);
+  if (!mode) return '';
+  const checkout = (plan.commerce && plan.commerce.checkout) || {};
+  const base = typeof checkout.secret_key_env === 'string' && checkout.secret_key_env.trim() !== ''
+    ? checkout.secret_key_env.trim()
+    : 'STRIPE_SECRET_KEY';
+  return base + (mode === 'live' ? '_LIVE' : '_TEST');
+}
+
 // Resolve the single site-scoped Resend source var declared on resend-form
 // components, or '' when none. Site-scoped because v1 generates one /api/contact
 // endpoint; validate-plan enforces that every resend-form agrees on the value,
@@ -142,12 +159,9 @@ export function getSecretBindings(plan) {
     ? plan.commerce
     : null;
   if (commerce) {
-    const mode = getStripeMode(plan);
-    if (mode) {
-      bindings.push({
-        canonical: 'STRIPE_SECRET_KEY',
-        source: mode === 'live' ? 'STRIPE_SECRET_KEY_LIVE' : 'STRIPE_SECRET_KEY_TEST',
-      });
+    const stripeSource = getStripeSecretKeyEnv(plan);
+    if (stripeSource) {
+      bindings.push({ canonical: 'STRIPE_SECRET_KEY', source: stripeSource });
     }
     const printful = commerce.printful;
     if (printful && typeof printful.api_key_env === 'string' && printful.api_key_env.trim() !== '') {
