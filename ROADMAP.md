@@ -330,25 +330,6 @@ discipline holds. Prerequisite for item 15; raises the stakes for item 18 (it
 adds long-form reading typography to the theme contract). Design (proposed):
 `docs/superpowers/specs/2026-06-27-content-collections-design.md`.
 
-### 21. Per-store Stripe keys
-
-Per-site secret binding (item 12) made the Printful key and the Stripe mode
-per-site, but the Stripe secret key and webhook secret still resolve to a single
-shared account — so every live store currently transacts on one Stripe account.
-Add an optional declarative `commerce.checkout.secret_key_env` (mirroring
-`commerce.printful.api_key_env`) so each store runs checkout and its webhook on
-its own Stripe account, with a deploy-time guard against silently moving a live
-store between accounts. Surfaced by the June 2026 hmc-cycling.org incident.
-Design (accepted):
-`docs/superpowers/specs/2026-06-29-per-store-stripe-keys-design.md`.
-
-**Capability implemented** (`secret_key_env` resolution, deploy preflight, and the
-account-change guard in `provision-stripe-webhook.sh`). **Remaining (operator
-migration):** create the bbpp Stripe account, roll restricted hmc/anchovy keys,
-add the six `*_STRIPE_SECRET_KEY_{LIVE,TEST}` registry vars, set `secret_key_env`
-in each commerce site's plan, retire the shared `STRIPE_SECRET_KEY_LIVE`, and
-redeploy. Moves to Completed once the live stores are migrated.
-
 ### 22. Fulfillment observability and alerting
 
 The webhook's KV state machine already records `processing`/`completed`/`failed`
@@ -363,6 +344,26 @@ day. Optional Logpush→R2 for durable forensic logs. Design (accepted):
 ---
 
 ## Completed
+
+### Per-store Stripe keys
+Shipped June 2026 (pending item 21). Per-site secret binding (item 12) made the
+Printful key and Stripe mode per-site, but the Stripe secret key and webhook
+still resolved to a single shared account — every live store transacted on the
+Anchovy account (the root of hmc-cycling.org's orders being unreachable and of
+ported hmc-next-gen routing HMC payments to the wrong account). Added optional
+`commerce.checkout.secret_key_env`, resolved as `<base>_<MODE>` (mirroring
+`commerce.printful.api_key_env`), with the shared `STRIPE_SECRET_KEY_{LIVE,TEST}`
+as fallback. A deploy-time account-change guard fetches `GET /v1/account` and
+refuses to silently move a store between accounts within a mode (records
+`account_id` in `.stripe-webhook-state.json`; override
+`CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE=1`). Restricted keys need **Connect →
+Accounts: Read** (`accounts_kyc_basic_read`) for the guard. All four commerce
+sites migrated onto their own accounts (anchovy + anchovy-mug → Anchovy, bbpp,
+hmc-next-gen → HMC) and verified with live purchases (incl. an end-to-end HMC
+order + refund). Surfaced by the June 2026 hmc-cycling.org incident. Remaining
+cleanup: retire the shared `STRIPE_SECRET_KEY_LIVE` (keep `_TEST` for
+clodsite-demo). Design:
+`docs/superpowers/specs/2026-06-29-per-store-stripe-keys-design.md`.
 
 ### Declarative per-site secret binding
 Shipped June 2026 (pending item 12). The repo `.env` is shared by every site in
