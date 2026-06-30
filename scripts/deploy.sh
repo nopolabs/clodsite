@@ -53,16 +53,29 @@ STRIPE_DECLARED_MODE=$(echo "$PLAN_VALUES" | sed -n '3p')
 # The manual provider fulfills by emailing the merchant through Resend, so a
 # live commerce site needs the key even without a resend-form component.
 NEEDS_RESEND="false"
+NEEDS_COMMERCE_ALERTS="false"
 if [ -f "${SITE_DIR}/functions/api/contact.js" ]; then
   NEEDS_RESEND="true"
 elif [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ "$COMMERCE_PROVIDER" = "manual" ]; then
   NEEDS_RESEND="true"
 fi
+if [ -f "${SITE_DIR}/functions/api/webhook.js" ] \
+    && { [ -n "${CLODSITE_COMMERCE_ALERT_TO:-}" ] || [ -n "${CLODSITE_COMMERCE_ALERT_FROM:-}" ]; }; then
+  NEEDS_COMMERCE_ALERTS="true"
+  NEEDS_RESEND="true"
+fi
 if [ "$NEEDS_RESEND" = "true" ] && [ -z "${RESEND_API_KEY:-}" ]; then
   echo "Error: RESEND_API_KEY is not set in .env but this site needs Resend"
-  echo "(resend-form component and/or manual-provider order emails)."
+  echo "(resend-form component, manual-provider order emails, and/or commerce alerts)."
   echo "Add RESEND_API_KEY=re_... to .env and redeploy."
   exit 1
+fi
+if [ "$NEEDS_COMMERCE_ALERTS" = "true" ]; then
+  if [ -z "${CLODSITE_COMMERCE_ALERT_TO:-}" ] || [ -z "${CLODSITE_COMMERCE_ALERT_FROM:-}" ]; then
+    echo "Error: commerce alerting is partially configured."
+    echo "Set both CLODSITE_COMMERCE_ALERT_TO and CLODSITE_COMMERCE_ALERT_FROM in .env, or remove both."
+    exit 1
+  fi
 fi
 
 # When the plan declares a Stripe mode (item 12), the mode block below names the
@@ -196,12 +209,30 @@ if ! bash "${SCRIPT_DIR}/provision-stripe-webhook.sh"; then
 fi
 
 # Push RESEND_API_KEY as a Pages secret when a generated Function needs it:
-# the contact form, and/or the manual provider's order emails.
+# the contact form, the manual provider's order emails, and/or commerce alerts.
 if [ "$NEEDS_RESEND" = "true" ]; then
   echo "Setting RESEND_API_KEY secret for '$SITE_NAME'..."
   if ! printf '%s' "$RESEND_API_KEY" | wrangler pages secret put RESEND_API_KEY \
       --project-name "$SITE_NAME"; then
     echo "Error: failed to set RESEND_API_KEY Pages secret."
+    exit 1
+  fi
+  echo ""
+fi
+
+if [ "$NEEDS_COMMERCE_ALERTS" = "true" ]; then
+  echo "Setting CLODSITE_COMMERCE_ALERT_TO secret for '$SITE_NAME'..."
+  if ! printf '%s' "$CLODSITE_COMMERCE_ALERT_TO" | wrangler pages secret put CLODSITE_COMMERCE_ALERT_TO \
+      --project-name "$SITE_NAME"; then
+    echo "Error: failed to set CLODSITE_COMMERCE_ALERT_TO Pages secret."
+    exit 1
+  fi
+  echo ""
+
+  echo "Setting CLODSITE_COMMERCE_ALERT_FROM secret for '$SITE_NAME'..."
+  if ! printf '%s' "$CLODSITE_COMMERCE_ALERT_FROM" | wrangler pages secret put CLODSITE_COMMERCE_ALERT_FROM \
+      --project-name "$SITE_NAME"; then
+    echo "Error: failed to set CLODSITE_COMMERCE_ALERT_FROM Pages secret."
     exit 1
   fi
   echo ""

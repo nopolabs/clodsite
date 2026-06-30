@@ -2606,6 +2606,23 @@ assert_contains "Stripe secret key still pushed for printful" "pages secret put 
 assert_not_contains "no Resend push for printful without contact form" "pages secret put RESEND_API_KEY" "$CHECKOUT_LOG"
 assert_contains "printful Pages deploy called" "pages deploy dist" "$CHECKOUT_LOG"
 
+COMMERCE_OUTPUT=$(STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_alert \
+  CLODSITE_COMMERCE_ALERT_TO=ops@example.com SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1)
+assert_exit "partial commerce alert config exits 1" 1 $?
+assert_contains "partial commerce alert config is named" "commerce alerting is partially configured" "$COMMERCE_OUTPUT"
+
+: > "${CHECKOUT_STUB_LOG}"
+STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_alert \
+  CLODSITE_COMMERCE_ALERT_TO=ops@example.com \
+  CLODSITE_COMMERCE_ALERT_FROM=alerts@example.com \
+  SITE_DIR="${SITE_DIR}" bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "printful deploy with commerce alerts exits 0" 0 $?
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_contains "commerce alerts push Resend key" "pages secret put RESEND_API_KEY --project-name commerce-live-test stdin=re_alert" "$CHECKOUT_LOG"
+assert_contains "commerce alert recipient pushed" "pages secret put CLODSITE_COMMERCE_ALERT_TO --project-name commerce-live-test stdin=ops@example.com" "$CHECKOUT_LOG"
+assert_contains "commerce alert sender pushed" "pages secret put CLODSITE_COMMERCE_ALERT_FROM --project-name commerce-live-test stdin=alerts@example.com" "$CHECKOUT_LOG"
+
 # ── item 12: per-site secret binding through a real deploy ────────────────────
 # Declare a Stripe mode and a Printful alias, then deploy with only the source
 # vars set (no ambient STRIPE_SECRET_KEY/PRINTFUL_API_KEY) — the bound values
