@@ -170,6 +170,23 @@ The command reads the site's local webhook state, Stripe session metadata,
 Cloudflare `ORDERS` KV record, and Printful external order id. It touches live
 APIs but does not create Stripe sessions or Printful orders.
 
+To audit commerce order state across all local sites, use:
+
+```bash
+SITES_DIR=/path/to/clodsite-sites bash scripts/orders.sh
+```
+
+Pass a site slug or folder name to narrow the report:
+
+```bash
+SITES_DIR=/path/to/clodsite-sites bash scripts/orders.sh hmc-cycling
+```
+
+The audit command is read-only. It lists each commerce site's `ORDERS` KV
+records, groups them by state, and highlights `failed` plus stale `processing`
+orders. It requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, but does
+not call Stripe or fulfillment providers.
+
 ## Maintenance Notes
 
 - Keep section names in `run-tests.sh` clear; they are the fastest way to find
