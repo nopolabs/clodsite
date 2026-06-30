@@ -169,9 +169,9 @@ try {
 } catch {}
 ")
 fi
-# Compare only within the same mode. A test<->live switch legitimately changes
-# accounts — a Stripe Sandbox (test) has its own acct_ id, distinct from the live
-# account — so a differing account across a mode switch is expected, not a swap.
+# Compare only within the same mode. Test and live may share an account id
+# (classic test mode) or differ (a separate Sandbox); comparing within a mode is
+# correct either way and never false-aborts on a legitimate test<->live switch.
 if [ -n "$STATE_ACCOUNT" ] && [ "$STATE_MODE" = "$STRIPE_MODE" ] && [ "$STATE_ACCOUNT" != "$ACCOUNT_ID" ]; then
   if [ "${CLODSITE_ALLOW_STRIPE_ACCOUNT_CHANGE:-}" = "1" ]; then
     echo "Stripe account change for '${SITE_NAME}' (${STRIPE_MODE} mode): ${STATE_ACCOUNT} → ${ACCOUNT_ID}"
