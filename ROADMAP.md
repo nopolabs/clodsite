@@ -17,19 +17,7 @@ larger, multi-step efforts with agreed milestones, or for active work another
 agent should avoid overlapping. Remove entries promptly when merged, abandoned,
 or moved into Pending/Completed.
 
-- **OKF knowledge format adoption** (claude). Done: `AGENTS.md` + hand-authored
-  `docs/` guides/references carry OKF frontmatter; `docs/knowledge/index.md`
-  defines the contract; `scripts/lib/validate-okf.mjs` enforces conformance in
-  the test suite; all dated `superpowers/specs|plans` records carry frontmatter
-  with `status`/`supersedes`; `generate-catalog-md.sh` also emits an OKF
-  `Component` bundle under `docs/knowledge/components/` (84 conformant, full
-  coverage); `scripts/generate-site-docs.sh` writes a `Site` concept into each
-  site's `docs/index.md` in the sites repo (offline from `build-plan.yaml`).
-  Remaining: optional static visualizer. Avoid overlapping on `docs/knowledge/`
-  and bulk frontmatter edits while this is in flight.
-- **Fulfillment observability slice 3: Stripe/KV reconciliation** (codex) —
-  branch `codex/fulfillment-reconciliation`. Adds a read-only paid-session
-  reconciliation command that catches missing or incomplete ORDERS KV records.
+- None currently.
 
 ## Pending
 
@@ -333,20 +321,27 @@ discipline holds. Prerequisite for item 15; raises the stakes for item 18 (it
 adds long-form reading typography to the theme contract). Design (proposed):
 `docs/superpowers/specs/2026-06-27-content-collections-design.md`.
 
-### 22. Fulfillment observability and alerting
-
-The webhook's KV state machine already records `processing`/`completed`/`failed`
-with `last_error` and retries via Stripe, but nothing surfaces a stuck order: a
-`failed` record (or a paid session that produced no record at all) sits silent.
-Add failure alerting (via Resend), an order-state audit (`/orders` or `/status`
-extension reading KV), and Stripe⇄KV reconciliation that flags paid-but-unfulfilled
-sessions per account — the layer that would have caught the June incident the next
-day. Optional Logpush→R2 for durable forensic logs. Design (accepted):
-`docs/superpowers/specs/2026-06-29-fulfillment-observability-design.md`.
-
 ---
 
 ## Completed
+
+### Fulfillment observability and alerting
+Shipped June 2026 (pending item 22). The webhook KV state machine already
+recorded `processing`/`completed`/`failed` with `last_error` and retried via
+Stripe, but a stuck order sat silent. Added in three slices: **(1) failure
+alerting** — the webhook emails the operator via Resend on `state: failed`,
+throttled with `alerted_at`/`alert_count` (5s-bounded, non-blocking, opt-in via
+`CLODSITE_COMMERCE_ALERT_{TO,FROM}`); **(2) order audit** — read-only
+`scripts/orders.sh [site]` (`/orders`) lists each site's `ORDERS` KV by state,
+highlighting `failed` and stale `processing`; **(3) Stripe⇄KV reconciliation** —
+read-only `scripts/reconcile-orders.sh [site]` lists recent paid Checkout Sessions
+per resolved Stripe account (7-day lookback, full pagination), filters by
+`metadata.site`, and flags paid sessions with a missing namespace, missing record,
+or non-`completed` record — the catch-all that surfaces a silent loss regardless
+of cause. Surfaced by the June 2026 hmc-cycling.org incident; this is its safety
+net. Optional follow-up (not built): Logpush→R2 forensic archival. Design:
+`docs/superpowers/specs/2026-06-29-fulfillment-observability-design.md`; plan:
+`docs/superpowers/plans/2026-06-29-fulfillment-observability.md`.
 
 ### Per-store Stripe keys
 Shipped June 2026 (pending item 21). Per-site secret binding (item 12) made the

@@ -3,14 +3,14 @@ type: Plan
 title: "Fulfillment Observability — Implementation Plan"
 description: "Sliced implementation plan + handoff for fulfillment alerting, order audit, and Stripe⇄KV reconciliation (item 22)."
 tags: ["commerce", "observability", "alerting", "reconciliation", "handoff"]
-status: accepted
+status: shipped
 timestamp: 2026-06-29T00:00:00Z
 ---
 
 # Fulfillment Observability — Implementation Plan
 
 **Date:** 2026-06-29
-**Status:** Accepted — ready to implement
+**Status:** Shipped — all three slices merged (PRs #100, #101, #103)
 **Design:** [Fulfillment Observability and Alerting](../specs/2026-06-29-fulfillment-observability-design.md) (ROADMAP item 22)
 **Builds on:** per-store Stripe keys (item 21, shipped) — each commerce site now
 runs on its own Stripe account with restricted keys.
