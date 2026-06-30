@@ -81,6 +81,34 @@ the same steps in reverse return you to live.
 LIVE_MODE
 fi
 
+# Commerce sites charge through their own Stripe account, whose settings brand the
+# receipt + Checkout page. Surface the per-account checklist so it isn't tribal
+# knowledge (Phase 1 of the customer-order-emails design).
+if [ -f "${SITE_DIR}/functions/api/checkout.js" ]; then
+  cat >> "${SITE_DIR}/NEXT-STEPS.md" << RECEIPT_SETTINGS
+
+---
+
+## Stripe receipt settings (this store's account)
+
+This store charges through its own Stripe account, so its receipts and Checkout
+page are branded by that account's settings. Confirm them once in the Stripe
+Dashboard for **this store's account** (each store is a separate account; settings
+apply to test and live — verify live):
+
+1. **Public business name** — Settings > Business > Public details. The receipt
+   sender ("Receipt from <name>").
+2. **Support email & phone** — same page. The receipt's contact line.
+3. **Branding** (logo, icon, brand color) — Settings > Branding. Shown on receipts
+   and the Checkout page.
+4. **Statement descriptor** — Settings > Payments. How the charge reads on the
+   buyer's card statement.
+5. **Email receipts** — Settings > Customer emails: enable "Successful payments"
+   (and refunds). Live-mode receipts send automatically; test-mode receipts send
+   only from the Dashboard.
+RECEIPT_SETTINGS
+fi
+
 if [ -f "${SITE_DIR}/functions/api/contact.js" ] && [ "$TURNSTILE_ENABLED" != "true" ]; then
   cat >> "${SITE_DIR}/NEXT-STEPS.md" << RESEND_WARNING
 
