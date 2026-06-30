@@ -58,13 +58,44 @@ created), *not* payment. This is the deliberate payment-vs-fulfillment split:
 Stripe's receipt = "paid" (instant); ours = "order placed & being made" (after
 fulfillment), so we never confirm an order whose fulfillment failed.
 
-**Transport & addressing:** reuse Resend. Recipient is
-`session.customer_details.email`. From/reply-to is a per-store customer-facing
-sender — reuse `commerce.fulfillment.from` (generalizing it) or add a
-`commerce.contact`; **decide in implementation.**
+**Transport & addressing:** reuse Resend (shared `RESEND_API_KEY`). Recipient is
+the session's `customer_details.email`. **If that is absent, skip the send** —
+record a diagnostic on the `ORDERS` record and do nothing else; the order stands
+and Stripe's receipt + the item-22 operator alert still cover it. Never fail the
+order for a missing recipient.
 
-**Content:** store voice; **our order id** (session id); items + variants;
-subtotal/shipping/total; **ship-to address**; a fulfillment expectation
+**Sender — settled (not `fulfillment.from`).** Add a provider-agnostic
+`commerce.contact` block to `build-plan.yaml`:
+
+```yaml
+commerce:
+  contact:
+    from: orders@hmc-cycling.org       # required to enable customer emails
+    reply_to: support@hmc-cycling.org  # optional
+```
+
+`commerce.fulfillment.from` is *manual-provider merchant* config and is **absent
+on the Printful stores this feature primarily serves** (hmc-next-gen, anchovy-mug,
+bbpp), so it is not reused. `commerce.contact.from` is the store's customer-facing
+sender (its domain must be verified in Resend); `validate-plan` checks the shape
+(email syntax) with no credentials, and deploy gates the feature on its presence.
+It is also the natural home for the support email/phone referenced across phases.
+
+**Order data source (P1) — Stripe is the source of truth.** Checkout `metadata`
+intentionally carries only `{ fulfillment_ref, qty, personalization_* }`, and the
+`completed` `ORDERS` record stores only state/attempts/`provider_order_id` — so
+**neither holds renderable line items.** At send time the webhook **retrieves the
+session's line items from Stripe** (`GET /v1/checkout/sessions/{id}?expand[]=line_items`)
+using the per-store `STRIPE_SECRET_KEY` (already bound to the Pages project; a
+restricted key's Checkout Sessions scope covers the read). Each line item's
+`description` already includes the variant (e.g. "… (Pink / L)") because checkout
+set it — the same data Stripe's own receipt renders. Totals (`amount_total`,
+`amount_subtotal`, shipping), currency, customer email, and `shipping_details`
+come from the session the webhook already holds (or the same retrieve). No new
+order snapshot or storage is introduced.
+
+**Content:** store voice; **our order id** (session id); the retrieved items +
+variants; subtotal/shipping/total; **ship-to address**; a fulfillment expectation
 (made-to-order, ships in ~X, tracking to follow); support contact. Including the
 customer's address is appropriate here — it's their own data sent to them (unlike
 the operator alert in item 22, which omits PII).
@@ -77,8 +108,11 @@ the operator alert in item 22, which omits PII).
 
 Works for both providers (manual and printful both reach `completed`).
 
-**Config:** opt-in per store (gated on a configured customer-facing sender),
-deploy-time validation + Pages-secret push like the alert vars.
+**Config:** opt-in per store — the email sends only when `commerce.contact.from`
+is set (and `RESEND_API_KEY` is available / its sender domain verified in Resend).
+`validate-plan` checks the `commerce.contact` shape; deploy ensures
+`RESEND_API_KEY` is pushed when the feature is enabled (as it already does for the
+manual provider and `resend-form`).
 
 ## Phase 3 — Shipping notifications from Printful events (greenfield)
 
@@ -118,13 +152,22 @@ final contract.
    send-state + diagnostics — so a flaky email provider never harms an order.
 4. **Customer PII is in-scope** for these emails (recipient's own data), unlike
    operator alerts.
+5. **Sender is `commerce.contact.from`; line items come from Stripe.** Settled
+   from review: customer-facing email is configured by a provider-agnostic
+   `commerce.contact` block (not the manual-only `fulfillment.from`, absent on the
+   Printful stores), and renderable line items are **retrieved from Stripe at send
+   time** rather than stored — Stripe is the source of truth, matching its receipt.
+   A missing recipient email skips the send (with a diagnostic), never failing the
+   order.
 
 ## Testing (per phase)
 
-- **P2:** `completed` sends one confirmation (mock Resend); idempotent under
-  retry (no second send once `confirmation_sent_at` is set); send failure leaves
-  the order outcome unchanged; content includes ship-to + order id; no send on
-  `failed`/`processing`.
+- **P2:** `completed` sends one confirmation (mock Resend); line items + variants
+  render from a mocked Stripe `line_items` retrieval; idempotent under retry (no
+  second send once `confirmation_sent_at` is set); send failure leaves the order
+  outcome unchanged; **absent customer email → skip with a diagnostic, order
+  unaffected**; content includes ship-to + order id; no send on
+  `failed`/`processing`; no send when `commerce.contact.from` is unset.
 - **P3:** a `package_shipped` event maps to the right order and sends one email;
   duplicate/multi-package events de-dupe; unknown/foreign orders are ignored;
   bad/unauthenticated webhook calls rejected.
