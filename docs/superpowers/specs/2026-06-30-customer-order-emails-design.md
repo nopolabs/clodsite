@@ -70,7 +70,7 @@ phase 2 needs to add.
 
 ## Phase 2 — Order-confirmation email (supplement)
 
-**Implementation plan:** [Order-Confirmation Email — Implementation Plan (Phase 2)](../plans/2026-06-30-order-confirmation-email.md) (Codex handoff).
+**Implementation plan:** [Order-Confirmation Email — Implementation Plan (Phase 2)](../plans/2026-06-30-order-confirmation-email.md) (Claude implements, Codex reviews).
 
 **Trigger:** the webhook's **`state: completed`** transition (provider order
 created), *not* payment. This is the deliberate payment-vs-fulfillment split:

@@ -1,7 +1,7 @@
 ---
 type: Plan
 title: "Order-Confirmation Email — Implementation Plan (Phase 2)"
-description: "Handoff to implement Phase 2 of the customer-order-emails design — a store-branded order confirmation sent on fulfillment success, supplementing Stripe's receipt."
+description: "Implementation plan for Phase 2 of the customer-order-emails design — a store-branded order confirmation sent on fulfillment success, supplementing Stripe's receipt."
 tags: ["commerce", "email", "resend", "fulfillment", "handoff"]
 status: accepted
 timestamp: 2026-06-30T00:00:00Z
@@ -14,12 +14,13 @@ timestamp: 2026-06-30T00:00:00Z
 **Design:** [Customer Order Emails](../specs/2026-06-30-customer-order-emails-design.md) — **Phase 2**
 **Builds on:** item 22 slice 1 (the webhook Resend-alert pattern), per-store Stripe keys (item 21)
 
-> **Handoff to Codex.** Phase 1 (Stripe receipt tuning + the `NEXT-STEPS` checklist)
-> shipped; Phase 3 (Printful shipping notifications) is a separate greenfield pass.
-> This plan is **Phase 2 only**. Follow the `AGENTS.md` coordination checklist:
-> pull `origin/main`, add an `In Flight` entry, work on a topic branch, land tests
-> in the same PR. Claude will review — closest scrutiny on the webhook change
-> (live order path) and the non-blocking/idempotency behavior.
+> **Claude implements; Codex reviews.** Phase 1 (Stripe receipt tuning + the
+> `NEXT-STEPS` checklist) shipped; Phase 3 (Printful shipping notifications) is a
+> separate greenfield pass. This plan is **Phase 2 only**. Follow the `AGENTS.md`
+> coordination checklist: pull `origin/main`, add an `In Flight` entry, work on a
+> topic branch, land tests in the same PR. Codex will review — closest scrutiny
+> on the webhook change (live order path) and the non-blocking/idempotency
+> behavior.
 
 ## Handoff context
 
@@ -29,7 +30,7 @@ timestamp: 2026-06-30T00:00:00Z
   pivotal decisions are settled in the design spec (don't re-litigate them).
 - **Decision.** Supplement, not replace. Send on the webhook's **`state: completed`**
   transition (fulfillment success), not on payment. One PR.
-- **Branch.** `codex/order-confirmation-email`.
+- **Branch.** `claude/order-confirmation-email`.
 - **Deployment impact.** Touches the live webhook (real order path) — additive and
   non-blocking, exactly like the slice-1 alert. A send failure must never change
   the order outcome or the `200`/`500` response.
