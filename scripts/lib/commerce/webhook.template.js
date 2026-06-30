@@ -32,6 +32,8 @@ const PROVIDER_ENV = {{PROVIDER_ENV}};
 const SITE = {{SITE}};
 
 const STALE_MS = 10 * 60 * 1000;
+const ALERT_BACKOFF_MS = 6 * 60 * 60 * 1000;
+const ALERT_TIMEOUT_MS = 5 * 1000;
 const TOLERANCE_SECONDS = 300;
 
 async function verifyStripeSignature(secret, header, rawBody, nowSeconds) {
@@ -67,6 +69,76 @@ async function verifyStripeSignature(secret, header, rawBody, nowSeconds) {
     if (await crypto.subtle.verify('HMAC', key, bytes, payload)) return true;
   }
   return false;
+}
+
+function shouldSendAlert(record, now) {
+  if (!record || !record.alerted_at) return true;
+  const alertedAt = Date.parse(record.alerted_at);
+  if (!Number.isFinite(alertedAt)) return true;
+  return now - alertedAt >= ALERT_BACKOFF_MS;
+}
+
+async function sendFailureAlert(context, session, failedRecord, priorRecord, now) {
+  const {
+    RESEND_API_KEY,
+    CLODSITE_COMMERCE_ALERT_TO,
+    CLODSITE_COMMERCE_ALERT_FROM,
+  } = context.env;
+  if (!RESEND_API_KEY || !CLODSITE_COMMERCE_ALERT_TO || !CLODSITE_COMMERCE_ALERT_FROM) {
+    return failedRecord;
+  }
+  if (!shouldSendAlert(priorRecord, now)) {
+    return {
+      ...failedRecord,
+      alerted_at: priorRecord.alerted_at,
+      alert_count: priorRecord.alert_count || 1,
+    };
+  }
+
+  const lastError = failedRecord.last_error || {};
+  const lines = [
+    'Clodsite commerce fulfillment failed.',
+    '',
+    'Site: ' + SITE,
+    'Stripe session: ' + session.id,
+    'Attempts: ' + failedRecord.attempts,
+    'Error: ' + (lastError.message || '(unknown)'),
+  ];
+  if (lastError.provider_detail) {
+    lines.push('Provider detail: ' + lastError.provider_detail);
+  }
+  lines.push('', 'Stripe will retry this webhook. Check the ORDERS KV record and provider dashboard.');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ALERT_TIMEOUT_MS);
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + RESEND_API_KEY,
+        'Idempotency-Key': 'commerce-alert:' + SITE + ':' + session.id + ':' + failedRecord.attempts,
+      },
+      body: JSON.stringify({
+        to: [CLODSITE_COMMERCE_ALERT_TO],
+        from: CLODSITE_COMMERCE_ALERT_FROM,
+        subject: '[' + SITE + '] Commerce fulfillment failed: ' + session.id,
+        text: lines.join('\n'),
+      }),
+    });
+    if (!res.ok) return failedRecord;
+  } catch {
+    return failedRecord;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  return {
+    ...failedRecord,
+    alerted_at: new Date(now).toISOString(),
+    alert_count: (priorRecord && priorRecord.alert_count ? priorRecord.alert_count : 0) + 1,
+  };
 }
 
 export async function onRequestPost(context) {
@@ -157,19 +229,22 @@ export async function onRequestPost(context) {
     );
     return Response.json({ ok: true });
   } catch (error) {
-    await ORDERS.put(
-      session.id,
-      JSON.stringify({
-        state: 'failed',
-        attempts: attempts,
-        updated_at: Date.now(),
-        last_error: {
-          at: new Date().toISOString(),
-          message: String(error && error.message ? error.message : error),
-          provider_detail: (error && error.provider_detail) || null,
-        },
-      }),
-    );
+    const failedAt = Date.now();
+    const failedRecord = {
+      state: 'failed',
+      attempts: attempts,
+      updated_at: failedAt,
+      last_error: {
+        at: new Date(failedAt).toISOString(),
+        message: String(error && error.message ? error.message : error),
+        provider_detail: (error && error.provider_detail) || null,
+      },
+    };
+    await ORDERS.put(session.id, JSON.stringify(failedRecord));
+    const alertedRecord = await sendFailureAlert(context, session, failedRecord, record, failedAt);
+    if (alertedRecord !== failedRecord) {
+      await ORDERS.put(session.id, JSON.stringify(alertedRecord));
+    }
     return Response.json({ ok: false, error: 'Fulfillment failed' }, { status: 500 });
   }
 }

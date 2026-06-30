@@ -128,6 +128,23 @@ function stubResend(t, handler) {
   return calls;
 }
 
+function alertEnv() {
+  return {
+    CLODSITE_COMMERCE_ALERT_TO: 'ops@example.com',
+    CLODSITE_COMMERCE_ALERT_FROM: 'alerts@example.com',
+  };
+}
+
+function stubManualFailureAndAlerts(t) {
+  return stubResend(t, (url, init) => {
+    const body = JSON.parse(init.body);
+    if (body.subject && body.subject.startsWith('New order ')) {
+      return new Response(JSON.stringify({ message: 'rate limited' }), { status: 429 });
+    }
+    return new Response(JSON.stringify({ id: 'alert_ok' }), { status: 200 });
+  });
+}
+
 test('rejects a bad signature without touching KV or the provider', async (t) => {
   const calls = stubResend(t);
   const orders = fakeKV();
@@ -227,6 +244,24 @@ test('first delivery: fulfills via the provider and records completed', async (t
   assert.equal(record.state, 'completed');
   assert.equal(record.attempts, 1);
   assert.equal(record.provider_order_id, 'email_ok');
+});
+
+test('completed order does not emit an operator alert', async (t) => {
+  const calls = stubResend(t);
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({
+    body,
+    signature: sign(body),
+    orders,
+    env: alertEnv(),
+  }));
+
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 1);
+  const email = JSON.parse(calls[0].init.body);
+  assert.match(email.subject, /^New order /);
 });
 
 test('PROVIDER_ENV overlays plan fulfillment config onto the runtime env', async (t) => {
@@ -392,4 +427,149 @@ test('provider failure records failed with last_error and returns 500 so Stripe 
   assert.match(record.last_error.message, /order email failed/);
   assert.match(record.last_error.provider_detail, /HTTP 429/);
   assert.ok(record.last_error.at);
+});
+
+test('provider failure emits one operator alert and records alert state', async (t) => {
+  const calls = stubManualFailureAndAlerts(t);
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({
+    body,
+    signature: sign(body),
+    orders,
+    env: alertEnv(),
+  }));
+
+  assert.equal(res.status, 500);
+  assert.equal(calls.length, 2);
+  const alert = JSON.parse(calls[1].init.body);
+  assert.deepEqual(alert.to, ['ops@example.com']);
+  assert.equal(alert.from, 'alerts@example.com');
+  assert.match(alert.subject, /\[crow-shop\] Commerce fulfillment failed: cs_test_abc123/);
+  assert.match(alert.text, /Site: crow-shop/);
+  assert.match(alert.text, /Stripe session: cs_test_abc123/);
+  assert.match(alert.text, /Attempts: 1/);
+  assert.match(alert.text, /manual provider order email failed/);
+  assert.equal(calls[1].init.headers['Idempotency-Key'], 'commerce-alert:crow-shop:cs_test_abc123:1');
+  assert.ok(calls[1].init.signal instanceof AbortSignal);
+
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'failed');
+  assert.equal(record.alert_count, 1);
+  assert.ok(record.alerted_at);
+});
+
+test('operator alert non-2xx leaves failed record unalerted for retry', async (t) => {
+  const calls = stubResend(t, (url, init) => {
+    const body = JSON.parse(init.body);
+    if (body.subject && body.subject.startsWith('New order ')) {
+      return new Response(JSON.stringify({ message: 'rate limited' }), { status: 429 });
+    }
+    return new Response(JSON.stringify({ message: 'alert unavailable' }), { status: 503 });
+  });
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({
+    body,
+    signature: sign(body),
+    orders,
+    env: alertEnv(),
+  }));
+
+  assert.equal(res.status, 500);
+  assert.equal(calls.length, 2);
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'failed');
+  assert.equal(record.attempts, 1);
+  assert.equal(record.alerted_at, undefined);
+  assert.equal(record.alert_count, undefined);
+});
+
+test('operator alert throw leaves failed record unalerted for retry', async (t) => {
+  const calls = stubResend(t, (url, init) => {
+    const body = JSON.parse(init.body);
+    if (body.subject && body.subject.startsWith('New order ')) {
+      return new Response(JSON.stringify({ message: 'rate limited' }), { status: 429 });
+    }
+    throw new Error('network unavailable');
+  });
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({
+    body,
+    signature: sign(body),
+    orders,
+    env: alertEnv(),
+  }));
+
+  assert.equal(res.status, 500);
+  assert.equal(calls.length, 2);
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'failed');
+  assert.equal(record.attempts, 1);
+  assert.equal(record.alerted_at, undefined);
+  assert.equal(record.alert_count, undefined);
+});
+
+test('failed retry inside alert backoff does not send another operator alert', async (t) => {
+  const calls = stubManualFailureAndAlerts(t);
+  const orders = fakeKV({
+    cs_test_abc123: {
+      state: 'failed',
+      attempts: 1,
+      updated_at: Date.now() - 5 * 60 * 1000,
+      alerted_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      alert_count: 1,
+      last_error: { at: '2026-06-10T00:00:00.000Z', message: 'boom', provider_detail: 'HTTP 500' },
+    },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({
+    body,
+    signature: sign(body),
+    orders,
+    env: alertEnv(),
+  }));
+
+  assert.equal(res.status, 500);
+  assert.equal(calls.length, 1, 'only the provider failure call happens');
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'failed');
+  assert.equal(record.attempts, 2);
+  assert.equal(record.alert_count, 1);
+});
+
+test('failed retry after alert backoff sends another operator alert', async (t) => {
+  const calls = stubManualFailureAndAlerts(t);
+  const orders = fakeKV({
+    cs_test_abc123: {
+      state: 'failed',
+      attempts: 1,
+      updated_at: Date.now() - 7 * 60 * 60 * 1000,
+      alerted_at: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
+      alert_count: 1,
+      last_error: { at: '2026-06-10T00:00:00.000Z', message: 'boom', provider_detail: 'HTTP 500' },
+    },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({
+    body,
+    signature: sign(body),
+    orders,
+    env: alertEnv(),
+  }));
+
+  assert.equal(res.status, 500);
+  assert.equal(calls.length, 2);
+  const alert = JSON.parse(calls[1].init.body);
+  assert.match(alert.subject, /Commerce fulfillment failed/);
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'failed');
+  assert.equal(record.attempts, 2);
+  assert.equal(record.alert_count, 2);
 });
