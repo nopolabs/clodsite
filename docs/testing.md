@@ -187,6 +187,25 @@ records, groups them by state, and highlights `failed` plus stale `processing`
 orders. It requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, but does
 not call Stripe or fulfillment providers.
 
+To reconcile recent paid Stripe sessions against `ORDERS` KV, use:
+
+```bash
+SITES_DIR=/path/to/clodsite-sites bash scripts/reconcile-orders.sh
+```
+
+Pass a site slug or folder name to narrow the report:
+
+```bash
+SITES_DIR=/path/to/clodsite-sites bash scripts/reconcile-orders.sh hmc-cycling
+```
+
+The reconciliation command is read-only. It resolves each commerce site's
+configured Stripe key, queries each distinct key once for recent paid Checkout
+Sessions, filters sessions by `metadata.site`, and flags any paid session whose
+owning site's `ORDERS` KV record is missing or not `completed`. The report always
+states its lookback window and warns when a site is skipped for missing
+credentials.
+
 ## Maintenance Notes
 
 - Keep section names in `run-tests.sh` clear; they are the fastest way to find

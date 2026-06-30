@@ -27,9 +27,9 @@ or moved into Pending/Completed.
   site's `docs/index.md` in the sites repo (offline from `build-plan.yaml`).
   Remaining: optional static visualizer. Avoid overlapping on `docs/knowledge/`
   and bulk frontmatter edits while this is in flight.
-- **Fulfillment observability slice 2: order audit** (codex) — branch
-  `codex/fulfillment-audit`. Adds read-only ORDERS KV reporting across commerce
-  sites; reconciliation remains a separate follow-up slice.
+- **Fulfillment observability slice 3: Stripe/KV reconciliation** (codex) —
+  branch `codex/fulfillment-reconciliation`. Adds a read-only paid-session
+  reconciliation command that catches missing or incomplete ORDERS KV records.
 
 ## Pending
 
