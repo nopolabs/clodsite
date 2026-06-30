@@ -3,14 +3,14 @@ type: Spec
 title: "Fulfillment Observability and Alerting Design"
 description: "Detect, surface, and alert on paid-but-unfulfilled commerce orders so a fulfillment failure can never sit silent again."
 tags: ["commerce", "observability", "alerting", "ops", "reconciliation"]
-status: accepted
+status: shipped
 timestamp: 2026-06-29T00:00:00Z
 ---
 
 # Fulfillment Observability and Alerting Design
 
 **Date:** 2026-06-29
-**Status:** Accepted
+**Status:** Implemented (all three slices shipped — alerting, audit, reconciliation)
 **Implementation plan:** [Fulfillment Observability — Implementation Plan](../plans/2026-06-29-fulfillment-observability.md) (sliced: alerting → audit → reconciliation)
 **Motivated by:** the June 2026 hmc-cycling.org fulfillment incident
 **Related:** [Per-Store Stripe Keys](2026-06-29-per-store-stripe-keys-design.md), [[commerce-v1-status]]
