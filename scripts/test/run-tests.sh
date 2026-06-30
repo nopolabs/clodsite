@@ -491,6 +491,7 @@ cp scripts/test/fixtures/valid-build-plan.yaml "${SITE_DIR}/build-plan.yaml"
 echo "https://abc12345.nopo-labs.pages.dev" > "${SITE_DIR}/.deploy-output"
 bash scripts/deploy-finalize.sh > /dev/null 2>&1; assert_exit "finalize with output exits 0" 0 $?
 assert_file_exists "NEXT-STEPS.md created" "${SITE_DIR}/NEXT-STEPS.md"
+assert_not_contains "non-commerce NEXT-STEPS omits the receipt checklist" "Stripe receipt settings" "$(cat "${SITE_DIR}/NEXT-STEPS.md")"
 assert_file_exists "finalize regenerates the Site concept" "${SITE_DIR}/docs/index.md"
 assert_contains "regenerated Site concept is type Site" "type: Site" "$(cat "${SITE_DIR}/docs/index.md")"
 
@@ -2534,6 +2535,7 @@ assert_exit "test-mode finalize exits 0" 0 $?
 assert_contains "finalize announces test mode" "Stripe mode: TEST" "$COMMERCE_OUTPUT"
 NEXT_STEPS=$(cat "${SITE_DIR}/NEXT-STEPS.md")
 assert_contains "NEXT-STEPS records test mode" "Your store is in Stripe TEST mode" "$NEXT_STEPS"
+assert_contains "commerce NEXT-STEPS includes the Stripe receipt-settings checklist" "Stripe receipt settings" "$NEXT_STEPS"
 assert_contains "NEXT-STEPS names the test card" "4242 4242 4242 4242" "$NEXT_STEPS"
 assert_contains "NEXT-STEPS explains going live" "sk_live_" "$NEXT_STEPS"
 
