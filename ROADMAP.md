@@ -23,22 +23,7 @@ or moved into Pending/Completed.
 
 Items are ordered by proposed implementation priority.
 
-### 1. Commerce v1 — sell a small catalog of products
-
-Add ecommerce as a Clodsite capability: a `catalog` component with
-customer-requested size guides, site-level cart chrome (lookbook / preview /
-live activation states), Stripe Checkout via generated Pages Functions, and a
-fulfillment provider abstraction proven by shipping two providers (`printful`
-and `manual` email fulfillment). Catalog data is provider-synced, normalized,
-and committed alongside mirrored assets, keeping builds offline and the
-inference boundary intact. Webhook fulfillment runs a KV-backed order state
-machine (`processing`/`completed`/`failed`) with automated Stripe-retry
-recovery and stored diagnostics; human intervention remains the final tier.
-Dogfood target is hmc-cycling.org, ported and cut over as the final phase.
-Six PR-able phases; the first four need no Printful account. Partially
-advances "General Pages Functions and secrets" below (per-component secrets,
-`provision-kv`, `provision-stripe-webhook`). Design:
-`docs/superpowers/specs/2026-06-10-commerce-design.md`.
+*(Item 1, "Commerce v1 — sell a small catalog of products", shipped June 2026 — see Completed below. Numbering preserved so existing references to later items stay stable.)*
 
 ### 2. Customer order confirmation emails
 
@@ -324,6 +309,22 @@ adds long-form reading typography to the theme contract). Design (proposed):
 ---
 
 ## Completed
+
+### Commerce v1 — sell a small catalog of products
+Shipped June 2026 (pending item 1). Ecommerce as a Clodsite capability: a
+`catalog` component (display-only lookbook through live checkout, with size
+guides), site-level cart chrome with preview/live activation, Stripe Checkout via
+generated Pages Functions, and a two-provider fulfillment abstraction (`printful`
++ `manual`). Catalog data is provider-synced, normalized, and committed with
+mirrored assets, so builds stay offline. Webhook fulfillment runs a KV-backed
+order state machine (`processing`/`completed`/`failed`) with Stripe-retry recovery
+and stored diagnostics. Delivered across an 11-phase validation ladder and
+**dogfooded by hmc-cycling.org, anchovy-mug, and bbpp** (bbpp adding personalized
+certificate-print commerce). Remaining commerce work is tracked separately:
+order-confirmation emails (item 2), named catalogs (item 3), the mtw4 port (item
+15), and Printful sync preserving product views (item 19). v1 deliberately defers
+dynamic shipping rates, per-variant pricing, >2-dimension variant UI, and digital
+goods. Design: `docs/superpowers/specs/2026-06-10-commerce-design.md`.
 
 ### Fulfillment observability and alerting
 Shipped June 2026 (pending item 22). The webhook KV state machine already
