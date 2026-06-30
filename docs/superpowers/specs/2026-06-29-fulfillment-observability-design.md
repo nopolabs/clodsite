@@ -11,6 +11,7 @@ timestamp: 2026-06-29T00:00:00Z
 
 **Date:** 2026-06-29
 **Status:** Accepted
+**Implementation plan:** [Fulfillment Observability — Implementation Plan](../plans/2026-06-29-fulfillment-observability.md) (sliced: alerting → audit → reconciliation)
 **Motivated by:** the June 2026 hmc-cycling.org fulfillment incident
 **Related:** [Per-Store Stripe Keys](2026-06-29-per-store-stripe-keys-design.md), [[commerce-v1-status]]
 
