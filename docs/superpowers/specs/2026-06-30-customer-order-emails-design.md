@@ -39,14 +39,31 @@ made-to-order Printful, "in production / ships in ~X / tracking to follow"), our
 **order id** (it shows Stripe's receipt #, not the KV/session key support uses),
 or store-specific voice/next-steps. Those gaps define phases 2–3.
 
-## Phase 1 — Tune the Stripe receipt (operator, no code)
+## Phase 1 — Tune the Stripe receipt (operator settings, surfaced at deploy)
 
 Each store now runs on its **own** Stripe account (item 21), so receipt identity
-is per-store. Operator runbook: set, per account, the **business name**, **support
-email + phone**, **logo**, and **brand color** (Stripe Dashboard → Settings →
-Business / Branding; receipts are enabled under Customer emails). Acceptance: each
-store's receipt shows that store's identity and support, not a personal default
-(e.g. HMC's receipt currently shows `danrevel@gmail.com`).
+is per-store. The settings are operator dashboard work (no per-request code), but
+they shouldn't live only in the operator's head — so the small **code** part of
+this phase is to **surface the checklist in `NEXT-STEPS.md` for every commerce
+deploy**. `deploy-finalize` appends a "Stripe receipt settings" section whenever
+the site has a checkout Function, listing the per-account settings to confirm:
+
+- **Public business name** (Settings → Business → Public details) — the receipt
+  sender ("Receipt from <name>").
+- **Support email & phone** (same page) — the receipt's contact line.
+- **Branding: logo, icon, brand color** (Settings → Branding) — receipts +
+  Checkout.
+- **Statement descriptor** (Settings → Payments) — how the charge reads on the
+  card statement.
+- **Email receipts enabled** (Settings → Customer emails → "Successful
+  payments", and refunds) — live-mode receipts auto-send; test-mode sends only
+  from the Dashboard.
+
+Settings apply per account (each store is a separate account) and are shared
+across test/live (verify live). Acceptance: each store's receipt shows that
+store's identity and support, not a personal default (e.g. HMC's receipt
+currently shows `danrevel@gmail.com`), and the checklist appears in a commerce
+site's `NEXT-STEPS.md`.
 
 This is the cheapest, highest-ratio improvement and unblocks judging how much
 phase 2 needs to add.
