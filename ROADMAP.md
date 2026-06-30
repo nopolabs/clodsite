@@ -320,7 +320,7 @@ mirrored assets, so builds stay offline. Webhook fulfillment runs a KV-backed
 order state machine (`processing`/`completed`/`failed`) with Stripe-retry recovery
 and stored diagnostics. Delivered across an 11-phase validation ladder and
 **dogfooded by hmc-cycling.org, anchovy-mug, and bbpp** (bbpp adding personalized
-certificate-print commerce). Remaining commerce work is tracked separately:
+mug commerce backed by generated certificate artwork). Remaining commerce work is tracked separately:
 order-confirmation emails (item 2), named catalogs (item 3), the mtw4 port (item
 15), and Printful sync preserving product views (item 19). v1 deliberately defers
 dynamic shipping rates, per-variant pricing, >2-dimension variant UI, and digital
