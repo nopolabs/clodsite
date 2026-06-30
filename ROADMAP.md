@@ -360,9 +360,10 @@ refuses to silently move a store between accounts within a mode (records
 Accounts: Read** (`accounts_kyc_basic_read`) for the guard. All four commerce
 sites migrated onto their own accounts (anchovy + anchovy-mug → Anchovy, bbpp,
 hmc-next-gen → HMC) and verified with live purchases (incl. an end-to-end HMC
-order + refund). Surfaced by the June 2026 hmc-cycling.org incident. Remaining
-cleanup: retire the shared `STRIPE_SECRET_KEY_LIVE` (keep `_TEST` for
-clodsite-demo). Design:
+order + refund). The shared `STRIPE_SECRET_KEY_LIVE` was then retired from the
+registry (`_TEST` kept for `clodsite-demo`, which is test/preview) and the
+orphaned bbpp/hmc webhook endpoints removed from the Anchovy account. Surfaced by
+the June 2026 hmc-cycling.org incident. Design:
 `docs/superpowers/specs/2026-06-29-per-store-stripe-keys-design.md`.
 
 ### Declarative per-site secret binding
