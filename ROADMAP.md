@@ -33,9 +33,11 @@ items and variants, totals, shipping address, and support contact, with a clear
 distinction between payment confirmation and later fulfillment or shipping
 updates. Delivery must be idempotent under Stripe webhook retries, record
 diagnostics for failed sends, and avoid delaying or invalidating the paid order
-when the email provider is unavailable. Decide during design whether this
-supplements Stripe receipts or replaces them as the primary customer-facing
-purchase confirmation.
+when the email provider is unavailable. Decided: **supplement** Stripe's receipt
+(don't replace it), in three phases — (1) tune the per-store Stripe receipt, (2)
+order-confirmation email on fulfillment success, (3) shipping notifications from
+Printful events. Design (accepted):
+`docs/superpowers/specs/2026-06-30-customer-order-emails-design.md`.
 
 ### 3. Named commerce catalogs — multiple commerce components per site
 
