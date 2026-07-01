@@ -35,6 +35,10 @@ const PROVIDER_ENV = {{PROVIDER_ENV}};
 // our own checkout stamped with this slug (metadata.site).
 const SITE = {{SITE}};
 
+// Human-facing site name for customer email copy. Routing, metadata filtering,
+// and idempotency keys continue to use SITE, the stable slug.
+const SITE_NAME = {{SITE_NAME}};
+
 // commerce.contact (item 2 phase 2): the customer-facing order-confirmation
 // sender, or null when the site has not opted in. A plan value, not a secret.
 const CONTACT = {{CONTACT}};
@@ -159,7 +163,7 @@ function formatMoney(amountMinor, currency) {
 // items (with variant baked into `description`) require a Stripe retrieve.
 function buildConfirmationEmail(session, lineItems) {
   const lines = [
-    'Thanks for your order from ' + SITE + '!',
+    'Thanks for your order from ' + SITE_NAME + '!',
     '',
     'Order: ' + session.id,
     '',
@@ -243,7 +247,7 @@ async function sendConfirmationEmail(context, session, now) {
     const body = {
       to: [email],
       from: CONTACT.from,
-      subject: 'Your ' + SITE + ' order is confirmed',
+      subject: 'Your ' + SITE_NAME + ' order is confirmed',
       text: buildConfirmationEmail(session, lineItems),
     };
     if (CONTACT.reply_to) body.reply_to = CONTACT.reply_to;
