@@ -30,6 +30,7 @@ const PLAN = {
 
 const CONTACT_PLAN = {
   slug: SITE_SLUG,
+  name: 'Crow Shop',
   commerce: {
     enabled: true,
     provider: 'manual',
@@ -352,7 +353,9 @@ test('completed order sends a store-branded confirmation when commerce.contact.f
   assert.deepEqual(confirmation.to, ['pat@example.com']);
   assert.equal(confirmation.from, 'confirm@example.com');
   assert.equal(confirmation.reply_to, 'support@example.com');
-  assert.match(confirmation.subject, /crow-shop/);
+  assert.equal(confirmation.subject, 'Your Crow Shop order is confirmed');
+  assert.match(confirmation.text, /Thanks for your order from Crow Shop!/);
+  assert.doesNotMatch(confirmation.text, /from crow-shop!/);
   assert.match(confirmation.text, /Order: cs_test_abc123/);
   assert.match(confirmation.text, /2 x Crow Tee \(Pink \/ L\) — \$40\.00 USD/);
   assert.match(confirmation.text, /Subtotal: \$40\.00 USD/);

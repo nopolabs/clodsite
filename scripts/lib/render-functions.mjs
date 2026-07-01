@@ -120,6 +120,9 @@ export function renderWebhookSource(plan) {
     .replace('{{CREATE_ORDER}}', () => createOrder)
     .replace('{{PROVIDER_ENV}}', () => JSON.stringify(providerEnv))
     .replace('{{SITE}}', () => JSON.stringify(plan.slug))
+    .replace('{{SITE_NAME}}', () => JSON.stringify(
+      typeof plan.name === 'string' && plan.name.trim() !== '' ? plan.name.trim() : plan.slug,
+    ))
     .replace('{{CONTACT}}', () => JSON.stringify(contact));
 }
 
