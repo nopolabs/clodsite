@@ -218,6 +218,22 @@ test('commerce-contact-from selector reads commerce.contact.from, trimmed, or em
   );
 });
 
+test('printful-store-id selector reads commerce.printful.store_id as a string, or empty when unset/invalid', () => {
+  assert.deepEqual(
+    selectPlanValues(makePlan({ commerce: { printful: { store_id: 17828143 } } }), ['printful-store-id']),
+    ['17828143']
+  );
+  assert.deepEqual(selectPlanValues(makePlan(), ['printful-store-id']), ['']);
+  assert.deepEqual(
+    selectPlanValues(makePlan({ commerce: { printful: { store_id: '17828143' } } }), ['printful-store-id']),
+    ['']
+  );
+  assert.deepEqual(
+    selectPlanValues(makePlan({ commerce: { printful: { store_id: -1 } } }), ['printful-store-id']),
+    ['']
+  );
+});
+
 test('selectPlanValues returns requested semantic values in order', () => {
   assert.deepEqual(
     selectPlanValues(makePlan(), [

@@ -51,28 +51,7 @@ fi
 
 # The webhook must be reachable at the production hostname: the custom domain
 # when one is planned, the *.pages.dev subdomain otherwise.
-WEBHOOK_HOST="$CUSTOM_DOMAIN"
-if [ -z "$WEBHOOK_HOST" ]; then
-  if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-    echo "Error: resolving the Pages subdomain requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID."
-    exit 1
-  fi
-  if ! PROJECT_RESPONSE=$(curl --fail-with-body --silent --show-error \
-    --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${SITE_NAME}"); then
-    echo "Error: could not read the Cloudflare Pages project '${SITE_NAME}'."
-    exit 1
-  fi
-  WEBHOOK_HOST=$(RESPONSE="$PROJECT_RESPONSE" node -e "
-const response=JSON.parse(process.env.RESPONSE);
-process.stdout.write(response.success === true && response.result && response.result.subdomain || '');
-")
-  unset PROJECT_RESPONSE
-  if [ -z "$WEBHOOK_HOST" ]; then
-    echo "Error: Cloudflare Pages project did not return a production subdomain."
-    exit 1
-  fi
-fi
+WEBHOOK_HOST=$(clodsite_resolve_webhook_host "$SITE_NAME" "$CUSTOM_DOMAIN") || exit 1
 WEBHOOK_URL="https://${WEBHOOK_HOST}/api/webhook"
 
 # Prints the response body. Returns 0 on 2xx, 4 on 404, 1 otherwise.

@@ -24,6 +24,10 @@ const selectors = {
     const contact = plan.commerce && plan.commerce.contact;
     return contact && typeof contact.from === 'string' ? contact.from.trim() : '';
   },
+  'printful-store-id': (plan) => {
+    const storeId = plan.commerce && plan.commerce.printful && plan.commerce.printful.store_id;
+    return Number.isInteger(storeId) && storeId > 0 ? String(storeId) : '';
+  },
   'secret-bindings': (plan) => getSecretBindings(plan)
     .map((b) => b.canonical + ' ' + b.source).join('\n'),
 };

@@ -214,6 +214,11 @@ fi
 if ! bash "${SCRIPT_DIR}/provision-stripe-webhook.sh"; then
   exit 1
 fi
+# Item 2 phase 3: registers Printful's package_shipped webhook and pushes
+# PRINTFUL_WEBHOOK_SECRET. Gates itself on functions/api/printful-webhook.js.
+if ! bash "${SCRIPT_DIR}/provision-printful-webhook.sh"; then
+  exit 1
+fi
 
 # Push RESEND_API_KEY as a Pages secret when a generated Function needs it:
 # the contact form, the manual provider's order emails, commerce alerts,

@@ -28,6 +28,17 @@ assert_file_exists() {
   fi
 }
 
+assert_file_not_exists() {
+  local desc="$1" file="$2"
+  if [ ! -f "$file" ]; then
+    echo "  ✓ $desc"
+    PASS=$((PASS + 1))
+  else
+    echo "  ✗ $desc ($file exists)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 assert_dir_exists() {
   local desc="$1" dir="$2"
   if [ -d "$dir" ]; then
@@ -2415,6 +2426,9 @@ WEBHOOK_FUNCTION=$(cat "${SITE_DIR}/functions/api/webhook.js")
 assert_contains "webhook overlays the contact sender" '"from":"orders@example.com","reply_to":"support@example.com"' "$WEBHOOK_FUNCTION"
 node --check "${SITE_DIR}/functions/api/webhook.js" 2>/dev/null
 assert_exit "webhook with commerce.contact is valid JS" 0 $?
+# item 2 phase 3 is Printful-only (Decision 2): the manual provider with
+# commerce.contact set still renders no shipping-notification Function.
+assert_file_not_exists "no printful shipping-webhook for the manual provider" "${SITE_DIR}/functions/api/printful-webhook.js"
 
 # printful provider: the webhook embeds the store id from the plan's
 # printful block, so rendering without one fails loudly
@@ -2455,16 +2469,28 @@ cat > "${CHECKOUT_STUB_DIR}/curl" << STUB
 #!/usr/bin/env bash
 method="GET"
 url=""
+data=""
 while [ "\$#" -gt 0 ]; do
   case "\$1" in
     --request) method="\$2"; shift 2 ;;
-    --data|--header|--write-out) shift 2 ;;
+    --data) data="\$2"; shift 2 ;;
+    --header|--write-out) shift 2 ;;
     --fail-with-body|--silent|--show-error) shift ;;
     *) url="\$1"; shift ;;
   esac
 done
 echo "\${method} \${url}" >> "${CHECKOUT_STUB_LOG}"
 case "\${url}" in
+  *api.printful.com/webhooks\?*)
+    if [ "\${method}" = "PUT" ]; then
+      printf '{"code":200,"result":%s}' "\$data" > "${CHECKOUT_STUB_DIR}/printful-webhook-state.json"
+      printf '%s\n200' "\$(cat "${CHECKOUT_STUB_DIR}/printful-webhook-state.json")"
+    elif [ -f "${CHECKOUT_STUB_DIR}/printful-webhook-state.json" ]; then
+      printf '%s\n200' "\$(cat "${CHECKOUT_STUB_DIR}/printful-webhook-state.json")"
+    else
+      printf '%s\n200' '{"code":200,"result":null}'
+    fi
+    ;;
   *api.stripe.com/v1/webhook_endpoints/we_test1)
     printf '%s\n200' '{"id":"we_test1","url":"https://commerce-live-test.pages.dev/api/webhook"}'
     ;;
@@ -2652,25 +2678,61 @@ assert_contains "printful Pages deploy called" "pages deploy dist" "$CHECKOUT_LO
 
 # commerce.contact.from (item 2 phase 2) needs RESEND_API_KEY even on a
 # printful store, which has no manual-provider fulfillment email of its own.
+# It also (item 2 phase 3) renders the shipping-notification Function, which
+# needs its own PRINTFUL_WEBHOOK_SECRET.
 commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]}; p.commerce.contact={from:'orders@example.com'};"
 bash scripts/render-functions.sh > /dev/null 2>&1
 assert_exit "printful + commerce.contact re-render exits 0" 0 $?
+assert_file_exists "printful shipping-webhook Function rendered" "${SITE_DIR}/functions/api/printful-webhook.js"
+node --check "${SITE_DIR}/functions/api/printful-webhook.js" 2>/dev/null
+assert_exit "printful shipping-webhook Function is valid JS" 0 $?
+PRINTFUL_SHIPPING_FUNCTION=$(cat "${SITE_DIR}/functions/api/printful-webhook.js")
+assert_not_contains "printful shipping-webhook Function has no unrendered markers" "{{" "$PRINTFUL_SHIPPING_FUNCTION"
+assert_contains "printful shipping-webhook overlays the store id" 'PRINTFUL_STORE_ID = "17828143"' "$PRINTFUL_SHIPPING_FUNCTION"
+assert_contains "printful shipping-webhook overlays the contact sender" '"from":"orders@example.com"' "$PRINTFUL_SHIPPING_FUNCTION"
 
 ( unset RESEND_API_KEY; STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test SITE_DIR="${SITE_DIR}" \
   bash scripts/deploy.sh > /dev/null 2>&1 )
 assert_exit "printful with commerce.contact.from but no RESEND_API_KEY exits 1" 1 $?
 
 : > "${CHECKOUT_STUB_LOG}"
-STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm SITE_DIR="${SITE_DIR}" \
+( unset PRINTFUL_WEBHOOK_SECRET; STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm \
+  SITE_DIR="${SITE_DIR}" bash scripts/deploy.sh > /dev/null 2>&1 )
+assert_exit "printful shipping webhook without PRINTFUL_WEBHOOK_SECRET exits 1" 1 $?
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_not_contains "no Printful webhook registration attempted without the secret" "api.printful.com/webhooks" "$CHECKOUT_LOG"
+
+: > "${CHECKOUT_STUB_LOG}"
+STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm \
+  PRINTFUL_WEBHOOK_SECRET=ptok_test_secret SITE_DIR="${SITE_DIR}" \
   bash scripts/deploy.sh > /dev/null 2>&1
 assert_exit "printful deploy with commerce.contact.from exits 0" 0 $?
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
 assert_contains "Resend key pushed for the order-confirmation email" "pages secret put RESEND_API_KEY --project-name commerce-live-test stdin=re_confirm" "$CHECKOUT_LOG"
+assert_contains "Printful shipping webhook registered" "PUT https://api.printful.com/webhooks?store_id=17828143" "$CHECKOUT_LOG"
+assert_contains "PRINTFUL_WEBHOOK_SECRET pushed" "pages secret put PRINTFUL_WEBHOOK_SECRET --project-name commerce-live-test stdin=ptok_test_secret" "$CHECKOUT_LOG"
+PRINTFUL_WEBHOOK_STATE=$(cat "${CHECKOUT_STUB_DIR}/printful-webhook-state.json")
+assert_contains "registered webhook URL embeds the shared secret" 'token=ptok_test_secret' "$PRINTFUL_WEBHOOK_STATE"
+assert_contains "registered webhook subscribes to package_shipped" '"package_shipped"' "$PRINTFUL_WEBHOOK_STATE"
+
+# second deploy with the same secret reuses the registration (no re-PUT) —
+# only .env's own edit should ever change the registered webhook.
+: > "${CHECKOUT_STUB_LOG}"
+STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm \
+  PRINTFUL_WEBHOOK_SECRET=ptok_test_secret SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "printful redeploy with an unchanged secret exits 0" 0 $?
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_contains "unchanged registration is still read on redeploy" "GET https://api.printful.com/webhooks?store_id=17828143" "$CHECKOUT_LOG"
+assert_not_contains "unchanged Printful webhook registration is not re-PUT" "PUT https://api.printful.com/webhooks" "$CHECKOUT_LOG"
+assert_contains "PRINTFUL_WEBHOOK_SECRET still re-pushed every deploy (plain overwrite)" "pages secret put PRINTFUL_WEBHOOK_SECRET --project-name commerce-live-test stdin=ptok_test_secret" "$CHECKOUT_LOG"
+rm -f "${CHECKOUT_STUB_DIR}/printful-webhook-state.json"
 
 # reset to the printful-without-contact plan expected by the sections below
 commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]};"
 bash scripts/render-functions.sh > /dev/null 2>&1
 assert_exit "printful re-render after commerce.contact test exits 0" 0 $?
+assert_file_not_exists "printful shipping-webhook Function removed without commerce.contact" "${SITE_DIR}/functions/api/printful-webhook.js"
 
 COMMERCE_OUTPUT=$(STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_alert \
   CLODSITE_COMMERCE_ALERT_TO=ops@example.com SITE_DIR="${SITE_DIR}" \
