@@ -211,64 +211,70 @@ async function sendConfirmationEmail(context, session, now) {
   const { RESEND_API_KEY, STRIPE_SECRET_KEY } = context.env;
   if (!RESEND_API_KEY) return null;
 
-  const email = session.customer_details && session.customer_details.email;
-  if (!email) {
-    return { ok: false, diagnostic: 'customer_details.email missing on session' };
-  }
-
-  let lineItems;
-  const fetchController = new AbortController();
-  const fetchTimeout = setTimeout(() => fetchController.abort(), ALERT_TIMEOUT_MS);
+  // The whole body is one try/catch, not per-step: this function is called
+  // both from the fulfillment success path (inside its own try/catch, whose
+  // catch treats any throw as a *fulfillment* failure and would otherwise
+  // flip an already-completed order back to failed and retrigger createOrder)
+  // and from the completed-duplicate recovery path below. Nothing here may
+  // ever throw — every failure mode returns a diagnostic instead.
   try {
-    const res = await fetch(
-      'https://api.stripe.com/v1/checkout/sessions/' + session.id + '?expand[]=line_items',
-      { signal: fetchController.signal, headers: { 'Authorization': 'Bearer ' + STRIPE_SECRET_KEY } },
-    );
-    if (!res.ok) {
-      return { ok: false, diagnostic: 'Stripe line_items retrieve failed: HTTP ' + res.status };
+    const email = session.customer_details && session.customer_details.email;
+    if (!email) {
+      return { ok: false, diagnostic: 'customer_details.email missing on session' };
     }
-    const full = await res.json();
-    lineItems = (full.line_items && full.line_items.data) || [];
+
+    let lineItems;
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), ALERT_TIMEOUT_MS);
+    try {
+      const res = await fetch(
+        'https://api.stripe.com/v1/checkout/sessions/' + session.id + '?expand[]=line_items',
+        { signal: fetchController.signal, headers: { 'Authorization': 'Bearer ' + STRIPE_SECRET_KEY } },
+      );
+      if (!res.ok) {
+        return { ok: false, diagnostic: 'Stripe line_items retrieve failed: HTTP ' + res.status };
+      }
+      const full = await res.json();
+      lineItems = (full.line_items && full.line_items.data) || [];
+    } finally {
+      clearTimeout(fetchTimeout);
+    }
+
+    const body = {
+      to: [email],
+      from: CONTACT.from,
+      subject: 'Your ' + SITE + ' order is confirmed',
+      text: buildConfirmationEmail(session, lineItems),
+    };
+    if (CONTACT.reply_to) body.reply_to = CONTACT.reply_to;
+
+    const sendController = new AbortController();
+    const sendTimeout = setTimeout(() => sendController.abort(), ALERT_TIMEOUT_MS);
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        signal: sendController.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + RESEND_API_KEY,
+          'Idempotency-Key': 'commerce-confirmation:' + SITE + ':' + session.id,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        return { ok: false, diagnostic: 'Resend send failed: HTTP ' + res.status };
+      }
+    } finally {
+      clearTimeout(sendTimeout);
+    }
+
+    return { ok: true, sentAt: new Date(now).toISOString() };
   } catch (error) {
     return {
       ok: false,
-      diagnostic: 'Stripe line_items retrieve failed: ' + String(error && error.message ? error.message : error),
+      diagnostic: 'order-confirmation email failed: ' + String(error && error.message ? error.message : error),
     };
-  } finally {
-    clearTimeout(fetchTimeout);
   }
-
-  const body = {
-    to: [email],
-    from: CONTACT.from,
-    subject: 'Your ' + SITE + ' order is confirmed',
-    text: buildConfirmationEmail(session, lineItems),
-  };
-  if (CONTACT.reply_to) body.reply_to = CONTACT.reply_to;
-
-  const sendController = new AbortController();
-  const sendTimeout = setTimeout(() => sendController.abort(), ALERT_TIMEOUT_MS);
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      signal: sendController.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + RESEND_API_KEY,
-        'Idempotency-Key': 'commerce-confirmation:' + SITE + ':' + session.id,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      return { ok: false, diagnostic: 'Resend send failed: HTTP ' + res.status };
-    }
-  } catch (error) {
-    return { ok: false, diagnostic: 'Resend send failed: ' + String(error && error.message ? error.message : error) };
-  } finally {
-    clearTimeout(sendTimeout);
-  }
-
-  return { ok: true, sentAt: new Date(now).toISOString() };
 }
 
 export async function onRequestPost(context) {
@@ -326,6 +332,20 @@ export async function onRequestPost(context) {
   const now = Date.now();
   const record = await ORDERS.get(session.id, 'json');
   if (record && record.state === 'completed') {
+    // Recovery, not re-fulfillment: createOrder never runs again here. A
+    // completed record can legitimately lack both confirmation_sent_at and
+    // confirmation_error if the Worker was interrupted between the two KV
+    // writes on the success path (below) — this is the only place that gap
+    // gets a second chance, on Stripe's next redelivery of the same session.
+    if (CONTACT && CONTACT.from && !record.confirmation_sent_at && !record.confirmation_error) {
+      const confirmation = await sendConfirmationEmail(context, session, now);
+      if (confirmation) {
+        const updated = confirmation.ok
+          ? { ...record, confirmation_sent_at: confirmation.sentAt }
+          : { ...record, confirmation_error: confirmation.diagnostic };
+        await ORDERS.put(session.id, JSON.stringify(updated));
+      }
+    }
     return Response.json({ ok: true, duplicate: true });
   }
   if (record && record.state === 'processing' && now - record.updated_at < STALE_MS) {

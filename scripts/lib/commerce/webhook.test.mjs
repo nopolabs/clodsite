@@ -447,6 +447,79 @@ test('idempotent: a prior confirmation_sent_at is preserved and the confirmation
   assert.equal(record.confirmation_sent_at, sentAt);
 });
 
+test('duplicate delivery of a completed order recovers a never-attempted confirmation without refulfilling', async (t) => {
+  // Simulates a Worker interrupted between the completed-state write and the
+  // confirmation write: state is completed, but neither confirmation_sent_at
+  // nor confirmation_error was ever recorded (review finding on PR #109).
+  const calls = stubConfirmationFlow(t);
+  const orders = fakeKV({
+    cs_test_abc123: { state: 'completed', attempts: 1, updated_at: Date.now(), provider_order_id: 'order_ok' },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).duplicate, true);
+  assert.equal(calls.length, 2, 'only the Stripe line_items retrieve and the confirmation send — no merchant order email');
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.attempts, 1, 'createOrder never reruns');
+  assert.ok(record.confirmation_sent_at);
+});
+
+test('duplicate-delivery confirmation recovery records a diagnostic on failure without refulfilling', async (t) => {
+  stubConfirmationFlow(t, { stripeStatus: 500 });
+  const orders = fakeKV({
+    cs_test_abc123: { state: 'completed', attempts: 1, updated_at: Date.now(), provider_order_id: 'order_ok' },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.confirmation_sent_at, undefined);
+  assert.match(record.confirmation_error, /Stripe line_items retrieve failed/);
+});
+
+test('duplicate delivery does not retry a confirmation that already failed once (confirmation_error set)', async (t) => {
+  const calls = stubConfirmationFlow(t);
+  const orders = fakeKV({
+    cs_test_abc123: {
+      state: 'completed',
+      attempts: 1,
+      updated_at: Date.now(),
+      provider_order_id: 'order_ok',
+      confirmation_error: 'Resend send failed: HTTP 429',
+    },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 0, 'no retry once a confirmation attempt has already been recorded');
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.confirmation_sent_at, undefined);
+  assert.equal(record.confirmation_error, 'Resend send failed: HTTP 429');
+});
+
+test('duplicate delivery never attempts confirmation recovery when commerce.contact.from is unset', async (t) => {
+  const calls = stubResend(t);
+  const orders = fakeKV({
+    cs_test_abc123: { state: 'completed', attempts: 1, updated_at: Date.now(), provider_order_id: 'email_ok' },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).duplicate, true);
+  assert.equal(calls.length, 0);
+});
+
 test('personalization fields pass through metadata to the provider verbatim', async (t) => {
   const calls = stubResend(t);
   const token = 'tok_aaaaaaaaaaaaaaaaaaaa';
