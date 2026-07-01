@@ -37,7 +37,7 @@ if [ -z "${PRINTFUL_API_KEY:-}" ]; then
   exit 1
 fi
 if [ -z "${PRINTFUL_WEBHOOK_SECRET:-}" ]; then
-  GENERATED=$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))")
+  GENERATED=$(node -e "process.stdout.write('pfws_' + require('crypto').randomBytes(16).toString('hex'))")
   echo "Error: PRINTFUL_WEBHOOK_SECRET is not set in .env but this site's shipping-notification"
   echo "webhook needs it (a shared secret embedded in the registered URL; Printful's v1 webhooks"
   echo "aren't signed, so this is a defense-in-depth gate, not the auth model itself — see"

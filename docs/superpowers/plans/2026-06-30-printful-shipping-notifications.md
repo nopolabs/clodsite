@@ -256,10 +256,11 @@ invoked from `deploy.sh` alongside `provision-stripe-webhook.sh`/
 - Require `PRINTFUL_WEBHOOK_SECRET` in the environment, exactly like the
   `RESEND_API_KEY`/`PRINTFUL_API_KEY` gates already in `deploy.sh` (Decision 1,
   revised) — **not** generated and used within the same run. If unset: print a
-  freshly generated candidate value and the exact `.env` line to add
-  (`Add PRINTFUL_WEBHOOK_SECRET=<value> to .env and redeploy.`, matching the
-  phrasing of every other missing-secret error in `deploy.sh`), then `exit 1`
-  without touching Printful or Pages.
+  freshly generated candidate value using the `pfws_` prefix plus 32 random
+  lowercase hex characters (`PRINTFUL_WEBHOOK_SECRET=pfws_<32 hex chars>`) and
+  the exact `.env` line to add (`Add PRINTFUL_WEBHOOK_SECRET=<value> to .env and
+  redeploy.`, matching the phrasing of every other missing-secret error in
+  `deploy.sh`), then `exit 1` without touching Printful or Pages.
 - Once present, `GET https://api.printful.com/webhooks` (store scoped via the
   `X-PF-Store-Id` header, confirmed — **not** the `?store_id=` query param the
   Orders API uses) and compare the registered `url` to the one we'd register
@@ -310,6 +311,9 @@ receipt checklist).
   provisioning run — it comes from `.env` like every other credential, and a
   missing value is a hard stop with no partial Printful/Pages write (Decision
   1, revised).
+- Generated candidates follow `pfws_<32 lowercase hex chars>`: the prefix makes
+  the URL token recognizable as a Printful webhook secret, while the 128-bit
+  random suffix keeps the value comfortably unguessable.
 
 ## Tests
 
