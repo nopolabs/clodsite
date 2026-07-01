@@ -135,14 +135,15 @@ manual provider and `resend-form`).
 
 ## Phase 3 — Shipping notifications from Printful events (greenfield)
 
+**Implementation plan:** [Printful Shipping Notifications — Implementation Plan (Phase 3)](../plans/2026-06-30-printful-shipping-notifications.md) (Claude implements, Codex reviews the plan before any code).
+
 Goal: email the buyer "your order shipped" with carrier + tracking number/URL when
 the item actually ships.
 
 Sketch: register a **Printful webhook** per printful store
 (`package_shipped`, likely `order_failed`/`canceled` too); a new Pages Function
-(e.g. `functions/api/printful-webhook.js`) receives it, **maps the Printful order
-back to our order** (the order's `external_id` is the Stripe session id;
-`provider_order_id` is also recorded in KV), reads the tracking fields, and sends
+(e.g. `functions/api/printful-webhook.js`) receives it, reads the tracking
+fields, and sends
 a Resend email to the customer. Same reliability discipline (idempotent per
 shipment, non-blocking, KV send-state).
 

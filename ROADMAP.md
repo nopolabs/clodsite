@@ -17,7 +17,9 @@ larger, multi-step efforts with agreed milestones, or for active work another
 agent should avoid overlapping. Remove entries promptly when merged, abandoned,
 or moved into Pending/Completed.
 
-- None currently.
+- **Item 2, phase 3 — Printful shipping notifications** (Claude, plan under
+  Codex review as of 2026-06-30; no code yet). See item 2 below and
+  `docs/superpowers/plans/2026-06-30-printful-shipping-notifications.md`.
 
 ## Pending
 
@@ -39,9 +41,18 @@ Design (accepted): `docs/superpowers/specs/2026-06-30-customer-order-emails-desi
 id, items + variants and totals via a Stripe `line_items` retrieve, ship-to
 address, a fulfillment expectation) — idempotent (`confirmation_sent_at` on the
 KV record), non-blocking (bounded, failure-swallowing, diagnostics on
-`confirmation_error`), and never affects the order outcome. Remaining: **phase
-3** (shipping notifications from Printful events) — its own design pass first,
-especially the Printful webhook auth model.
+`confirmation_error`), and never affects the order outcome.
+
+**Phase 3 in progress (Claude implements, Codex reviews — plan first, then
+code):** shipping notifications from Printful `package_shipped` events. Plan:
+`docs/superpowers/plans/2026-06-30-printful-shipping-notifications.md` — auth
+model settled as verify-on-receipt (never trust the webhook payload's
+shipment content; re-fetch the order from Printful's own API before sending),
+gated on `commerce.contact.from` already being set (no new build-plan field),
+per-`(order_id, shipment_id)` idempotency reusing the existing `ORDERS` KV
+binding. A few v1 `/webhooks` wire-format details are flagged as spike items
+to confirm against the live API before the production template is written.
+Awaiting Codex's review of the plan before coding starts.
 
 ### 3. Named commerce catalogs — multiple commerce components per site
 
