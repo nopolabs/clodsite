@@ -2278,6 +2278,37 @@ COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
 assert_exit "unknown fulfillment field exits 1" 1 $?
 assert_contains "unknown fulfillment field is rejected" 'commerce.fulfillment has unknown field "cc"' "$COMMERCE_OUTPUT"
 
+# commerce.contact (item 2 phase 2): opt-in order-confirmation sender,
+# provider-agnostic and distinct from commerce.fulfillment.
+commerce_live_mutation "p.commerce.contact={from:'orders@example.com',reply_to:'support@example.com'};"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "valid commerce.contact exits 0" 0 $?
+
+commerce_live_mutation "p.commerce.contact='orders@example.com';"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "string commerce.contact exits 1" 1 $?
+assert_contains "commerce.contact object shape is named" "commerce.contact must be an object" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.contact={from:'orders@example.com',cc:'extra@example.com'};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "unknown commerce.contact field exits 1" 1 $?
+assert_contains "unknown commerce.contact field is rejected" 'commerce.contact has unknown field "cc"' "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.contact={};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "commerce.contact without from exits 1" 1 $?
+assert_contains "commerce.contact.from requirement is named" "commerce.contact.from is required" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.contact={from:'not-an-email'};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "bad commerce.contact.from exits 1" 1 $?
+assert_contains "commerce.contact.from syntax is named" "commerce.contact.from must look like an email address" "$COMMERCE_OUTPUT"
+
+commerce_live_mutation "p.commerce.contact={from:'orders@example.com',reply_to:'not-an-email'};"
+COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "bad commerce.contact.reply_to exits 1" 1 $?
+assert_contains "commerce.contact.reply_to syntax is named" "commerce.contact.reply_to must look like an email address" "$COMMERCE_OUTPUT"
+
 commerce_live_mutation "p.commerce.shipping.countries=['usa'];"
 COMMERCE_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
 assert_exit "bad shipping countries exits 1" 1 $?
@@ -2355,6 +2386,7 @@ assert_contains "checkout CONFIG carries plan shipping countries" '"countries":[
 assert_not_contains "checkout Function has no unrendered markers" "{{" "$CHECKOUT_FUNCTION"
 assert_contains "webhook inlines the provider createOrder" "async function createOrder" "$WEBHOOK_FUNCTION"
 assert_contains "webhook overlays the fulfillment destination" '"COMMERCE_FULFILLMENT_TO":"orders@example.com"' "$WEBHOOK_FUNCTION"
+assert_contains "webhook CONTACT is null when commerce.contact is unset" "const CONTACT = null;" "$WEBHOOK_FUNCTION"
 assert_not_contains "webhook Function has no unrendered markers" "{{" "$WEBHOOK_FUNCTION"
 LIVE_HTML=$(cat "${SITE_DIR}/dist/index.html")
 assert_contains "live HTML wires checkout to the API" "/api/checkout" "$LIVE_HTML"
@@ -2373,6 +2405,16 @@ assert_contains "checkout CONFIG carries item-count base rate" '"base_rate_minor
 assert_contains "checkout CONFIG carries item-count additional rate" '"per_additional_item_minor":220' "$CHECKOUT_FUNCTION"
 assert_contains "checkout CONFIG carries shipping display name" '"display_name":"Standard Shipping"' "$CHECKOUT_FUNCTION"
 assert_contains "checkout CONFIG carries delivery estimate" '"delivery_estimate":{"minimum":{"unit":"business_day","value":5},"maximum":{"unit":"business_day","value":10}}' "$CHECKOUT_FUNCTION"
+
+# commerce.contact (item 2 phase 2): the webhook overlays the confirmation
+# sender from the plan, a value not a secret.
+commerce_live_mutation "p.commerce.contact={from:'orders@example.com',reply_to:'support@example.com'};"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "render-functions with commerce.contact exits 0" 0 $?
+WEBHOOK_FUNCTION=$(cat "${SITE_DIR}/functions/api/webhook.js")
+assert_contains "webhook overlays the contact sender" '"from":"orders@example.com","reply_to":"support@example.com"' "$WEBHOOK_FUNCTION"
+node --check "${SITE_DIR}/functions/api/webhook.js" 2>/dev/null
+assert_exit "webhook with commerce.contact is valid JS" 0 $?
 
 # printful provider: the webhook embeds the store id from the plan's
 # printful block, so rendering without one fails loudly
@@ -2607,6 +2649,28 @@ assert_contains "exported Printful key overrides .env during deploy" "pages secr
 assert_contains "Stripe secret key still pushed for printful" "pages secret put STRIPE_SECRET_KEY" "$CHECKOUT_LOG"
 assert_not_contains "no Resend push for printful without contact form" "pages secret put RESEND_API_KEY" "$CHECKOUT_LOG"
 assert_contains "printful Pages deploy called" "pages deploy dist" "$CHECKOUT_LOG"
+
+# commerce.contact.from (item 2 phase 2) needs RESEND_API_KEY even on a
+# printful store, which has no manual-provider fulfillment email of its own.
+commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]}; p.commerce.contact={from:'orders@example.com'};"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "printful + commerce.contact re-render exits 0" 0 $?
+
+( unset RESEND_API_KEY; STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1 )
+assert_exit "printful with commerce.contact.from but no RESEND_API_KEY exits 1" 1 $?
+
+: > "${CHECKOUT_STUB_LOG}"
+STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh > /dev/null 2>&1
+assert_exit "printful deploy with commerce.contact.from exits 0" 0 $?
+CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
+assert_contains "Resend key pushed for the order-confirmation email" "pages secret put RESEND_API_KEY --project-name commerce-live-test stdin=re_confirm" "$CHECKOUT_LOG"
+
+# reset to the printful-without-contact plan expected by the sections below
+commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]};"
+bash scripts/render-functions.sh > /dev/null 2>&1
+assert_exit "printful re-render after commerce.contact test exits 0" 0 $?
 
 COMMERCE_OUTPUT=$(STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_alert \
   CLODSITE_COMMERCE_ALERT_TO=ops@example.com SITE_DIR="${SITE_DIR}" \

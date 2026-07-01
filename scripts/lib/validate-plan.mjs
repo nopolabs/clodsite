@@ -81,6 +81,12 @@ function isEnvVarName(value) {
   return typeof value === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
 }
 
+// Structural email-syntax check only (commerce.contact, item 2 phase 2) — no
+// credentials or deliverability implied, mirrors isEnvVarName's syntax-only scope.
+function isEmailAddress(value) {
+  return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function validateNonEmptyString(value, fieldPath) {
   if (typeof value !== 'string') {
     errors.push(fieldPath + ' must be a string');
@@ -598,7 +604,7 @@ if ('commerce' in plan) {
   if (!isObject(commerce)) {
     errors.push('commerce must be an object');
   } else {
-    const allowed = new Set(['enabled', 'provider', 'currency', 'checkout', 'preview', 'shipping', 'fulfillment', 'printful']);
+    const allowed = new Set(['enabled', 'provider', 'currency', 'checkout', 'preview', 'shipping', 'fulfillment', 'printful', 'contact']);
     for (const field of Object.keys(commerce)) {
       if (!allowed.has(field))
         errors.push('commerce has unknown field "' + field + '"');
@@ -743,6 +749,26 @@ if ('commerce' in plan) {
       }
     } else if (commerce.provider === 'manual' && 'checkout' in commerce) {
       errors.push('commerce.fulfillment ({ to, from }) is required when provider is manual and checkout is set — the manual provider emails orders to the merchant');
+    }
+    // commerce.contact (item 2 phase 2): provider-agnostic customer-facing
+    // sender for the order-confirmation email — distinct from
+    // commerce.fulfillment, which is manual-provider merchant config absent on
+    // Printful stores. Opt-in: the confirmation only sends when from is set.
+    if ('contact' in commerce) {
+      if (!isObject(commerce.contact)) {
+        errors.push('commerce.contact must be an object ({ from, reply_to? })');
+      } else {
+        for (const field of Object.keys(commerce.contact)) {
+          if (field !== 'from' && field !== 'reply_to')
+            errors.push('commerce.contact has unknown field "' + field + '"');
+        }
+        if (!('from' in commerce.contact))
+          errors.push('commerce.contact.from is required (enables the order-confirmation email)');
+        else if (!isEmailAddress(commerce.contact.from))
+          errors.push('commerce.contact.from must look like an email address');
+        if ('reply_to' in commerce.contact && !isEmailAddress(commerce.contact.reply_to))
+          errors.push('commerce.contact.reply_to must look like an email address');
+      }
     }
     // The printful provider curates products in the plan (spec §1, tier 1):
     // which sync products to sell, at what price, with what description.

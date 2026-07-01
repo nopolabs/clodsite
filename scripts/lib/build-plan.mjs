@@ -20,6 +20,10 @@ const selectors = {
     const printful = plan.commerce && plan.commerce.printful;
     return printful && typeof printful.api_key_env === 'string' ? printful.api_key_env.trim() : '';
   },
+  'commerce-contact-from': (plan) => {
+    const contact = plan.commerce && plan.commerce.contact;
+    return contact && typeof contact.from === 'string' ? contact.from.trim() : '';
+  },
   'secret-bindings': (plan) => getSecretBindings(plan)
     .map((b) => b.canonical + ' ' + b.source).join('\n'),
 };

@@ -18,6 +18,10 @@
 //   processing, fresh          -> 503 WITHOUT calling createOrder
 //   createOrder success        -> completed, 200
 //   createOrder failure        -> failed + last_error, 500 so Stripe retries
+//
+// On createOrder success, when commerce.contact.from is set (item 2 phase 2),
+// a store-branded order-confirmation email also sends to the customer — purely
+// additive, never affects the state machine above or the response.
 
 {{CREATE_ORDER}}
 
@@ -30,6 +34,10 @@ const PROVIDER_ENV = {{PROVIDER_ENV}};
 // shared account to every site's webhook endpoint; we fulfill only sessions
 // our own checkout stamped with this slug (metadata.site).
 const SITE = {{SITE}};
+
+// commerce.contact (item 2 phase 2): the customer-facing order-confirmation
+// sender, or null when the site has not opted in. A plan value, not a secret.
+const CONTACT = {{CONTACT}};
 
 const STALE_MS = 10 * 60 * 1000;
 const ALERT_BACKOFF_MS = 6 * 60 * 60 * 1000;
@@ -141,6 +149,128 @@ async function sendFailureAlert(context, session, failedRecord, priorRecord, now
   };
 }
 
+function formatMoney(amountMinor, currency) {
+  if (typeof amountMinor !== 'number') return null;
+  return '$' + (amountMinor / 100).toFixed(2) + ' ' + String(currency || 'usd').toUpperCase();
+}
+
+// Order-confirmation body (item 2 phase 2). Totals/currency/shipping/email
+// come from the session the webhook already holds; only the renderable line
+// items (with variant baked into `description`) require a Stripe retrieve.
+function buildConfirmationEmail(session, lineItems) {
+  const lines = [
+    'Thanks for your order from ' + SITE + '!',
+    '',
+    'Order: ' + session.id,
+    '',
+    'Items:',
+  ];
+  for (const item of lineItems) {
+    const amount = formatMoney(item.amount_total, session.currency);
+    lines.push('  ' + item.quantity + ' x ' + item.description + (amount ? ' — ' + amount : ''));
+  }
+  const subtotal = formatMoney(session.amount_subtotal, session.currency);
+  const shippingAmount = session.shipping_cost && formatMoney(session.shipping_cost.amount_total, session.currency);
+  const total = formatMoney(session.amount_total, session.currency);
+  if (subtotal || shippingAmount || total) lines.push('');
+  if (subtotal) lines.push('Subtotal: ' + subtotal);
+  if (shippingAmount) lines.push('Shipping: ' + shippingAmount);
+  if (total) lines.push('Total: ' + total);
+
+  const shipping = (session.collected_information && session.collected_information.shipping_details)
+    || session.shipping_details;
+  if (shipping && shipping.address) {
+    const address = shipping.address;
+    lines.push('', 'Ship to:');
+    for (const part of [
+      shipping.name,
+      address.line1,
+      address.line2,
+      [address.city, address.state, address.postal_code].filter(Boolean).join(' '),
+      address.country,
+    ]) {
+      if (part) lines.push('  ' + part);
+    }
+  }
+
+  lines.push('', 'Your order is in production — we will follow up once it ships.');
+  if (CONTACT && CONTACT.reply_to) lines.push('', 'Questions? Reply to ' + CONTACT.reply_to + '.');
+
+  return lines.join('\n');
+}
+
+// Sends the store-branded order-confirmation email on fulfillment success
+// (Decision 2, item-2 phase 2 spec) — supplements Stripe's payment receipt
+// with ship-to address, our order id, and a fulfillment expectation. Resolved
+// independently of sendFailureAlert: a missing customer email or a Resend/
+// Stripe failure here returns a diagnostic and never touches the order
+// outcome (Reliability, same spec). Returns null when the feature is unused
+// (no commerce.contact.from or no RESEND_API_KEY) so the caller writes nothing.
+async function sendConfirmationEmail(context, session, now) {
+  if (!CONTACT || !CONTACT.from) return null;
+  const { RESEND_API_KEY, STRIPE_SECRET_KEY } = context.env;
+  if (!RESEND_API_KEY) return null;
+
+  const email = session.customer_details && session.customer_details.email;
+  if (!email) {
+    return { ok: false, diagnostic: 'customer_details.email missing on session' };
+  }
+
+  let lineItems;
+  const fetchController = new AbortController();
+  const fetchTimeout = setTimeout(() => fetchController.abort(), ALERT_TIMEOUT_MS);
+  try {
+    const res = await fetch(
+      'https://api.stripe.com/v1/checkout/sessions/' + session.id + '?expand[]=line_items',
+      { signal: fetchController.signal, headers: { 'Authorization': 'Bearer ' + STRIPE_SECRET_KEY } },
+    );
+    if (!res.ok) {
+      return { ok: false, diagnostic: 'Stripe line_items retrieve failed: HTTP ' + res.status };
+    }
+    const full = await res.json();
+    lineItems = (full.line_items && full.line_items.data) || [];
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostic: 'Stripe line_items retrieve failed: ' + String(error && error.message ? error.message : error),
+    };
+  } finally {
+    clearTimeout(fetchTimeout);
+  }
+
+  const body = {
+    to: [email],
+    from: CONTACT.from,
+    subject: 'Your ' + SITE + ' order is confirmed',
+    text: buildConfirmationEmail(session, lineItems),
+  };
+  if (CONTACT.reply_to) body.reply_to = CONTACT.reply_to;
+
+  const sendController = new AbortController();
+  const sendTimeout = setTimeout(() => sendController.abort(), ALERT_TIMEOUT_MS);
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      signal: sendController.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + RESEND_API_KEY,
+        'Idempotency-Key': 'commerce-confirmation:' + SITE + ':' + session.id,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      return { ok: false, diagnostic: 'Resend send failed: HTTP ' + res.status };
+    }
+  } catch (error) {
+    return { ok: false, diagnostic: 'Resend send failed: ' + String(error && error.message ? error.message : error) };
+  } finally {
+    clearTimeout(sendTimeout);
+  }
+
+  return { ok: true, sentAt: new Date(now).toISOString() };
+}
+
 export async function onRequestPost(context) {
   const { STRIPE_WEBHOOK_SECRET, ORDERS } = context.env;
   if (!STRIPE_WEBHOOK_SECRET || !ORDERS) {
@@ -218,15 +348,28 @@ export async function onRequestPost(context) {
 
   try {
     const result = await createOrder(order, Object.assign({}, context.env, PROVIDER_ENV));
-    await ORDERS.put(
-      session.id,
-      JSON.stringify({
-        state: 'completed',
-        attempts: attempts,
-        updated_at: Date.now(),
-        provider_order_id: result.provider_order_id,
-      }),
-    );
+    let completedRecord = {
+      state: 'completed',
+      attempts: attempts,
+      updated_at: Date.now(),
+      provider_order_id: result.provider_order_id,
+    };
+    // A prior failed/processing record never carries confirmation_sent_at in
+    // practice (it's only ever written here, on success) — checked anyway so
+    // a retry can never double-send (Reliability, item-2 phase 2 spec).
+    const alreadySent = record && record.confirmation_sent_at;
+    if (alreadySent) completedRecord.confirmation_sent_at = record.confirmation_sent_at;
+    await ORDERS.put(session.id, JSON.stringify(completedRecord));
+
+    if (!alreadySent) {
+      const confirmation = await sendConfirmationEmail(context, session, Date.now());
+      if (confirmation) {
+        completedRecord = confirmation.ok
+          ? { ...completedRecord, confirmation_sent_at: confirmation.sentAt }
+          : { ...completedRecord, confirmation_error: confirmation.diagnostic };
+        await ORDERS.put(session.id, JSON.stringify(completedRecord));
+      }
+    }
     return Response.json({ ok: true });
   } catch (error) {
     const failedAt = Date.now();

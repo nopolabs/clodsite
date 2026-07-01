@@ -163,6 +163,11 @@ small plan diff, that is usually good: the compiler is doing its job.
 - `catalog` can render display-only products from `commerce/catalog.json`.
 - Live checkout requires the top-level commerce configuration and deploy-time
   Stripe/KV provisioning.
+- `commerce.contact: { from, reply_to? }` opts a live store into a store-branded
+  order-confirmation email (sent to the customer once fulfillment succeeds,
+  supplementing Stripe's payment receipt). `from` must be a Resend-verified
+  sender; deploy requires `RESEND_API_KEY` when set. This is separate from
+  `commerce.fulfillment` (the manual provider's merchant-facing order email).
 
 ### Per-site credentials and Stripe mode
 
