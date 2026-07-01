@@ -206,6 +206,18 @@ test('secret-bindings CLI prints one "CANONICAL SOURCE" per line', () => {
   );
 });
 
+test('commerce-contact-from selector reads commerce.contact.from, trimmed, or empty when unset', () => {
+  assert.deepEqual(
+    selectPlanValues(makePlan({ commerce: { contact: { from: '  orders@example.com  ' } } }), ['commerce-contact-from']),
+    ['orders@example.com']
+  );
+  assert.deepEqual(selectPlanValues(makePlan(), ['commerce-contact-from']), ['']);
+  assert.deepEqual(
+    selectPlanValues(makePlan({ commerce: { fulfillment: { to: 'a@b.com', from: 'c@d.com' } } }), ['commerce-contact-from']),
+    ['']
+  );
+});
+
 test('selectPlanValues returns requested semantic values in order', () => {
   assert.deepEqual(
     selectPlanValues(makePlan(), [

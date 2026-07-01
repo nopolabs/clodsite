@@ -111,10 +111,16 @@ export function renderWebhookSource(plan) {
     }
     providerEnv = { PRINTFUL_STORE_ID: String(storeId) };
   }
+  // commerce.contact (item 2 phase 2): the order-confirmation email's sender.
+  // A plan value, not a secret — opt-in via presence of `from`.
+  const contact = plan.commerce.contact && plan.commerce.contact.from
+    ? { from: plan.commerce.contact.from, reply_to: plan.commerce.contact.reply_to || null }
+    : null;
   return fs.readFileSync(path.join(LIB_DIR, 'commerce', 'webhook.template.js'), 'utf8')
     .replace('{{CREATE_ORDER}}', () => createOrder)
     .replace('{{PROVIDER_ENV}}', () => JSON.stringify(providerEnv))
-    .replace('{{SITE}}', () => JSON.stringify(plan.slug));
+    .replace('{{SITE}}', () => JSON.stringify(plan.slug))
+    .replace('{{CONTACT}}', () => JSON.stringify(contact));
 }
 
 // ── proxy config ──────────────────────────────────────────────────────────────

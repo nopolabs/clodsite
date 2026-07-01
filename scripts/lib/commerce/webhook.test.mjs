@@ -28,6 +28,22 @@ const PLAN = {
   },
 };
 
+const CONTACT_PLAN = {
+  slug: SITE_SLUG,
+  commerce: {
+    enabled: true,
+    provider: 'manual',
+    currency: 'usd',
+    checkout: {
+      provider: 'stripe',
+      success_url: '/success/?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: '/',
+    },
+    fulfillment: { to: 'orders@example.com', from: 'shop@example.com' },
+    contact: { from: 'confirm@example.com', reply_to: 'support@example.com' },
+  },
+};
+
 const PRINTFUL_PLAN = {
   slug: SITE_SLUG,
   commerce: {
@@ -55,6 +71,9 @@ const { onRequestPost } = await import(pathToFileURL(modulePath).href);
 const printfulModulePath = path.join(tmpDir, 'webhook-printful.mjs');
 fs.writeFileSync(printfulModulePath, renderWebhookSource(PRINTFUL_PLAN));
 const { onRequestPost: onRequestPostPrintful } = await import(pathToFileURL(printfulModulePath).href);
+const contactModulePath = path.join(tmpDir, 'webhook-contact.mjs');
+fs.writeFileSync(contactModulePath, renderWebhookSource(CONTACT_PLAN));
+const { onRequestPost: onRequestPostWithContact } = await import(pathToFileURL(contactModulePath).href);
 test.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
 function fakeKV(entries = {}) {
@@ -91,6 +110,10 @@ function makeEvent(overrides = {}) {
           name: 'Pat Crow',
           address: { line1: '1 Roost Ln', city: 'Corvid', state: 'CA', postal_code: '90210', country: 'US' },
         },
+        currency: 'usd',
+        amount_subtotal: 4000,
+        amount_total: 4500,
+        shipping_cost: { amount_total: 500 },
         ...overrides,
       },
     },
@@ -101,6 +124,7 @@ function makeContext({ body, signature, orders, env = {} }) {
   return {
     env: {
       STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
+      STRIPE_SECRET_KEY: 'sk_test_key',
       RESEND_API_KEY: 're_test_key',
       ORDERS: orders,
       ...env,
@@ -275,6 +299,225 @@ test('PROVIDER_ENV overlays plan fulfillment config onto the runtime env', async
   assert.equal(email.from, 'shop@example.com');
   assert.match(email.text, /2 x 4938291/);
   assert.match(email.text, /Pat Crow/);
+});
+
+// ── order-confirmation email (item 2 phase 2) ──────────────────────────────
+
+const DEFAULT_LINE_ITEMS = [
+  { description: 'Crow Tee (Pink / L)', quantity: 2, amount_total: 4000 },
+];
+
+// Confirmation flow makes up to three network calls, all through the same
+// stubbed fetch: the manual provider's merchant order email, the Stripe
+// line_items retrieve, and the customer confirmation email — discriminated by
+// URL host and (for the two Resend sends) subject prefix, mirroring
+// stubManualFailureAndAlerts.
+function stubConfirmationFlow(t, { lineItems = DEFAULT_LINE_ITEMS, stripeStatus = 200, onConfirmation } = {}) {
+  const calls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    if (String(url).startsWith('https://api.stripe.com/')) {
+      if (stripeStatus !== 200) return new Response('{}', { status: stripeStatus });
+      return new Response(JSON.stringify({ line_items: { data: lineItems } }), { status: 200 });
+    }
+    const body = JSON.parse(init.body);
+    if (body.subject && body.subject.startsWith('New order ')) {
+      return new Response(JSON.stringify({ id: 'order_ok' }), { status: 200 });
+    }
+    return onConfirmation
+      ? onConfirmation(url, init, body)
+      : new Response(JSON.stringify({ id: 'confirm_ok' }), { status: 200 });
+  };
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  return calls;
+}
+
+test('completed order sends a store-branded confirmation when commerce.contact.from is set', async (t) => {
+  const calls = stubConfirmationFlow(t);
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 3, 'merchant order email, Stripe line_items retrieve, confirmation email');
+  const stripeCall = calls.find((c) => String(c.url).startsWith('https://api.stripe.com/'));
+  assert.equal(stripeCall.url, 'https://api.stripe.com/v1/checkout/sessions/cs_test_abc123?expand[]=line_items');
+  assert.equal(stripeCall.init.headers['Authorization'], 'Bearer sk_test_key');
+
+  const confirmation = JSON.parse(calls[2].init.body);
+  assert.deepEqual(confirmation.to, ['pat@example.com']);
+  assert.equal(confirmation.from, 'confirm@example.com');
+  assert.equal(confirmation.reply_to, 'support@example.com');
+  assert.match(confirmation.subject, /crow-shop/);
+  assert.match(confirmation.text, /Order: cs_test_abc123/);
+  assert.match(confirmation.text, /2 x Crow Tee \(Pink \/ L\) — \$40\.00 USD/);
+  assert.match(confirmation.text, /Subtotal: \$40\.00 USD/);
+  assert.match(confirmation.text, /Shipping: \$5\.00 USD/);
+  assert.match(confirmation.text, /Total: \$45\.00 USD/);
+  assert.match(confirmation.text, /Pat Crow/);
+  assert.equal(calls[2].init.headers['Idempotency-Key'], 'commerce-confirmation:crow-shop:cs_test_abc123');
+
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.ok(record.confirmation_sent_at);
+});
+
+test('no confirmation email when commerce.contact.from is unset', async (t) => {
+  const calls = stubResend(t);
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 1, 'only the merchant order email sends');
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.confirmation_sent_at, undefined);
+});
+
+test('absent customer_details.email skips the confirmation with a diagnostic; order unaffected', async (t) => {
+  const calls = stubConfirmationFlow(t);
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent({ customer_details: undefined }));
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 1, 'no Stripe retrieve or confirmation send once email is absent');
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.confirmation_sent_at, undefined);
+  assert.match(record.confirmation_error, /customer_details\.email missing/);
+});
+
+test('Stripe line_items retrieve failure leaves the order completed, unaffected', async (t) => {
+  stubConfirmationFlow(t, { stripeStatus: 500 });
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.confirmation_sent_at, undefined);
+  assert.match(record.confirmation_error, /Stripe line_items retrieve failed/);
+});
+
+test('Resend confirmation-send failure leaves the order completed, unaffected', async (t) => {
+  stubConfirmationFlow(t, {
+    onConfirmation: () => new Response(JSON.stringify({ message: 'rate limited' }), { status: 429 }),
+  });
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.confirmation_sent_at, undefined);
+  assert.match(record.confirmation_error, /Resend send failed/);
+});
+
+test('idempotent: a prior confirmation_sent_at is preserved and the confirmation is not resent', async (t) => {
+  const calls = stubConfirmationFlow(t);
+  const sentAt = '2026-01-01T00:00:00.000Z';
+  const orders = fakeKV({
+    cs_test_abc123: {
+      state: 'failed',
+      attempts: 1,
+      updated_at: Date.now() - 5 * 60 * 1000,
+      confirmation_sent_at: sentAt,
+      last_error: { at: '2026-06-10T00:00:00.000Z', message: 'boom', provider_detail: 'HTTP 500' },
+    },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 1, 'only the merchant order email retries; no Stripe retrieve or resend');
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.confirmation_sent_at, sentAt);
+});
+
+test('duplicate delivery of a completed order recovers a never-attempted confirmation without refulfilling', async (t) => {
+  // Simulates a Worker interrupted between the completed-state write and the
+  // confirmation write: state is completed, but neither confirmation_sent_at
+  // nor confirmation_error was ever recorded (review finding on PR #109).
+  const calls = stubConfirmationFlow(t);
+  const orders = fakeKV({
+    cs_test_abc123: { state: 'completed', attempts: 1, updated_at: Date.now(), provider_order_id: 'order_ok' },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).duplicate, true);
+  assert.equal(calls.length, 2, 'only the Stripe line_items retrieve and the confirmation send — no merchant order email');
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.attempts, 1, 'createOrder never reruns');
+  assert.ok(record.confirmation_sent_at);
+});
+
+test('duplicate-delivery confirmation recovery records a diagnostic on failure without refulfilling', async (t) => {
+  stubConfirmationFlow(t, { stripeStatus: 500 });
+  const orders = fakeKV({
+    cs_test_abc123: { state: 'completed', attempts: 1, updated_at: Date.now(), provider_order_id: 'order_ok' },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.state, 'completed');
+  assert.equal(record.confirmation_sent_at, undefined);
+  assert.match(record.confirmation_error, /Stripe line_items retrieve failed/);
+});
+
+test('duplicate delivery does not retry a confirmation that already failed once (confirmation_error set)', async (t) => {
+  const calls = stubConfirmationFlow(t);
+  const orders = fakeKV({
+    cs_test_abc123: {
+      state: 'completed',
+      attempts: 1,
+      updated_at: Date.now(),
+      provider_order_id: 'order_ok',
+      confirmation_error: 'Resend send failed: HTTP 429',
+    },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPostWithContact(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 0, 'no retry once a confirmation attempt has already been recorded');
+  const record = orders.read('cs_test_abc123');
+  assert.equal(record.confirmation_sent_at, undefined);
+  assert.equal(record.confirmation_error, 'Resend send failed: HTTP 429');
+});
+
+test('duplicate delivery never attempts confirmation recovery when commerce.contact.from is unset', async (t) => {
+  const calls = stubResend(t);
+  const orders = fakeKV({
+    cs_test_abc123: { state: 'completed', attempts: 1, updated_at: Date.now(), provider_order_id: 'email_ok' },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({ body, signature: sign(body), orders }));
+
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).duplicate, true);
+  assert.equal(calls.length, 0);
 });
 
 test('personalization fields pass through metadata to the provider verbatim', async (t) => {

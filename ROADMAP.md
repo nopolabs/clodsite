@@ -28,16 +28,20 @@ Items are ordered by proposed implementation priority.
 ### 2. Customer order confirmation emails
 
 Send a transactional confirmation to the customer after a paid order is
-durably recorded. The message should include the order identifier, purchased
-items and variants, totals, shipping address, and support contact, with a clear
-distinction between payment confirmation and later fulfillment or shipping
-updates. Delivery must be idempotent under Stripe webhook retries, record
-diagnostics for failed sends, and avoid delaying or invalidating the paid order
-when the email provider is unavailable. Decided: **supplement** Stripe's receipt
-(don't replace it), in three phases — (1) tune the per-store Stripe receipt, (2)
-order-confirmation email on fulfillment success, (3) shipping notifications from
-Printful events. Design (accepted):
-`docs/superpowers/specs/2026-06-30-customer-order-emails-design.md`.
+durably recorded. Decided: **supplement** Stripe's receipt (don't replace it),
+in three phases — (1) tune the per-store Stripe receipt, (2) order-confirmation
+email on fulfillment success, (3) shipping notifications from Printful events.
+Design (accepted): `docs/superpowers/specs/2026-06-30-customer-order-emails-design.md`.
+
+**Phases 1–2 shipped.** Phase 2 (Claude implements, Codex reviews): opt-in
+`commerce.contact: { from, reply_to? }` build-plan block; on the webhook's
+`completed` transition the customer gets a store-branded confirmation (order
+id, items + variants and totals via a Stripe `line_items` retrieve, ship-to
+address, a fulfillment expectation) — idempotent (`confirmation_sent_at` on the
+KV record), non-blocking (bounded, failure-swallowing, diagnostics on
+`confirmation_error`), and never affects the order outcome. Remaining: **phase
+3** (shipping notifications from Printful events) — its own design pass first,
+especially the Printful webhook auth model.
 
 ### 3. Named commerce catalogs — multiple commerce components per site
 

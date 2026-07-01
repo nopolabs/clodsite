@@ -45,10 +45,11 @@ if [ ! -d "${SITE_DIR}/dist" ] || [ -z "$(ls -A "${SITE_DIR}/dist" 2>/dev/null)"
 fi
 
 PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
-  "${SITE_DIR}/build-plan.yaml" slug commerce-provider stripe-mode)
+  "${SITE_DIR}/build-plan.yaml" slug commerce-provider stripe-mode commerce-contact-from)
 SITE_NAME=$(echo "$PLAN_VALUES" | sed -n '1p')
 COMMERCE_PROVIDER=$(echo "$PLAN_VALUES" | sed -n '2p')
 STRIPE_DECLARED_MODE=$(echo "$PLAN_VALUES" | sed -n '3p')
+COMMERCE_CONTACT_FROM=$(echo "$PLAN_VALUES" | sed -n '4p')
 
 # The manual provider fulfills by emailing the merchant through Resend, so a
 # live commerce site needs the key even without a resend-form component.
@@ -64,9 +65,15 @@ if [ -f "${SITE_DIR}/functions/api/webhook.js" ] \
   NEEDS_COMMERCE_ALERTS="true"
   NEEDS_RESEND="true"
 fi
+# commerce.contact.from (item 2 phase 2) enables the customer-facing
+# order-confirmation email, sent via the same shared Resend key.
+if [ -f "${SITE_DIR}/functions/api/webhook.js" ] && [ -n "$COMMERCE_CONTACT_FROM" ]; then
+  NEEDS_RESEND="true"
+fi
 if [ "$NEEDS_RESEND" = "true" ] && [ -z "${RESEND_API_KEY:-}" ]; then
   echo "Error: RESEND_API_KEY is not set in .env but this site needs Resend"
-  echo "(resend-form component, manual-provider order emails, and/or commerce alerts)."
+  echo "(resend-form component, manual-provider order emails, commerce alerts,"
+  echo "and/or the order-confirmation email)."
   echo "Add RESEND_API_KEY=re_... to .env and redeploy."
   exit 1
 fi
@@ -209,7 +216,8 @@ if ! bash "${SCRIPT_DIR}/provision-stripe-webhook.sh"; then
 fi
 
 # Push RESEND_API_KEY as a Pages secret when a generated Function needs it:
-# the contact form, the manual provider's order emails, and/or commerce alerts.
+# the contact form, the manual provider's order emails, commerce alerts,
+# and/or the order-confirmation email.
 if [ "$NEEDS_RESEND" = "true" ]; then
   echo "Setting RESEND_API_KEY secret for '$SITE_NAME'..."
   if ! printf '%s' "$RESEND_API_KEY" | wrangler pages secret put RESEND_API_KEY \
