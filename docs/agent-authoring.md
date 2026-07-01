@@ -169,6 +169,23 @@ small plan diff, that is usually good: the compiler is doing its job.
   sender; deploy requires `RESEND_API_KEY` when set. This is separate from
   `commerce.fulfillment` (the manual provider's merchant-facing order email).
 
+### Resend sender addresses
+
+Resend's free tier verifies **one domain**; today that's `mastertimewaster.com`.
+Every `from` address across sites — `resend-form`, `commerce.fulfillment.from`,
+`commerce.contact.from` — must live on that domain (or whichever verified
+domain is current) until a site earns its own.
+
+Convention: **`<site-slug>[-<qualifier>]@mastertimewaster.com`** — the site's
+slug, optionally suffixed with what the address is for. Examples:
+`anchovy-mug-orders@mastertimewaster.com`, `bbpp-contact@mastertimewaster.com`.
+This keeps every sender visibly tied to its site without requiring a new
+verified domain per site.
+
+`reply_to` and any human-facing `to` address (e.g. `commerce.fulfillment.to`)
+are not sender addresses and are not bound by this — they can be wherever a
+human actually reads mail.
+
 ### Per-site credentials and Stripe mode
 
 By default the canonical env vars (`STRIPE_SECRET_KEY`, `PRINTFUL_API_KEY`,
