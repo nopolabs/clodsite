@@ -63,6 +63,12 @@ WEBHOOK_HOST=$(clodsite_resolve_webhook_host "$SITE_NAME" "$CUSTOM_DOMAIN") || e
 WEBHOOK_URL="https://${WEBHOOK_HOST}/api/printful-webhook?token=${PRINTFUL_WEBHOOK_SECRET}"
 
 # Prints the response body. Returns 0 on 2xx, 1 otherwise.
+#
+# The Webhook API scopes an account-level token to a store via the
+# X-PF-Store-Id header, not the ?store_id= query param the Orders API uses
+# elsewhere in this codebase (confirmed against Printful's v1 docs,
+# developers.printful.com/docs/#tag/Webhook-API) — the two APIs disagree on
+# this, so printful_request is scoped to Webhook-API calls only.
 printful_request() {
   local method="${1:?method required}"
   local url="${2:?url required}"
@@ -73,6 +79,7 @@ printful_request() {
     if ! response=$(curl --silent --show-error \
       --request "$method" \
       --header "Authorization: Bearer ${PRINTFUL_API_KEY}" \
+      --header "X-PF-Store-Id: ${STORE_ID}" \
       --header "Content-Type: application/json" \
       --data "$data" \
       --write-out $'\n%{http_code}' \
@@ -84,6 +91,7 @@ printful_request() {
     if ! response=$(curl --silent --show-error \
       --request "$method" \
       --header "Authorization: Bearer ${PRINTFUL_API_KEY}" \
+      --header "X-PF-Store-Id: ${STORE_ID}" \
       --write-out $'\n%{http_code}' \
       "$url"); then
       echo "Error: could not reach the Printful API." >&2
@@ -103,11 +111,13 @@ printful_request() {
   esac
 }
 
-# An unchanged registration is a no-op — compare before writing (spike:
-# confirm GET /webhooks response shape against the live API).
+# An unchanged registration is a no-op — compare before writing. Confirmed
+# against Printful's v1 docs (developers.printful.com/docs/#tag/Webhook-API):
+# GET/POST/DELETE /webhooks is a single store-scoped config, not a list —
+# "Set up webhook configuration" is POST (replace), not PUT.
 CURRENT_URL=""
 set +e
-CURRENT_RESPONSE=$(printful_request GET "${PRINTFUL_API_BASE}/webhooks?store_id=${STORE_ID}")
+CURRENT_RESPONSE=$(printful_request GET "${PRINTFUL_API_BASE}/webhooks")
 GET_STATUS=$?
 set -e
 if [ "$GET_STATUS" -eq 0 ]; then
@@ -127,7 +137,7 @@ else
   WEBHOOK_BODY=$(WEBHOOK_URL="$WEBHOOK_URL" node -e "
 process.stdout.write(JSON.stringify({ url: process.env.WEBHOOK_URL, types: ['package_shipped'] }));
 ")
-  printful_request PUT "${PRINTFUL_API_BASE}/webhooks?store_id=${STORE_ID}" "$WEBHOOK_BODY" > /dev/null
+  printful_request POST "${PRINTFUL_API_BASE}/webhooks" "$WEBHOOK_BODY" > /dev/null
 fi
 
 echo "Setting PRINTFUL_WEBHOOK_SECRET secret for '$SITE_NAME'..."

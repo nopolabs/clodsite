@@ -2470,19 +2470,25 @@ cat > "${CHECKOUT_STUB_DIR}/curl" << STUB
 method="GET"
 url=""
 data=""
+store_header=""
 while [ "\$#" -gt 0 ]; do
   case "\$1" in
     --request) method="\$2"; shift 2 ;;
     --data) data="\$2"; shift 2 ;;
-    --header|--write-out) shift 2 ;;
+    --header)
+      case "\$2" in
+        X-PF-Store-Id:*) store_header="\${2#X-PF-Store-Id: }" ;;
+      esac
+      shift 2 ;;
+    --write-out) shift 2 ;;
     --fail-with-body|--silent|--show-error) shift ;;
     *) url="\$1"; shift ;;
   esac
 done
-echo "\${method} \${url}" >> "${CHECKOUT_STUB_LOG}"
+echo "\${method} \${url}\${store_header:+ X-PF-Store-Id=\${store_header}}" >> "${CHECKOUT_STUB_LOG}"
 case "\${url}" in
-  *api.printful.com/webhooks\?*)
-    if [ "\${method}" = "PUT" ]; then
+  *api.printful.com/webhooks)
+    if [ "\${method}" = "POST" ]; then
       printf '{"code":200,"result":%s}' "\$data" > "${CHECKOUT_STUB_DIR}/printful-webhook-state.json"
       printf '%s\n200' "\$(cat "${CHECKOUT_STUB_DIR}/printful-webhook-state.json")"
     elif [ -f "${CHECKOUT_STUB_DIR}/printful-webhook-state.json" ]; then
@@ -2709,7 +2715,7 @@ STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm
 assert_exit "printful deploy with commerce.contact.from exits 0" 0 $?
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
 assert_contains "Resend key pushed for the order-confirmation email" "pages secret put RESEND_API_KEY --project-name commerce-live-test stdin=re_confirm" "$CHECKOUT_LOG"
-assert_contains "Printful shipping webhook registered" "PUT https://api.printful.com/webhooks?store_id=17828143" "$CHECKOUT_LOG"
+assert_contains "Printful shipping webhook registered" "POST https://api.printful.com/webhooks X-PF-Store-Id=17828143" "$CHECKOUT_LOG"
 assert_contains "PRINTFUL_WEBHOOK_SECRET pushed" "pages secret put PRINTFUL_WEBHOOK_SECRET --project-name commerce-live-test stdin=ptok_test_secret" "$CHECKOUT_LOG"
 PRINTFUL_WEBHOOK_STATE=$(cat "${CHECKOUT_STUB_DIR}/printful-webhook-state.json")
 assert_contains "registered webhook URL embeds the shared secret" 'token=ptok_test_secret' "$PRINTFUL_WEBHOOK_STATE"
@@ -2723,8 +2729,8 @@ STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm
   bash scripts/deploy.sh > /dev/null 2>&1
 assert_exit "printful redeploy with an unchanged secret exits 0" 0 $?
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
-assert_contains "unchanged registration is still read on redeploy" "GET https://api.printful.com/webhooks?store_id=17828143" "$CHECKOUT_LOG"
-assert_not_contains "unchanged Printful webhook registration is not re-PUT" "PUT https://api.printful.com/webhooks" "$CHECKOUT_LOG"
+assert_contains "unchanged registration is still read on redeploy" "GET https://api.printful.com/webhooks X-PF-Store-Id=17828143" "$CHECKOUT_LOG"
+assert_not_contains "unchanged Printful webhook registration is not re-POSTed" "POST https://api.printful.com/webhooks" "$CHECKOUT_LOG"
 assert_contains "PRINTFUL_WEBHOOK_SECRET still re-pushed every deploy (plain overwrite)" "pages secret put PRINTFUL_WEBHOOK_SECRET --project-name commerce-live-test stdin=ptok_test_secret" "$CHECKOUT_LOG"
 rm -f "${CHECKOUT_STUB_DIR}/printful-webhook-state.json"
 
