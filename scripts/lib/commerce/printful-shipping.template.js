@@ -87,6 +87,18 @@ async function fetchAuthoritativeOrder(env, orderId) {
   return { ok: true, order: json.result };
 }
 
+// Confirmed against developers.printful.com/docs/#tag/Orders-API/operation/getOrderById:
+// shipment.items[] carries only { item_id, quantity, picked, printed } — no
+// name. The product name lives on the order's own top-level items[] (each
+// with an .id), joined here by item_id.
+function shipmentItemName(order, itemId) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  const match = items.find(function (item) {
+    return String(item.id) === String(itemId);
+  });
+  return (match && match.name) || 'item ' + itemId;
+}
+
 function buildShippedEmail(orderId, order, shipment) {
   const lines = [
     'Part of your ' + SITE_NAME + ' order has shipped!',
@@ -105,8 +117,7 @@ function buildShippedEmail(orderId, order, shipment) {
     lines.push('', 'Items in this shipment:');
     for (const item of items) {
       const qty = typeof item.quantity === 'number' ? item.quantity : 1;
-      const name = item.name || item.title || ('item ' + (item.item_id || item.order_item_id || ''));
-      lines.push('  ' + qty + ' x ' + name);
+      lines.push('  ' + qty + ' x ' + shipmentItemName(order, item.item_id));
     }
   }
 
