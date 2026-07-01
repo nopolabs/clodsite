@@ -84,6 +84,10 @@ function makeEvent(overrides = {}) {
 // The order this "authoritative" Printful order lookup returns — the payload
 // above never carries the actual shipment content, only the ids used to look
 // this up.
+// Shape confirmed against developers.printful.com/docs/#tag/Orders-API/operation/getOrderById:
+// shipment.items[] carries only { item_id, quantity, ... } — no name; the
+// product name lives on the order's own top-level items[] (each with .id),
+// joined by item_id (shipmentItemName in the template).
 function makeOrder(overrides = {}) {
   return {
     recipient: {
@@ -95,6 +99,7 @@ function makeOrder(overrides = {}) {
       country_code: 'US',
       email: 'pat@example.com',
     },
+    items: [{ id: 1, name: 'Crow Tee (Pink / L)' }],
     shipments: [
       {
         id: 'ship_1',
@@ -103,7 +108,7 @@ function makeOrder(overrides = {}) {
         service: 'Ground',
         tracking_url: 'https://example.com/track/1Z999AA10123456784',
         ship_date: '2026-07-01',
-        items: [{ quantity: 2, name: 'Crow Tee (Pink / L)' }],
+        items: [{ item_id: 1, quantity: 2, picked: 1, printed: 1 }],
       },
     ],
     ...overrides,
@@ -214,6 +219,9 @@ test('first delivery sends a shipped email from the authoritative order, not the
   assert.match(email.text, /1Z999AA10123456784/);
   assert.match(email.text, /UPS.*Ground/);
   assert.match(email.text, /Pat Crow/);
+  // shipment.items[] carries only { item_id, quantity }, no name — the name
+  // is joined from the order's own top-level items[] by id.
+  assert.match(email.text, /2 x Crow Tee \(Pink \/ L\)/);
   assert.equal(resendCall.init.headers['Idempotency-Key'], 'printful-shipment:crow-shop:5001:ship_1');
 
   const record = orders.read('printful-shipment:5001:ship_1');
@@ -230,6 +238,23 @@ test('duplicate delivery of the same (order_id, shipment_id) returns 200 without
   assert.equal(res.status, 200);
   assert.equal((await res.json()).duplicate, true);
   assert.equal(calls.length, 0);
+});
+
+test('a shipment item with no matching order item falls back to a generic label', async (t) => {
+  const calls = stubFetch(t, {
+    orderResponse: () => new Response(JSON.stringify({
+      code: 200,
+      result: makeOrder({ shipments: [{ id: 'ship_1', items: [{ item_id: 999, quantity: 1 }] }] }),
+    }), { status: 200 }),
+  });
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({ body, orders }));
+
+  assert.equal(res.status, 200);
+  const resendCall = calls.find((c) => c.url.startsWith('https://api.resend.com/'));
+  assert.match(JSON.parse(resendCall.init.body).text, /1 x item 999/);
 });
 
 test('a second, different shipment on the same order sends its own notification', async (t) => {
