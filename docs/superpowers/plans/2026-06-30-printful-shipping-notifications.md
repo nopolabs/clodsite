@@ -75,13 +75,35 @@ never trust the content at all). A signed-but-content-trusted alternative is
 not on the table for v1 anyway, so this isn't a compromise — it's the
 correct design regardless of whether v1 is ever proven to sign.
 
-The self-minted secret (`PRINTFUL_WEBHOOK_SECRET`, a random 32-byte hex
-token generated at provision time — *we* choose it, unlike Stripe's signing
-secret, which Stripe generates) is embedded as `?token=` in the URL we
-register with Printful. It is not a substitute for verify-on-receipt; it's a
-cheap barrier against opportunistic/scanner traffic finding the endpoint and
-triggering wasted Printful API calls. Checked with a constant-time compare;
-mismatch → `401`, no further processing.
+The self-minted secret (`PRINTFUL_WEBHOOK_SECRET`) is embedded as `?token=` in
+the URL we register with Printful. It is not a substitute for verify-on-
+receipt; it's a cheap barrier against opportunistic/scanner traffic finding
+the endpoint and triggering wasted Printful API calls. Checked with a
+constant-time compare; mismatch → `401`, no further processing.
+
+**Revised per review (was: regenerate every deploy — rejected, see below):**
+unlike Stripe's signing secret, *we* choose this value, but that doesn't mean
+provisioning should mint a fresh one on every deploy. A deploy pushes it to
+Pages and registers it with Printful as two separate network calls; if one
+succeeds and the other fails (or the deploy is interrupted between them),
+Printful and Pages end up holding different tokens and every real shipping
+webhook 401s until the next successful deploy repairs it — a self-inflicted
+outage with no operator signal beyond silence. Instead `PRINTFUL_WEBHOOK_SECRET`
+is a **stable, explicitly-set credential in `.env`**, exactly like
+`RESEND_API_KEY`/`PRINTFUL_API_KEY`: `provision-printful-webhook.sh` requires
+it to already be present (mirroring deploy.sh's existing "Error: X is not set
+in .env" gates) and errors out — printing a freshly generated candidate value
+and the exact line to add — if it's missing, rather than generating and using
+one in the same run. Once set, every deploy pushes that *same* value to Pages
+(a plain idempotent overwrite, like every other secret push in `deploy.sh`)
+and registers that *same* value with Printful (a GET-then-compare-then-PUT-if-
+different, so an unchanged secret across deploys is a no-op on Printful's
+side too — see the implementation map). Both sides always converge on
+whatever `.env` currently holds; there is nothing to rotate unless the
+operator deliberately changes the `.env` value, at which point the next
+deploy naturally re-syncs both sides together. This removes the atomicity
+problem entirely rather than trying to make the two-network-call sequence
+atomic.
 
 **Decision 2 — Scope: gated on `commerce.contact.from`, not a new plan
 field.** Shipping notifications reuse the exact same `commerce.contact`
@@ -110,16 +132,35 @@ that isn't reliably knowable up front). Idempotency key:
 `printful-shipment:<order_id>:<shipment_id>`.
 
 **Decision 5 — No new KV namespace, no reverse index back to the Stripe
-session.** The temptation is to map the Printful order id back to the
-original Stripe session (the `ORDERS` KV record keyed by session id) — but
-nothing in the shipping email needs that record. Printful's own
-`GET /orders/{id}` response already carries the recipient's name, email, and
-address (we sent them at order-creation time), so the shipment email is
+session; but recipient email is not guaranteed and must be handled as a
+permanent, not transient, gap.** The temptation is to map the Printful order
+id back to the original Stripe session (the `ORDERS` KV record keyed by
+session id) — but nothing in the shipping email needs that record: Printful's
+own `GET /orders/{id}` response carries the recipient's name and address
+regardless, and *usually* the email, so the shipment email is otherwise
 self-contained from that one authoritative fetch. Idempotency bookkeeping
 reuses the existing `ORDERS` KV binding (already bound to the Pages project
 for every live-commerce site) with a distinct key prefix
 (`printful-shipment:...`) rather than a new namespace — same binding, no new
-provisioning surface, value is just `{ notified_at }`.
+provisioning surface.
+
+**Revised per review** — the recipient email is *not* always present: the
+existing provider only sets `recipient.email` when the Stripe session
+supplied one (`providers/printful/order.mjs`, `...(order.email ? { email:
+order.email } : {})`), and `order.test.mjs` already covers the omitted case.
+So a real Printful order can permanently carry no email — the exact same gap
+phase 2 hit (`customer_details.email` absent) and resolved as "skip, don't
+fail." Phase 3's shipping notification for such an order can **never**
+succeed no matter how many times Printful redelivers, so this must be
+distinguished from a *transient* failure (Decision 6's `500`-and-retry): a
+missing recipient email on the authoritative order writes
+`{ skipped: 'no recipient email on order', at: <iso> }` to the idempotency
+key and returns `200` (not `500`) — the KV write itself is what stops future
+redeliveries of the same `(order_id, shipment_id)` from re-fetching Printful
+and re-discovering the same permanent gap. Returning `500` here would be
+wrong twice over: it invites Printful to retry a condition that will never
+resolve, and (per Decision 6) `500` is reserved for conditions where a retry
+might actually help.
 
 **Decision 6 — Failure mode: `500` on genuine failure, unlike phase 2.**
 Phase 2's confirmation email sits on the paid-order webhook's response path,
@@ -160,7 +201,11 @@ provider-template discipline.
      way `createOrder` already is — inlined at render time, not imported).
      Not found / no matching `shipment_id` in the response's `shipments[]`
      (**spike: confirm this field name**) → `500` with a diagnostic (no KV
-     write beyond nothing to record).
+     write beyond nothing to record — this is transient: a race with
+     Printful's own API catching up, worth a retry).
+  6a. Order found but `recipient.email` absent (real, permanent case per
+      Decision 5) → write `{ skipped: 'no recipient email on order', at }` to
+      the idempotency key, `200 { ok: true, skipped: true }`. No Resend call.
   7. Compose the email (tracking number, carrier/service, ship date, resolved
      from the *authoritative* order response) and send via Resend with
      `CONTACT.from`/`reply_to`, `Idempotency-Key: printful-shipment:<site>:<order_id>:<shipment_id>`,
@@ -184,28 +229,44 @@ invoked from `deploy.sh` alongside `provision-stripe-webhook.sh`/
   resolution into a shared helper in `lib/sites.sh` rather than copy-pasting a
   third time; flagging as a small refactor to do in this same PR, not a
   blocker).
-- Generate a fresh `PRINTFUL_WEBHOOK_SECRET` (random 32-byte hex) every
-  deploy — unlike Stripe's signing secret, we own both ends, so there's no
-  continuity to preserve; a clean overwrite each deploy is simpler and just as
-  safe (**spike: confirm the v1 `/webhooks` resource is a single
-  store-scoped config replaced by `PUT`, not a list of named endpoints** — if
-  wrong, this step changes shape but Decisions 1–6 above are unaffected).
-- `PUT https://api.printful.com/webhooks?store_id=...` with
-  `{ url: '<host>/api/printful-webhook?token=<secret>', types: ['package_shipped'] }`
-  (**spike: confirm request body field names**).
-- Push `PRINTFUL_WEBHOOK_SECRET` as a Pages secret via `wrangler pages secret put`.
-- No local state file needed for the secret itself (nothing to preserve across
-  deploys); a minimal state file recording the last-registered URL is optional
-  polish for a friendlier "reusing/updating" log line, not required for
-  correctness.
+- Require `PRINTFUL_WEBHOOK_SECRET` in the environment, exactly like the
+  `RESEND_API_KEY`/`PRINTFUL_API_KEY` gates already in `deploy.sh` (Decision 1,
+  revised) — **not** generated and used within the same run. If unset: print a
+  freshly generated candidate value and the exact `.env` line to add
+  (`Add PRINTFUL_WEBHOOK_SECRET=<value> to .env and redeploy.`, matching the
+  phrasing of every other missing-secret error in `deploy.sh`), then `exit 1`
+  without touching Printful or Pages.
+- Once present, `GET https://api.printful.com/webhooks?store_id=...`
+  (**spike: confirm this read endpoint/shape**) and compare the registered
+  `url` to the one we'd register now; identical → "Reusing Printful webhook
+  registration..." and skip the `PUT` entirely (mirrors
+  `provision-stripe-webhook.sh`'s "Reusing Stripe webhook endpoint" log line).
+  Different or absent → `PUT https://api.printful.com/webhooks?store_id=...`
+  with `{ url: '<host>/api/printful-webhook?token=<secret>', types: ['package_shipped'] }`
+  (**spike: confirm request body field names and the single-store-scoped-
+  config, `PUT`-replace shape** — if wrong, this step's shape changes but
+  Decisions 1–6 are unaffected).
+- Push `PRINTFUL_WEBHOOK_SECRET` as a Pages secret via `wrangler pages secret
+  put` every deploy — a plain idempotent overwrite of the same `.env` value,
+  identical in spirit to how `RESEND_API_KEY`/`STRIPE_SECRET_KEY` are already
+  re-pushed every deploy elsewhere in `deploy.sh`. Never generated by this
+  script when already set; rotation is an explicit `.env` edit by the
+  operator, which the next deploy naturally propagates to both sides.
+- No local state file needed: `.env` already holds the one thing this script
+  needs to remember (the secret), and the GET-then-compare above makes the
+  registration step itself idempotent without one.
 
 **4. `deploy.sh`** — gate: a printful store with `commerce.contact.from` set
 needs `PRINTFUL_API_KEY` (already required) and `RESEND_API_KEY` (already
-required by phase 2's gate for the same condition) — no *new* env
-requirement, since this phase piggybacks entirely on phase 2's contact
-config and the provider's existing Printful key. Just wire the new
-provisioning script into the deploy sequence and its own `NEXT-STEPS.md`
-line if useful (parity with the phase-1 receipt checklist).
+required by phase 2's gate for the same condition) — both already covered by
+existing gates, so no change there. The **one new** requirement is
+`PRINTFUL_WEBHOOK_SECRET` (Decision 1, revised) — enforced inside
+`provision-printful-webhook.sh` itself (same self-contained-gate style as
+`provision-stripe-webhook.sh`, which owns its own `STRIPE_SECRET_KEY` check
+rather than `deploy.sh` pre-checking it) rather than added to `deploy.sh`'s
+own preflight block. Wire the new provisioning script into the deploy
+sequence and its own `NEXT-STEPS.md` line if useful (parity with the phase-1
+receipt checklist).
 
 ## Guardrails
 
@@ -218,6 +279,14 @@ line if useful (parity with the phase-1 receipt checklist).
   records from phase 1/2, only its own `printful-shipment:...` keys.
 - Scope to `manual` provider: none — this feature is Printful-only by
   construction (there is no Printful order for the manual provider to ship).
+- A permanent condition (no recipient email on the order) must resolve to a
+  recorded, non-retried `200`, never an endless `500` — only genuinely
+  transient failures (Printful/Resend unreachable) get a retry (Decision 5,
+  revised).
+- `PRINTFUL_WEBHOOK_SECRET` is never generated and consumed within the same
+  provisioning run — it comes from `.env` like every other credential, and a
+  missing value is a hard stop with no partial Printful/Pages write (Decision
+  1, revised).
 
 ## Tests
 
@@ -232,15 +301,24 @@ line if useful (parity with the phase-1 receipt checklist).
 - A second, different `shipment_id` on the same `order_id` (multi-package
   order) sends its own notification.
 - Order lookup 404 / malformed response → `500`, no KV write.
+- **Order found but `recipient.email` absent → `200 { skipped: true }`, no
+  Resend call, KV records the skip; a repeat delivery for the same
+  `(order_id, shipment_id)` short-circuits on the KV check without hitting
+  Printful again** (Decision 5, revised — the permanent-vs-transient
+  distinction).
 - Resend send failure (non-2xx / throw / timeout) → `500`, no KV write (so a
   Printful retry gets another chance).
 - `render-functions`: Function is rendered only when
   `provider: printful && commerce.contact.from` is set; stale-removed when
   either condition stops holding; `{{CONTACT}}`/`{{SITE}}` substituted with no
   leftover markers.
+- `provision-printful-webhook.sh`: missing `PRINTFUL_WEBHOOK_SECRET` errors
+  clearly with no Printful/Pages calls attempted; present and unchanged from
+  Printful's current registration → no `PUT` (idempotent no-op); present and
+  changed/absent → `PUT` once; `PRINTFUL_WEBHOOK_SECRET` pushed to Pages every
+  run regardless (plain overwrite, never generated here).
 - `deploy.sh`: printful + `commerce.contact.from` still requires
-  `PRINTFUL_API_KEY`/`RESEND_API_KEY` (no new requirement); provisioning
-  pushes `PRINTFUL_WEBHOOK_SECRET`.
+  `PRINTFUL_API_KEY`/`RESEND_API_KEY` (no new requirement there).
 
 ## Spike items to resolve early in implementation (before the production template)
 
