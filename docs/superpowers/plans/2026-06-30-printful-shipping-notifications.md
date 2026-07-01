@@ -60,10 +60,21 @@ alone.
   payload is also confirmed: `type: "package_shipped"`, `data.order.id`,
   `data.shipment.id`, with carrier/tracking fields on `data.shipment` and
   recipient email on `data.order` — matching this plan's extraction logic
-  as originally written. **Still unconfirmed:** the exact `shipments[]` field
-  names on a `GET /orders/{id}` response (the Orders API call this feature's
-  verify-on-receipt step makes) — stated below as a strong-but-unverified
-  recollection, called out as the one remaining **spike item**.
+  as originally written.
+- **Second update:** the last open item — `GET /orders/{id}`'s exact schema —
+  is now confirmed too (the user quoted the live example response from
+  `developers.printful.com/docs/#tag/Orders-API/operation/getOrderById`).
+  `recipient` matches this plan's assumptions exactly (`name`, `address1`,
+  `address2`, `city`, `state_code`, `zip`, `country_code`, `email`, plus
+  unused fields like `company`/`phone`/`tax_number`). `shipments[]` matches
+  for `id`/`carrier`/`service`/`tracking_number`/`tracking_url`/`ship_date` —
+  but **`shipments[].items[]` carries only `{ item_id, quantity, picked,
+  printed }`, no product name**, which this plan had wrongly assumed. The
+  name lives on the order's own top-level `items[]` (each with an `.id`),
+  joined by `item_id` — implemented as `shipmentItemName(order, itemId)` in
+  the template, falling back to a generic `item <id>` label if no match
+  (defensive; shouldn't happen for an order this code created). No spike
+  items remain open.
 
 ## Decisions
 
@@ -180,8 +191,9 @@ decoupled from Stripe/checkout — so if the authoritative re-fetch or the
 Resend send fails, returning `500` (rather than swallowing and returning
 `200`) gives Printful a chance to retry, the same way Stripe retries our own
 checkout webhook on `500`. Idempotency (Decision 4) makes retries safe. If
-Printful's retry behavior turns out to be weaker than Stripe's (unconfirmed —
-another spike item), a missed shipping notification is a low-severity gap:
+Printful's retry behavior turns out to be weaker than Stripe's (a separate,
+still-unconfirmed question — not one of the wire-format spike items below),
+a missed shipping notification is a low-severity gap:
 the customer still has the order-confirmation email and Printful's own
 carrier tracking eventually reaches them independently.
 
@@ -209,10 +221,12 @@ provider-template discipline.
      Orders API keeps the `?store_id=` query param — only the newer
      `/webhooks` calls in step 3 of the implementation map use the
      `X-PF-Store-Id` header instead). Not found / no matching `shipment_id` in
-     the response's `shipments[]` (**spike: confirm this field name — the one
-     remaining unverified assumption, see "What I found"**) → `500` with a
-     diagnostic (no KV write beyond nothing to record — this is transient: a
-     race with Printful's own API catching up, worth a retry).
+     the response's `shipments[]` (field name confirmed, see "What I found")
+     → `500` with a diagnostic (no KV write beyond nothing to record — this is
+     transient: a race with Printful's own API catching up, worth a retry).
+  6a. Product names for each shipped item come from the order's own
+      top-level `items[]`, joined by `item_id` (`shipments[].items[]` itself
+      carries no name — confirmed, see "What I found").
   6a. Order found but `recipient.email` absent (real, permanent case per
       Decision 5) → write `{ skipped: 'no recipient email on order', at }` to
       the idempotency key, `200 { ok: true, skipped: true }`. No Resend call.
@@ -330,27 +344,30 @@ receipt checklist).
 - `deploy.sh`: printful + `commerce.contact.from` still requires
   `PRINTFUL_API_KEY`/`RESEND_API_KEY` (no new requirement there).
 
-## Spike items to resolve early in implementation (before the production template)
+## Spike items (all resolved)
 
-**Resolved post-implementation** (confirmed against
-`developers.printful.com/docs/#tag/Webhook-API` directly, after PR #113's
-review flagged that the earlier search-based research had missed this page —
-see "What I found," above): `/webhooks` request/response shape (`POST`, not
-`PUT`; store-scoped via the `X-PF-Store-Id` header, not `?store_id=`), and the
-`package_shipped` payload's field path (`data.order.id`, `data.shipment.id`).
+Originally three items flagged for a live check before this went to
+production; all now resolved from actual Printful documentation rather than
+guessed:
 
-**Still open:**
+1. **`/webhooks` request/response shape** — confirmed against
+   `developers.printful.com/docs/#tag/Webhook-API` (after PR #113's review
+   flagged that the earlier search-based research had missed this page):
+   `POST`, not `PUT`; store-scoped via the `X-PF-Store-Id` header, not
+   `?store_id=`.
+2. **`package_shipped` payload field path** — confirmed: `data.order.id`,
+   `data.shipment.id`.
+3. **`GET /orders/{id}` schema** — confirmed from the live example response
+   (`developers.printful.com/docs/#tag/Orders-API/operation/getOrderById`,
+   quoted directly by the user). `recipient` and `shipments[]`'s own fields
+   matched this plan's assumptions, but `shipments[].items[]` carries no
+   product name (only `item_id`/`quantity`/fulfillment counts) — the name is
+   joined from the order's top-level `items[]` by `item_id`, fixed in
+   `printful-shipping.template.js` (`shipmentItemName`) with tests covering
+   both the join and its fallback.
 
-1. Confirm `GET /orders/{id}`'s response carries a `shipments[]` array with
-   the fields this plan assumes (`id`, `tracking_number`, `tracking_url`,
-   `carrier`/`service`, `ship_date`).
-2. If Printful's webhook simulator (surfaced in their docs) is usable without
-   a live store, use it to validate item 1 before touching the real
-   anchovy-mug store; otherwise a scratch registration against anchovy-mug's
-   real `PRINTFUL_API_KEY` is the fallback.
-
-None of these affect Decisions 1–6 — they only affect exact field/endpoint
-names inside an architecture that's already settled.
+None of these affected Decisions 1–6 — only exact field/endpoint names inside
+an architecture that was already settled.
 
 ## Out of scope
 
