@@ -168,8 +168,10 @@ When adding or changing a theme:
 3. Add or update font loading in `scaffold/src/_includes/base.njk`.
 4. Update the valid style list in `scripts/lib/validate-plan.mjs`.
 5. Update the valid style message in `scripts/apply-theme.sh`.
-6. Update current docs that list valid themes.
-7. Add test coverage so the theme is bundled/validated.
+6. Update font loading in `scaffold/src/_includes/base.njk` if the theme uses
+   fonts not already loaded by another theme.
+7. Update current docs that list valid themes.
+8. Add test coverage so the theme is bundled/validated.
 
 Themes should raise visual quality through curated tokens and site chrome, not
 per-site CSS escapes.

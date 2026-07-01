@@ -76,6 +76,9 @@
   {% if site.style == "warm" or (site.theme_selector.enabled and "warm" in site.theme_selector.options) %}
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&display=swap" rel="stylesheet">
   {% endif %}
+  {% if site.style == "playful" or site.style == "playful-shop" or (site.theme_selector.enabled and ("playful" in site.theme_selector.options or "playful-shop" in site.theme_selector.options)) %}
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+  {% endif %}
 </head>
 <body class="theme-{{ site.style | escape }}">
 {% if site.theme_selector.enabled %}

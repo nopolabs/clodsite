@@ -60,6 +60,23 @@ Two scripts hold a hardcoded list of valid theme names. A new theme must be adde
 | `professional` | Off-white with navy accent, Merriweather serif headings — trustworthy and formal. |
 | `bold` | Near-black background, orange accent, uppercase Space Grotesk headings, hard offset shadows — loud on purpose. |
 | `warm` | Cream and terracotta, Fraunces display serif, editorial and handmade without going full rustic. |
+| `playful` | Sunny cream, rounded Baloo headings, orange/yellow accents, and pill navigation — friendly without becoming chaotic. |
+| `playful-shop` | The same rounded family as `playful`, but cooler, cleaner, and more product-card-forward for small storefronts. |
+
+## Theme families
+
+When two related sites need to feel "of a feather" without becoming identical,
+prefer a small **theme family** over raw per-site CSS. A family shares
+typography, rhythm, and broad interaction language, then varies color,
+surfaces, and chrome for the site's job. `playful` and `playful-shop` are the
+first example: the main Anchovy site can be sunnier and story/gallery-forward,
+while the mug storefront stays in the same brand neighborhood but feels calmer
+and more product-focused.
+
+This is an incremental step toward the broader palette/brand-token model in
+ROADMAP item 18. Until that model exists, sibling themes are acceptable when
+they are reusable outside the original site pair and documented as a deliberate
+family rather than as one-off site CSS.
 
 ## Theme ideas
 
