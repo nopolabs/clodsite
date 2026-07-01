@@ -2702,9 +2702,18 @@ assert_contains "printful shipping-webhook overlays the contact sender" '"from":
 assert_exit "printful with commerce.contact.from but no RESEND_API_KEY exits 1" 1 $?
 
 : > "${CHECKOUT_STUB_LOG}"
-( unset PRINTFUL_WEBHOOK_SECRET; STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm \
-  SITE_DIR="${SITE_DIR}" bash scripts/deploy.sh > /dev/null 2>&1 )
-assert_exit "printful shipping webhook without PRINTFUL_WEBHOOK_SECRET exits 1" 1 $?
+MISSING_PRINTFUL_SECRET_OUTPUT=$(unset PRINTFUL_WEBHOOK_SECRET; STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm \
+  SITE_DIR="${SITE_DIR}" bash scripts/deploy.sh 2>&1)
+MISSING_PRINTFUL_SECRET_EXIT=$?
+assert_exit "printful shipping webhook without PRINTFUL_WEBHOOK_SECRET exits 1" 1 "$MISSING_PRINTFUL_SECRET_EXIT"
+assert_contains "printful missing-secret suggestion uses the pfws prefix" "Add PRINTFUL_WEBHOOK_SECRET=pfws_" "$MISSING_PRINTFUL_SECRET_OUTPUT"
+if echo "$MISSING_PRINTFUL_SECRET_OUTPUT" | grep -Eq 'PRINTFUL_WEBHOOK_SECRET=pfws_[0-9a-f]{32}'; then
+  echo "  ✓ printful missing-secret suggestion uses 32 lowercase hex chars"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ printful missing-secret suggestion uses 32 lowercase hex chars"
+  FAIL=$((FAIL + 1))
+fi
 CHECKOUT_LOG=$(cat "${CHECKOUT_STUB_LOG}")
 assert_not_contains "no Printful webhook registration attempted without the secret" "api.printful.com/webhooks" "$CHECKOUT_LOG"
 
