@@ -369,6 +369,38 @@ guessed:
 None of these affected Decisions 1–6 — only exact field/endpoint names inside
 an architecture that was already settled.
 
+## Printful simulator smoke procedure
+
+Printful provides a hosted simulator at
+`https://www.printful.com/api/webhook-simulator`. It sends sample payloads to a
+listener URL; the simulator explicitly uses fake data and does not contain real
+order or customer information. Because this feature uses verify-on-receipt, the
+simulator can validate reachability and event parsing, but not the full
+successful email path: the Function will re-fetch the fake `data.order.id`
+from Printful and should fail that lookup.
+
+Use this procedure before the first real shipped-order test:
+
+1. Deploy a Printful commerce site that has `commerce.contact.from` configured
+   and `PRINTFUL_WEBHOOK_SECRET` set in `.env`.
+2. Confirm deploy output includes Printful shipping webhook provisioning, or
+   confirm in Printful that the registered webhook URL is:
+   `https://<site-domain>/api/printful-webhook?token=<PRINTFUL_WEBHOOK_SECRET>`.
+3. Open the simulator and enter that exact URL.
+4. Choose `package_shipped` and send the sample event.
+5. Expected result: the request reaches Clodsite, passes the token check and
+   event parsing, then returns `500` because the simulator's fake order id
+   cannot be found by `GET /orders/{id}`. This is expected for the simulator
+   and is not a failed commerce order.
+6. Choose a non-shipping event such as `order_created` and send it.
+7. Expected result: `200` with an ignored event response. This confirms
+   irrelevant event types are acknowledged without Printful/Resend work.
+
+The simulator does **not** prove the happy path. The happy path still requires
+a real Printful order that has actually shipped, so `GET /orders/{id}` returns
+a matching `shipments[]` entry and the Function can send the Resend shipping
+email.
+
 ## Out of scope
 
 - `order_failed`/`order_canceled` shipping-adjacent notifications (item 22's
