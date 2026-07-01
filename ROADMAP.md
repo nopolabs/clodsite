@@ -76,6 +76,19 @@ may mix catalogs with different providers (one charge, split fulfillment)
 or whether v1 of this feature requires one provider per site. Validation
 extends to per-catalog slug resolution and cross-catalog slug collisions.
 
+### 3a. Per-site Printful webhook secrets
+
+Printful shipping notifications currently use one shared
+`PRINTFUL_WEBHOOK_SECRET`, embedded in each site's registered
+`/api/printful-webhook?token=...` URL and pushed as that site's Pages secret.
+The Function itself is already rendered per site, so the missing hardening is
+credential selection: allow `commerce.printful.webhook_secret_env` to name a
+site/store-specific source such as `ANCHOVY_PRINTFUL_WEBHOOK_SECRET`, falling
+back to `PRINTFUL_WEBHOOK_SECRET` during migration. Missing-secret guidance
+should print the actual required env var name with the existing
+`pfws_<32 lowercase hex chars>` convention. This keeps rotation and compromise
+scope aligned with `commerce.printful.api_key_env`.
+
 ### 4. Business-category components (e.g. restaurant menus)
 
 Add constrained components for common business verticals, starting with the
