@@ -122,3 +122,41 @@ clodsite_site_dir_for() {
   clodsite_init_sites_dir
   printf '%s\n' "${SITES_DIR}/${site_name}"
 }
+
+# Resolves the production hostname a webhook-receiving Pages Function must be
+# reachable at: the planned custom_domain when set, else the project's
+# *.pages.dev subdomain (queried from the Cloudflare API — requires
+# CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID). Echoes the hostname on success;
+# prints an error to stderr and returns 1 on failure. Shared by
+# provision-stripe-webhook.sh and provision-printful-webhook.sh.
+clodsite_resolve_webhook_host() {
+  local site_name="${1:?site name required}"
+  local custom_domain="${2:-}"
+
+  if [ -n "$custom_domain" ]; then
+    printf '%s\n' "$custom_domain"
+    return 0
+  fi
+
+  if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+    echo "Error: resolving the Pages subdomain requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID." >&2
+    return 1
+  fi
+  local project_response
+  if ! project_response=$(curl --fail-with-body --silent --show-error \
+    --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${site_name}"); then
+    echo "Error: could not read the Cloudflare Pages project '${site_name}'." >&2
+    return 1
+  fi
+  local host
+  host=$(RESPONSE="$project_response" node -e "
+const response=JSON.parse(process.env.RESPONSE);
+process.stdout.write(response.success === true && response.result && response.result.subdomain || '');
+")
+  if [ -z "$host" ]; then
+    echo "Error: Cloudflare Pages project did not return a production subdomain." >&2
+    return 1
+  fi
+  printf '%s\n' "$host"
+}

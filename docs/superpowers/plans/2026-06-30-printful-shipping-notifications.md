@@ -48,12 +48,22 @@ alone.
   API versions for the first time. I'm treating v2 as a **future upgrade**,
   not a v1-phase-3 dependency — see Decision 1 below for why v1 + verify-on-
   receipt is sufficient without it.
-- I could not get exact field-level confirmation of the v1 `/webhooks` request
-  body (`types` vs `type`, single-webhook-per-store PUT-replace semantics) or
-  the exact `shipments[]` field names on a `GET /orders/{id}` response from
-  documentation search — these are stated below as strong-but-unverified
-  recollections of the long-stable v1 API, called out explicitly as **spike
-  items**.
+- **Update (post-implementation, confirmed against `developers.printful.com/docs/#tag/Webhook-API`
+  directly — the original search-based research above missed this page):**
+  `/webhooks` is confirmed as a single store-scoped config (`GET`/`POST`/`DELETE`,
+  not a list) — but **registration is `POST` ("Set up webhook configuration"),
+  not `PUT`** as this plan originally assumed, and store scoping for the
+  **Webhook API specifically** is the **`X-PF-Store-Id` header**, not the
+  `?store_id=` query param the Orders API uses (the two APIs disagree — the
+  Orders API calls in this feature and in the existing provider keep the query
+  param; only the new `/webhooks` calls use the header). The `package_shipped`
+  payload is also confirmed: `type: "package_shipped"`, `data.order.id`,
+  `data.shipment.id`, with carrier/tracking fields on `data.shipment` and
+  recipient email on `data.order` — matching this plan's extraction logic
+  as originally written. **Still unconfirmed:** the exact `shipments[]` field
+  names on a `GET /orders/{id}` response (the Orders API call this feature's
+  verify-on-receipt step makes) — stated below as a strong-but-unverified
+  recollection, called out as the one remaining **spike item**.
 
 ## Decisions
 
@@ -96,7 +106,7 @@ in .env" gates) and errors out — printing a freshly generated candidate value
 and the exact line to add — if it's missing, rather than generating and using
 one in the same run. Once set, every deploy pushes that *same* value to Pages
 (a plain idempotent overwrite, like every other secret push in `deploy.sh`)
-and registers that *same* value with Printful (a GET-then-compare-then-PUT-if-
+and registers that *same* value with Printful (a GET-then-compare-then-POST-if-
 different, so an unchanged secret across deploys is a no-op on Printful's
 side too — see the implementation map). Both sides always converge on
 whatever `.env` currently holds; there is nothing to rotate unless the
@@ -187,22 +197,22 @@ provider-template discipline.
   1. Compare `?token=` against `PRINTFUL_WEBHOOK_SECRET` (constant-time). Mismatch
      → `401`.
   2. Parse JSON body. Malformed → `400`.
-  3. `type !== 'package_shipped'` (**spike: confirm exact v1 event name**) →
+  3. `type !== 'package_shipped'` (confirmed against Printful's v1 docs) →
      `200 { ok: true, ignored: true }`.
-  4. Extract `order_id`/`shipment_id` from the payload (**spike: confirm exact
-     field path** — recollection is `data.shipment.id` and either
-     `data.order.id` or a top-level `data.order_id`; the spike pins this down
-     against a real event, likely via Printful's webhook simulator mentioned
-     in their docs).
+  4. Extract `order_id`/`shipment_id` from the payload — confirmed:
+     `data.order.id` and `data.shipment.id`.
   5. `ORDERS.get('printful-shipment:' + order_id + ':' + shipment_id)` — if
      already notified, `200 { ok: true, duplicate: true }`.
   6. `GET https://api.printful.com/orders/{order_id}?store_id=...` (reuse the
      request/error-handling shape of `printfulOrderRequest`, ported the same
-     way `createOrder` already is — inlined at render time, not imported).
-     Not found / no matching `shipment_id` in the response's `shipments[]`
-     (**spike: confirm this field name**) → `500` with a diagnostic (no KV
-     write beyond nothing to record — this is transient: a race with
-     Printful's own API catching up, worth a retry).
+     way `createOrder` already is — inlined at render time, not imported; the
+     Orders API keeps the `?store_id=` query param — only the newer
+     `/webhooks` calls in step 3 of the implementation map use the
+     `X-PF-Store-Id` header instead). Not found / no matching `shipment_id` in
+     the response's `shipments[]` (**spike: confirm this field name — the one
+     remaining unverified assumption, see "What I found"**) → `500` with a
+     diagnostic (no KV write beyond nothing to record — this is transient: a
+     race with Printful's own API catching up, worth a retry).
   6a. Order found but `recipient.email` absent (real, permanent case per
       Decision 5) → write `{ skipped: 'no recipient email on order', at }` to
       the idempotency key, `200 { ok: true, skipped: true }`. No Resend call.
@@ -236,16 +246,15 @@ invoked from `deploy.sh` alongside `provision-stripe-webhook.sh`/
   (`Add PRINTFUL_WEBHOOK_SECRET=<value> to .env and redeploy.`, matching the
   phrasing of every other missing-secret error in `deploy.sh`), then `exit 1`
   without touching Printful or Pages.
-- Once present, `GET https://api.printful.com/webhooks?store_id=...`
-  (**spike: confirm this read endpoint/shape**) and compare the registered
-  `url` to the one we'd register now; identical → "Reusing Printful webhook
-  registration..." and skip the `PUT` entirely (mirrors
-  `provision-stripe-webhook.sh`'s "Reusing Stripe webhook endpoint" log line).
-  Different or absent → `PUT https://api.printful.com/webhooks?store_id=...`
-  with `{ url: '<host>/api/printful-webhook?token=<secret>', types: ['package_shipped'] }`
-  (**spike: confirm request body field names and the single-store-scoped-
-  config, `PUT`-replace shape** — if wrong, this step's shape changes but
-  Decisions 1–6 are unaffected).
+- Once present, `GET https://api.printful.com/webhooks` (store scoped via the
+  `X-PF-Store-Id` header, confirmed — **not** the `?store_id=` query param the
+  Orders API uses) and compare the registered `url` to the one we'd register
+  now; identical → "Reusing Printful webhook registration..." and skip the
+  `POST` entirely (mirrors `provision-stripe-webhook.sh`'s "Reusing Stripe
+  webhook endpoint" log line). Different or absent →
+  `POST https://api.printful.com/webhooks` (confirmed as `POST`, not `PUT` —
+  "Set up webhook configuration" in the v1 docs) with
+  `{ url: '<host>/api/printful-webhook?token=<secret>', types: ['package_shipped'] }`.
 - Push `PRINTFUL_WEBHOOK_SECRET` as a Pages secret via `wrangler pages secret
   put` every deploy — a plain idempotent overwrite of the same `.env` value,
   identical in spirit to how `RESEND_API_KEY`/`STRIPE_SECRET_KEY` are already
@@ -314,26 +323,31 @@ receipt checklist).
   leftover markers.
 - `provision-printful-webhook.sh`: missing `PRINTFUL_WEBHOOK_SECRET` errors
   clearly with no Printful/Pages calls attempted; present and unchanged from
-  Printful's current registration → no `PUT` (idempotent no-op); present and
-  changed/absent → `PUT` once; `PRINTFUL_WEBHOOK_SECRET` pushed to Pages every
-  run regardless (plain overwrite, never generated here).
+  Printful's current registration → no `POST` (idempotent no-op); present and
+  changed/absent → `POST` once, scoped via `X-PF-Store-Id`, not `?store_id=`;
+  `PRINTFUL_WEBHOOK_SECRET` pushed to Pages every run regardless (plain
+  overwrite, never generated here).
 - `deploy.sh`: printful + `commerce.contact.from` still requires
   `PRINTFUL_API_KEY`/`RESEND_API_KEY` (no new requirement there).
 
 ## Spike items to resolve early in implementation (before the production template)
 
-1. Confirm the v1 `/webhooks` resource's exact request/response shape
-   (single store-scoped `PUT`-replace vs. a list; field name `types` vs
-   `type`; whether `store_id` is a query param like every other v1 call).
-2. Confirm the `package_shipped` payload's exact field path for the Printful
-   order id and shipment id.
-3. Confirm `GET /orders/{id}`'s response carries a `shipments[]` array with
+**Resolved post-implementation** (confirmed against
+`developers.printful.com/docs/#tag/Webhook-API` directly, after PR #113's
+review flagged that the earlier search-based research had missed this page —
+see "What I found," above): `/webhooks` request/response shape (`POST`, not
+`PUT`; store-scoped via the `X-PF-Store-Id` header, not `?store_id=`), and the
+`package_shipped` payload's field path (`data.order.id`, `data.shipment.id`).
+
+**Still open:**
+
+1. Confirm `GET /orders/{id}`'s response carries a `shipments[]` array with
    the fields this plan assumes (`id`, `tracking_number`, `tracking_url`,
    `carrier`/`service`, `ship_date`).
-4. If Printful's webhook simulator (surfaced in their docs) is usable without
-   a live store, use it to validate 1–3 before touching the real anchovy-mug
-   store; otherwise a scratch registration against anchovy-mug's real
-   `PRINTFUL_API_KEY` is the fallback.
+2. If Printful's webhook simulator (surfaced in their docs) is usable without
+   a live store, use it to validate item 1 before touching the real
+   anchovy-mug store; otherwise a scratch registration against anchovy-mug's
+   real `PRINTFUL_API_KEY` is the fallback.
 
 None of these affect Decisions 1–6 — they only affect exact field/endpoint
 names inside an architecture that's already settled.

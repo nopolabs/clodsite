@@ -2,12 +2,15 @@
 // Invoked by scripts/render-functions.sh:
 //   node scripts/lib/render-functions.mjs <site-dir> [components-dir]
 //
-// Three function families:
+// Four function families:
 //   - resend-form component  -> functions/api/contact.js
 //   - commerce checkout      -> functions/api/checkout.js + functions/api/webhook.js
 //     (rendered only when commerce is live: enabled + checkout stripe + NOT preview;
 //      preview mode ships the cart chrome with a disabled checkout button and
 //      needs no Stripe keys)
+//   - Printful shipping notifications -> functions/api/printful-webhook.js
+//     (item 2 phase 3; rendered only when commerce is live Printful AND
+//      commerce.contact is configured — see printfulShippingEnabled)
 //   - proxies plan block     -> functions/<mount>/[[path]].js per entry
 //     (independent of commerce; rendered in preview and live modes alike)
 // Functions whose source of truth left the plan are removed (stale cleanup).
@@ -84,6 +87,21 @@ export function renderCheckoutSource(plan, catalog) {
   return template.replace('{{CONFIG}}', JSON.stringify(buildCheckoutConfig(plan, catalog)));
 }
 
+// commerce.contact (item 2 phase 2): the customer-facing sender shared by the
+// order-confirmation email and (item 2 phase 3) shipping notifications. A
+// plan value, not a secret -- opt-in via presence of `from`.
+function resolveCommerceContact(plan) {
+  return plan.commerce.contact && plan.commerce.contact.from
+    ? { from: plan.commerce.contact.from, reply_to: plan.commerce.contact.reply_to || null }
+    : null;
+}
+
+// Human-facing site name for customer email copy (falls back to the slug).
+// Shared by the order-confirmation and shipping-notification templates.
+function resolveSiteName(plan) {
+  return typeof plan.name === 'string' && plan.name.trim() !== '' ? plan.name.trim() : plan.slug;
+}
+
 export function renderWebhookSource(plan) {
   const provider = plan.commerce.provider;
   const orderPath = path.join(LIB_DIR, 'commerce', 'providers', provider, 'order.mjs');
@@ -111,19 +129,35 @@ export function renderWebhookSource(plan) {
     }
     providerEnv = { PRINTFUL_STORE_ID: String(storeId) };
   }
-  // commerce.contact (item 2 phase 2): the order-confirmation email's sender.
-  // A plan value, not a secret — opt-in via presence of `from`.
-  const contact = plan.commerce.contact && plan.commerce.contact.from
-    ? { from: plan.commerce.contact.from, reply_to: plan.commerce.contact.reply_to || null }
-    : null;
   return fs.readFileSync(path.join(LIB_DIR, 'commerce', 'webhook.template.js'), 'utf8')
     .replace('{{CREATE_ORDER}}', () => createOrder)
     .replace('{{PROVIDER_ENV}}', () => JSON.stringify(providerEnv))
     .replace('{{SITE}}', () => JSON.stringify(plan.slug))
-    .replace('{{SITE_NAME}}', () => JSON.stringify(
-      typeof plan.name === 'string' && plan.name.trim() !== '' ? plan.name.trim() : plan.slug,
-    ))
-    .replace('{{CONTACT}}', () => JSON.stringify(contact));
+    .replace('{{SITE_NAME}}', () => JSON.stringify(resolveSiteName(plan)))
+    .replace('{{CONTACT}}', () => JSON.stringify(resolveCommerceContact(plan)));
+}
+
+// Whether this plan should render the Printful shipping-notification Function
+// (item 2 phase 3): Printful provider with commerce.contact configured
+// (Decision 2 of the phase-3 plan — no separate opt-in field; the shipping
+// email reuses the exact same sender as the phase-2 order-confirmation).
+export function printfulShippingEnabled(plan) {
+  return plan.commerce.provider === 'printful' && !!resolveCommerceContact(plan);
+}
+
+export function renderPrintfulShippingSource(plan) {
+  const storeId = plan.commerce.printful && plan.commerce.printful.store_id;
+  if (!Number.isInteger(storeId) || storeId <= 0) {
+    throw new Error(
+      'commerce.printful.store_id (a positive integer) is required when provider is printful' +
+      ' — the shipping-notification Function scopes every Printful API call to it',
+    );
+  }
+  return fs.readFileSync(path.join(LIB_DIR, 'commerce', 'printful-shipping.template.js'), 'utf8')
+    .replace('{{SITE}}', () => JSON.stringify(plan.slug))
+    .replace('{{SITE_NAME}}', () => JSON.stringify(resolveSiteName(plan)))
+    .replace('{{CONTACT}}', () => JSON.stringify(resolveCommerceContact(plan)))
+    .replace('{{PRINTFUL_STORE_ID}}', () => JSON.stringify(String(storeId)));
 }
 
 // ── proxy config ──────────────────────────────────────────────────────────────
@@ -253,6 +287,21 @@ export function renderFunctions(siteDir, componentsDir) {
       : 'commerce checkout is not live';
     removeIfStale(functionsDir, 'checkout.js', reason);
     removeIfStale(functionsDir, 'webhook.js', reason);
+  }
+
+  // live Printful commerce + commerce.contact -> printful-webhook.js
+  // (item 2 phase 3: shipping notifications, gated per printfulShippingEnabled)
+  if (commerceLive && printfulShippingEnabled(plan)) {
+    const printfulShippingSource = renderPrintfulShippingSource(plan);
+    fs.mkdirSync(apiDir, { recursive: true });
+    fs.writeFileSync(path.join(apiDir, 'printful-webhook.js'), printfulShippingSource);
+    console.log('✓ Rendered functions/api/printful-webhook.js (shipping notifications)');
+  } else {
+    removeIfStale(
+      functionsDir,
+      'printful-webhook.js',
+      'commerce is not live Printful with commerce.contact configured',
+    );
   }
 
   // proxies -> functions/<mount>/[[path]].js
