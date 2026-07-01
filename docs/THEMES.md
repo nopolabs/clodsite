@@ -60,6 +60,8 @@ Two scripts hold a hardcoded list of valid theme names. A new theme must be adde
 | `professional` | Off-white with navy accent, Merriweather serif headings — trustworthy and formal. |
 | `bold` | Near-black background, orange accent, uppercase Space Grotesk headings, hard offset shadows — loud on purpose. |
 | `warm` | Cream and terracotta, Fraunces display serif, editorial and handmade without going full rustic. |
+| `playful` | Sunny cream, rounded Baloo headings, orange/yellow accents, and pill navigation — friendly without becoming chaotic. |
+| `playful-shop` | The same rounded family as `playful`, but cooler, cleaner, and more product-card-forward for small storefronts. |
 
 ## Theme ideas
 
