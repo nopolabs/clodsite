@@ -17,9 +17,7 @@ larger, multi-step efforts with agreed milestones, or for active work another
 agent should avoid overlapping. Remove entries promptly when merged, abandoned,
 or moved into Pending/Completed.
 
-- **Item 2, phase 3 — Printful shipping notifications** (Claude, plan under
-  Codex review as of 2026-06-30; no code yet). See item 2 below and
-  `docs/superpowers/plans/2026-06-30-printful-shipping-notifications.md`.
+- None currently.
 
 ## Pending
 
@@ -43,16 +41,26 @@ address, a fulfillment expectation) — idempotent (`confirmation_sent_at` on th
 KV record), non-blocking (bounded, failure-swallowing, diagnostics on
 `confirmation_error`), and never affects the order outcome.
 
-**Phase 3 in progress (Claude implements, Codex reviews — plan first, then
-code):** shipping notifications from Printful `package_shipped` events. Plan:
-`docs/superpowers/plans/2026-06-30-printful-shipping-notifications.md` — auth
-model settled as verify-on-receipt (never trust the webhook payload's
-shipment content; re-fetch the order from Printful's own API before sending),
-gated on `commerce.contact.from` already being set (no new build-plan field),
-per-`(order_id, shipment_id)` idempotency reusing the existing `ORDERS` KV
-binding. A few v1 `/webhooks` wire-format details are flagged as spike items
-to confirm against the live API before the production template is written.
-Awaiting Codex's review of the plan before coding starts.
+**Phase 3 shipped** (Claude implements, Codex reviews — plan first, then
+code; plan `docs/superpowers/plans/2026-06-30-printful-shipping-notifications.md`):
+shipping notifications from Printful `package_shipped` events. Auth model is
+verify-on-receipt — the webhook payload is never trusted for shipment
+content; only its order id/shipment id are used to re-fetch the order from
+Printful's own API before sending anything. Gated on `commerce.contact.from`
+already being set (no new build-plan field, reuses the phase-2 sender);
+per-`(order_id, shipment_id)` idempotency reuses the existing `ORDERS` KV
+binding; a permanent condition (no recipient email) records a skip and
+returns 200 (never retried), while genuine transient failures return 500 so
+Printful's own retry can help. `provision-printful-webhook.sh` registers the
+webhook (confirmed live: `POST /webhooks` scoped via the `X-PF-Store-Id`
+header, not the Orders API's `?store_id=` query param) and treats
+`PRINTFUL_WEBHOOK_SECRET` as a stable `.env` credential, never minted and
+consumed in the same deploy. **One spike item remains open, not yet
+confirmed by anyone:** `GET /orders/{id}`'s `shipments[]` field names — worth
+a live check (Printful's webhook simulator or a real anchovy-mug shipment)
+before this runs against a real store, since a wrong field name there means
+the shipment's tracking data won't be found and the notification 500s (safe —
+Printful's retry gets another chance — but silently degraded until fixed).
 
 ### 3. Named commerce catalogs — multiple commerce components per site
 
