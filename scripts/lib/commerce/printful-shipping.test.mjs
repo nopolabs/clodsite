@@ -104,8 +104,8 @@ function makeOrder(overrides = {}) {
       {
         id: 'ship_1',
         tracking_number: '1Z999AA10123456784',
-        carrier: 'UPS',
-        service: 'Ground',
+        carrier: 'AMAZON',
+        service: 'Amazon Ground',
         tracking_url: 'https://example.com/track/1Z999AA10123456784',
         ship_date: '2026-07-01',
         items: [{ item_id: 1, quantity: 2, picked: 1, printed: 1 }],
@@ -217,7 +217,9 @@ test('first delivery sends a shipped email from the authoritative order, not the
   assert.match(email.subject, /Crow Shop/);
   assert.match(email.text, /Order: 5001/);
   assert.match(email.text, /1Z999AA10123456784/);
-  assert.match(email.text, /UPS.*Ground/);
+  // Carrier line prefers the human-readable service, not the machine code.
+  assert.match(email.text, /Carrier: Amazon Ground/);
+  assert.doesNotMatch(email.text, /Carrier: AMAZON$/m);
   assert.match(email.text, /Pat Crow/);
   // shipment.items[] carries only { item_id, quantity }, no name — the name
   // is joined from the order's own top-level items[] by id.
@@ -255,6 +257,23 @@ test('a shipment item with no matching order item falls back to a generic label'
   assert.equal(res.status, 200);
   const resendCall = calls.find((c) => c.url.startsWith('https://api.resend.com/'));
   assert.match(JSON.parse(resendCall.init.body).text, /1 x item 999/);
+});
+
+test('carrier code is shown when a shipment has no human-readable service name', async (t) => {
+  const calls = stubFetch(t, {
+    orderResponse: () => new Response(JSON.stringify({
+      code: 200,
+      result: makeOrder({ shipments: [{ id: 'ship_1', carrier: 'DHLGLOBALMAIL', items: [{ item_id: 1, quantity: 1 }] }] }),
+    }), { status: 200 }),
+  });
+  const orders = fakeKV();
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({ body, orders }));
+
+  assert.equal(res.status, 200);
+  const resendCall = calls.find((c) => c.url.startsWith('https://api.resend.com/'));
+  assert.match(JSON.parse(resendCall.init.body).text, /Carrier: DHLGLOBALMAIL/);
 });
 
 test('a second, different shipment on the same order sends its own notification', async (t) => {

@@ -55,12 +55,20 @@ Printful's own retry can help. `provision-printful-webhook.sh` registers the
 webhook (confirmed live: `POST /webhooks` scoped via the `X-PF-Store-Id`
 header, not the Orders API's `?store_id=` query param) and treats
 `PRINTFUL_WEBHOOK_SECRET` as a stable `.env` credential, never minted and
-consumed in the same deploy. **One spike item remains open, not yet
-confirmed by anyone:** `GET /orders/{id}`'s `shipments[]` field names — worth
-a live check (Printful's webhook simulator or a real anchovy-mug shipment)
-before this runs against a real store, since a wrong field name there means
-the shipment's tracking data won't be found and the notification 500s (safe —
-Printful's retry gets another chance — but silently degraded until fixed).
+consumed in the same deploy. **Spike item resolved (2026-07-02):** the
+`GET /orders/{id}` response shape was confirmed against two real HMC Printful
+orders (164927910, 164927484) on store 17828143. All template field reads
+match: `shipment.carrier`/`service`/`tracking_number`/`tracking_url`/`ship_date`,
+`shipment.items[].item_id` joined to `order.items[].id`/`.name`, and
+`order.recipient.*`. Two findings from that check: (1) `carrier` is an
+uppercase machine code (`DHLGLOBALMAIL`) while `service` is human-readable
+(`DHL Globalmail Parcel Expedited`) — the email now prefers `service`; (2)
+Printful UI-placed / operator-created replacement orders carry **no
+`recipient.email`** (shipping address only), so they hit the permanent-skip
+path and send nothing — real Clodsite-checkout orders always carry the email
+from Stripe, so store sales are unaffected, but the missing-email skip is a
+real, reachable case for manually-created orders. A per-site fallback
+recipient for the no-email case is a candidate follow-on (see below).
 
 ### 3. Named commerce catalogs — multiple commerce components per site
 
@@ -88,6 +96,34 @@ back to `PRINTFUL_WEBHOOK_SECRET` during migration. Missing-secret guidance
 should print the actual required env var name with the existing
 `pfws_<32 lowercase hex chars>` convention. This keeps rotation and compromise
 scope aligned with `commerce.printful.api_key_env`.
+
+### 3b. Operator fallback for shipments with no customer email
+
+Today a `package_shipped` event for an order with no `recipient.email` takes
+the permanent-skip path (records the skip, returns 200, sends nothing). That is
+correct for a customer email — there is no address to send to — but it is a
+silent skip only visible in a KV record no one reads. This class of order is
+real and reachable: Printful **UI-placed / operator-created replacement
+orders** carry a shipping address but no email (confirmed on real HMC orders,
+2026-07-02), whereas Clodsite-checkout orders always carry the email from
+Stripe. So the missing-email case is almost exclusively operator-created
+orders — where the operator placed the order and may want to forward tracking
+to the customer manually.
+
+Proposal: an **opt-in per-site fallback recipient** so the no-email case routes
+the (fully-detailed, forwardable) shipping notification to an operator inbox
+instead of dropping it — e.g. `commerce.contact.no_recipient_fallback:
+ops@site.example` (default unset → keep today's skip). The message should
+**self-identify as a fallback** ("no customer email on file — forward
+manually") so it is never mistaken for a delivered customer email, and stay
+idempotent (record the fallback send so redelivery does not re-send). Design
+note: this overlaps item 22's operator-alert channel
+(`CLODSITE_COMMERCE_ALERT_TO/FROM`); decide deliberately whether to reuse that
+channel (consistent, but PII-minimized — omits the shipping detail the
+operator needs to forward) or a dedicated fallback recipient (carries the full
+forwardable content, at the cost of a new field). Lean: dedicated fallback,
+because the operator's actual job here is to forward the complete notification.
+Do not build two parallel operator-notification paths without settling this.
 
 ### 4. Business-category components (e.g. restaurant menus)
 

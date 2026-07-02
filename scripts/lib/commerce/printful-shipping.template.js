@@ -106,9 +106,11 @@ function buildShippedEmail(orderId, order, shipment) {
     'Order: ' + orderId,
   ];
   if (shipment.tracking_number) lines.push('Tracking number: ' + shipment.tracking_number);
-  if (shipment.carrier || shipment.service) {
-    lines.push('Carrier: ' + [shipment.carrier, shipment.service].filter(Boolean).join(' — '));
-  }
+  // Prefer the human-readable service name ("DHL Globalmail Parcel Expedited",
+  // "Amazon Ground"); carrier is an uppercase machine code ("DHLGLOBALMAIL")
+  // and is only shown when no service name is present.
+  const carrierLine = shipment.service || shipment.carrier;
+  if (carrierLine) lines.push('Carrier: ' + carrierLine);
   if (shipment.tracking_url) lines.push('Track your package: ' + shipment.tracking_url);
   if (shipment.ship_date) lines.push('Shipped: ' + shipment.ship_date);
 
