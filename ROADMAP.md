@@ -125,6 +125,23 @@ forwardable content, at the cost of a new field). Lean: dedicated fallback,
 because the operator's actual job here is to forward the complete notification.
 Do not build two parallel operator-notification paths without settling this.
 
+### 3c. HTML customer order emails with item thumbnails
+
+Customer order-confirmation emails are currently plain text. They are correct,
+but they do not look like a polished storefront receipt: line items render as
+text only, with no product thumbnail or richer layout. Add an HTML body while
+preserving the existing text fallback. The HTML version should show each item
+with quantity, name, price, and a thumbnail when available; when no image exists,
+fall back cleanly to text-only item rows.
+
+Preferred data path: include absolute catalog image URLs in Stripe Checkout
+`product_data[images][]`, then retrieve enough line-item/product data in the
+webhook to render the email without trusting browser-submitted cart data. This
+requires resolving root-relative catalog assets against the site's production
+domain at checkout time. Keep the scope to customer confirmation emails first;
+shipping notifications can stay text-only until there is evidence they need the
+same treatment.
+
 ### 4. Business-category components (e.g. restaurant menus)
 
 Add constrained components for common business verticals, starting with the

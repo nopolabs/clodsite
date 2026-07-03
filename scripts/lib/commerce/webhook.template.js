@@ -158,6 +158,14 @@ function formatMoney(amountMinor, currency) {
   return '$' + (amountMinor / 100).toFixed(2) + ' ' + String(currency || 'usd').toUpperCase();
 }
 
+function formatEmailSender(name, email) {
+  const cleanName = String(name || '').replace(/[\r\n]/g, ' ').trim();
+  const cleanEmail = String(email || '').replace(/[\r\n]/g, '').trim();
+  if (!cleanName || !cleanEmail) return cleanEmail;
+  const quotedName = cleanName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return '"' + quotedName + '" <' + cleanEmail + '>';
+}
+
 // Order-confirmation body (item 2 phase 2). Totals/currency/shipping/email
 // come from the session the webhook already holds; only the renderable line
 // items (with variant baked into `description`) require a Stripe retrieve.
@@ -246,7 +254,7 @@ async function sendConfirmationEmail(context, session, now) {
 
     const body = {
       to: [email],
-      from: CONTACT.from,
+      from: formatEmailSender(SITE_NAME, CONTACT.from),
       subject: 'Your ' + SITE_NAME + ' order is confirmed',
       text: buildConfirmationEmail(session, lineItems),
     };

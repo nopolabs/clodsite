@@ -351,7 +351,7 @@ test('completed order sends a store-branded confirmation when commerce.contact.f
 
   const confirmation = JSON.parse(calls[2].init.body);
   assert.deepEqual(confirmation.to, ['pat@example.com']);
-  assert.equal(confirmation.from, 'confirm@example.com');
+  assert.equal(confirmation.from, '"Crow Shop" <confirm@example.com>');
   assert.equal(confirmation.reply_to, 'support@example.com');
   assert.equal(confirmation.subject, 'Your Crow Shop order is confirmed');
   assert.match(confirmation.text, /Thanks for your order from Crow Shop!/);
