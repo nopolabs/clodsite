@@ -91,12 +91,35 @@ async function fetchAuthoritativeOrder(env, orderId) {
 // shipment.items[] carries only { item_id, quantity, picked, printed } — no
 // name. The product name lives on the order's own top-level items[] (each
 // with an .id), joined here by item_id.
-function shipmentItemName(order, itemId) {
+function shipmentItemName(order, itemId, fulfillmentRecord) {
   const items = Array.isArray(order.items) ? order.items : [];
   const match = items.find(function (item) {
     return String(item.id) === String(itemId);
   });
+  const lineItems = fulfillmentRecord && Array.isArray(fulfillmentRecord.line_items)
+    ? fulfillmentRecord.line_items
+    : [];
+  if (match && typeof match.external_id === 'string') {
+    const indexMatch = match.external_id.match(/-(\d+)$/);
+    if (indexMatch) {
+      const line = lineItems[Number(indexMatch[1]) - 1];
+      if (line && line.name) return line.name;
+    }
+  }
   return (match && match.name) || 'item ' + itemId;
+}
+
+function shipmentCoversWholeOrder(order, shipment) {
+  const orderItems = Array.isArray(order.items) ? order.items : [];
+  const shipmentItems = Array.isArray(shipment.items) ? shipment.items : [];
+  if (orderItems.length === 0 || shipmentItems.length === 0) return false;
+  const shippedById = new Map(shipmentItems.map(function (item) {
+    return [String(item.item_id), typeof item.quantity === 'number' ? item.quantity : 1];
+  }));
+  return orderItems.every(function (item) {
+    const orderedQty = typeof item.quantity === 'number' ? item.quantity : 1;
+    return shippedById.get(String(item.id)) === orderedQty;
+  });
 }
 
 function formatEmailSender(name, email) {
@@ -107,9 +130,11 @@ function formatEmailSender(name, email) {
   return '"' + quotedName + '" <' + cleanEmail + '>';
 }
 
-function buildShippedEmail(orderId, order, shipment) {
+function buildShippedEmail(orderId, order, shipment, fulfillmentRecord) {
   const lines = [
-    'Part of your ' + SITE_NAME + ' order has shipped!',
+    (shipmentCoversWholeOrder(order, shipment)
+      ? 'Your ' + SITE_NAME + ' order has shipped!'
+      : 'Part of your ' + SITE_NAME + ' order has shipped!'),
     '',
     'Order: ' + orderId,
   ];
@@ -124,10 +149,10 @@ function buildShippedEmail(orderId, order, shipment) {
 
   const items = Array.isArray(shipment.items) ? shipment.items : [];
   if (items.length > 0) {
-    lines.push('', 'Items in this shipment:');
+    lines.push('', shipmentCoversWholeOrder(order, shipment) ? 'Items shipped:' : 'Items in this shipment:');
     for (const item of items) {
       const qty = typeof item.quantity === 'number' ? item.quantity : 1;
-      lines.push('  ' + qty + ' x ' + shipmentItemName(order, item.item_id));
+      lines.push('  ' + qty + ' x ' + shipmentItemName(order, item.item_id, fulfillmentRecord));
     }
   }
 
@@ -151,7 +176,7 @@ function buildShippedEmail(orderId, order, shipment) {
   return lines.join('\n');
 }
 
-async function sendShippedEmail(env, orderId, shipmentId, order, shipment) {
+async function sendShippedEmail(env, orderId, shipmentId, order, shipment, fulfillmentRecord) {
   const email = order.recipient && order.recipient.email;
   if (!email) {
     return { ok: false, permanent: true, diagnostic: 'no recipient email on order' };
@@ -161,7 +186,7 @@ async function sendShippedEmail(env, orderId, shipmentId, order, shipment) {
     to: [email],
     from: formatEmailSender(SITE_NAME, CONTACT.from),
     subject: 'Your ' + SITE_NAME + ' order has shipped',
-    text: buildShippedEmail(orderId, order, shipment),
+    text: buildShippedEmail(orderId, order, shipment, fulfillmentRecord),
   };
   if (CONTACT.reply_to) body.reply_to = CONTACT.reply_to;
 
@@ -239,7 +264,8 @@ export async function onRequestPost(context) {
     );
   }
 
-  const result = await sendShippedEmail(context.env, orderId, shipmentId, fetched.order, shipment);
+  const fulfillmentRecord = await ORDERS.get('printful-order:' + orderId, 'json');
+  const result = await sendShippedEmail(context.env, orderId, shipmentId, fetched.order, shipment, fulfillmentRecord);
   if (result.permanent) {
     // No recipient email can never resolve on retry (Decision 5, revised) —
     // record the skip so repeated deliveries stop here without re-fetching

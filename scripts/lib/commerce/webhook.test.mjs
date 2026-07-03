@@ -269,6 +269,9 @@ test('first delivery: fulfills via the provider and records completed', async (t
   assert.equal(record.state, 'completed');
   assert.equal(record.attempts, 1);
   assert.equal(record.provider_order_id, 'email_ok');
+  assert.deepEqual(record.line_items, [
+    { name: null, qty: 2, fulfillment_ref: '4938291' },
+  ]);
 });
 
 test('completed order does not emit an operator alert', async (t) => {
@@ -657,6 +660,14 @@ test('printful provider: fulfills end-to-end with the store id overlaid from the
   const record = orders.read('cs_test_abc123');
   assert.equal(record.state, 'completed');
   assert.equal(record.provider_order_id, '77001');
+  assert.deepEqual(record.line_items, [
+    { name: null, qty: 2, fulfillment_ref: '4938291' },
+  ]);
+  assert.deepEqual(orders.read('printful-order:77001'), {
+    session_id: 'cs_test_abc123',
+    line_items: [{ name: null, qty: 2, fulfillment_ref: '4938291' }],
+    updated_at: record.updated_at,
+  });
 });
 
 test('provider failure records failed with last_error and returns 500 so Stripe retries', async (t) => {

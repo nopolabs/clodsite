@@ -170,7 +170,7 @@ test('session metadata holds the server-resolved fulfillment refs', async (t) =>
   }));
 
   assert.deepEqual(JSON.parse(calls[0].params.get('metadata[items]')), [
-    { fulfillment_ref: '4938291', qty: 2 },
+    { fulfillment_ref: '4938291', qty: 2, name: 'Crow Tee (White / S)' },
   ]);
 });
 
@@ -319,6 +319,7 @@ test('a personalized item is HEAD-verified, then carried in metadata with its pr
     {
       fulfillment_ref: 'bbpp-print',
       qty: 1,
+      name: 'Printed Certificate',
       personalization_id: TOKEN,
       personalization_url: 'https://shop.example.com/parchment/cert/' + TOKEN + '?scale=2',
     },
@@ -338,6 +339,7 @@ test('a personalized mug can use the mug artwork endpoint as its product URL', a
     {
       fulfillment_ref: 'variant:1320',
       qty: 1,
+      name: 'Custom Mug',
       personalization_id: TOKEN,
       personalization_url: 'https://shop.example.com/parchment/mug/' + TOKEN + '?scale=2',
     },
