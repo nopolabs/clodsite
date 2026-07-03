@@ -212,7 +212,7 @@ test('first delivery sends a shipped email from the authoritative order, not the
   const resendCall = calls.find((c) => c.url.startsWith('https://api.resend.com/'));
   const email = JSON.parse(resendCall.init.body);
   assert.deepEqual(email.to, ['pat@example.com']);
-  assert.equal(email.from, 'confirm@example.com');
+  assert.equal(email.from, '"Crow Shop" <confirm@example.com>');
   assert.equal(email.reply_to, 'support@example.com');
   assert.match(email.subject, /Crow Shop/);
   assert.match(email.text, /Order: 5001/);

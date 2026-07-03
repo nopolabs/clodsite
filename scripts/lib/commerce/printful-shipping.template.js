@@ -99,6 +99,14 @@ function shipmentItemName(order, itemId) {
   return (match && match.name) || 'item ' + itemId;
 }
 
+function formatEmailSender(name, email) {
+  const cleanName = String(name || '').replace(/[\r\n]/g, ' ').trim();
+  const cleanEmail = String(email || '').replace(/[\r\n]/g, '').trim();
+  if (!cleanName || !cleanEmail) return cleanEmail;
+  const quotedName = cleanName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return '"' + quotedName + '" <' + cleanEmail + '>';
+}
+
 function buildShippedEmail(orderId, order, shipment) {
   const lines = [
     'Part of your ' + SITE_NAME + ' order has shipped!',
@@ -151,7 +159,7 @@ async function sendShippedEmail(env, orderId, shipmentId, order, shipment) {
 
   const body = {
     to: [email],
-    from: CONTACT.from,
+    from: formatEmailSender(SITE_NAME, CONTACT.from),
     subject: 'Your ' + SITE_NAME + ' order has shipped',
     text: buildShippedEmail(orderId, order, shipment),
   };
