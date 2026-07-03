@@ -217,3 +217,25 @@ commerce:
 
 Keep secrets out of `build-plan.yaml`. Secrets belong in the deployment
 environment, not source — the plan holds only the env-var **names**.
+
+### Printful token scopes
+
+A Printful commerce store's API token (`PRINTFUL_API_KEY`, or its per-site
+`commerce.printful.api_key_env` alias) is created at
+<https://developers.printful.com/tokens> with an explicit scope checklist.
+Clodsite exercises the token across three surfaces, so an under-scoped token
+fails **mid-deploy** on whichever endpoint it can't reach (e.g. a token with
+only order scopes registers fulfillment fine but 403s when the deploy tries to
+register the shipping webhook). Check these boxes:
+
+| Token checkbox (Printful UI) | API scope | Needed for |
+|---|---|---|
+| **View and manage orders of the authorized store** | `orders` | **Required** — fulfillment (`POST /orders` + confirm) and the shipping-notification order re-fetch. Check "View orders" too. |
+| **View and manage store webhooks** | `webhooks` | **Required for order emails** — deploy-time `GET`/`POST /webhooks` registration (item 2 phase 3). Check "View store webhooks" too. |
+| **View store products** | `sync_products/read` | Catalog `/sync` (the separate sync step, not the deploy). |
+
+Leave "View and manage store products/files" unchecked — clodsite never writes
+products or calls the file library (print files ride along in the order-create
+payload under the `orders` scope). If a deploy fails with a Printful `403` on
+`/webhooks`, the token is missing the **webhooks** scope: regrant it and update
+the value in `.env`.

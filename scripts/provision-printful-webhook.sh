@@ -46,10 +46,14 @@ if [ -z "${PRINTFUL_WEBHOOK_SECRET:-}" ]; then
   exit 1
 fi
 
-PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" "$PLAN" slug custom-domain printful-store-id)
+PLAN_VALUES=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" "$PLAN" slug custom-domain printful-store-id printful-api-key-env)
 SITE_NAME=$(echo "$PLAN_VALUES" | sed -n '1p')
 CUSTOM_DOMAIN=$(echo "$PLAN_VALUES" | sed -n '2p')
 STORE_ID=$(echo "$PLAN_VALUES" | sed -n '3p')
+# Per-site alias (commerce.printful.api_key_env) that supplied PRINTFUL_API_KEY,
+# named in the 403 hint so the operator knows which .env var to fix.
+PRINTFUL_API_KEY_SOURCE=$(echo "$PLAN_VALUES" | sed -n '4p')
+PRINTFUL_API_KEY_SOURCE="${PRINTFUL_API_KEY_SOURCE:-PRINTFUL_API_KEY}"
 if [ -z "$SITE_NAME" ]; then
   echo "Error: build-plan.yaml is missing slug."
   exit 1
@@ -104,6 +108,16 @@ printful_request() {
   printf '%s' "$body"
   case "$http_code" in
     2*) return 0 ;;
+    403)
+      # printful_request only ever hits /webhooks (Webhook API), so a 403 here
+      # is almost always a missing scope: the token lacks webhook access. Name
+      # it — this is otherwise an opaque failure discovered mid-deploy.
+      echo "Error: Printful API request failed (${method} ${url}, HTTP 403)." >&2
+      echo "The ${PRINTFUL_API_KEY_SOURCE} token lacks webhook scope." >&2
+      echo "Grant it 'View and manage store webhooks' (scope: webhooks) at" >&2
+      echo "https://developers.printful.com/tokens and update the value in .env." >&2
+      return 1
+      ;;
     *)
       echo "Error: Printful API request failed (${method} ${url}, HTTP ${http_code})." >&2
       return 1

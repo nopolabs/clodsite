@@ -2489,7 +2489,9 @@ done
 echo "\${method} \${url}\${store_header:+ X-PF-Store-Id=\${store_header}}" >> "${CHECKOUT_STUB_LOG}"
 case "\${url}" in
   *api.printful.com/webhooks)
-    if [ "\${method}" = "POST" ]; then
+    if [ -f "${CHECKOUT_STUB_DIR}/printful-webhook-403" ]; then
+      printf '%s\n403' '{"code":403,"error":{"reason":403,"message":"This endpoint requires any of the following scopes granted: webhooks/read!"}}'
+    elif [ "\${method}" = "POST" ]; then
       printf '{"code":200,"result":%s}' "\$data" > "${CHECKOUT_STUB_DIR}/printful-webhook-state.json"
       printf '%s\n200' "\$(cat "${CHECKOUT_STUB_DIR}/printful-webhook-state.json")"
     elif [ -f "${CHECKOUT_STUB_DIR}/printful-webhook-state.json" ]; then
@@ -2743,6 +2745,20 @@ assert_contains "unchanged registration is still read on redeploy" "GET https://
 assert_not_contains "unchanged Printful webhook registration is not re-POSTed" "POST https://api.printful.com/webhooks" "$CHECKOUT_LOG"
 assert_contains "PRINTFUL_WEBHOOK_SECRET still re-pushed every deploy (plain overwrite)" "pages secret put PRINTFUL_WEBHOOK_SECRET --project-name commerce-live-test stdin=ptok_test_secret" "$CHECKOUT_LOG"
 rm -f "${CHECKOUT_STUB_DIR}/printful-webhook-state.json"
+
+# a token missing the webhooks scope 403s on /webhooks — the deploy must fail
+# with a message naming the required scope + the per-site .env var to fix, not
+# an opaque HTTP 403.
+: > "${CHECKOUT_STUB_LOG}"
+touch "${CHECKOUT_STUB_DIR}/printful-webhook-403"
+PRINTFUL_403_OUTPUT=$(STRIPE_SECRET_KEY=sk_test_123 PRINTFUL_API_KEY=pf_test RESEND_API_KEY=re_confirm \
+  PRINTFUL_WEBHOOK_SECRET=ptok_test_secret SITE_DIR="${SITE_DIR}" \
+  bash scripts/deploy.sh 2>&1)
+assert_exit "printful webhook 403 (missing scope) fails the deploy" 1 $?
+assert_contains "403 hint names the webhooks scope" "webhooks" "$PRINTFUL_403_OUTPUT"
+assert_contains "403 hint points at the token page" "developers.printful.com/tokens" "$PRINTFUL_403_OUTPUT"
+assert_contains "403 hint names the token source var" "PRINTFUL_API_KEY token lacks webhook scope" "$PRINTFUL_403_OUTPUT"
+rm -f "${CHECKOUT_STUB_DIR}/printful-webhook-403" "${CHECKOUT_STUB_DIR}/printful-webhook-state.json"
 
 # reset to the printful-without-contact plan expected by the sections below
 commerce_live_mutation "p.commerce.provider='printful'; delete p.commerce.fulfillment; p.commerce.printful={store_id:17828143,products:[{slug:'crow-tee',printful_product_id:428417969,price_minor:2000,description:'A tee.'}]};"
