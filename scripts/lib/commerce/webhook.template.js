@@ -385,6 +385,13 @@ export async function onRequestPost(context) {
       attempts: attempts,
       updated_at: Date.now(),
       provider_order_id: result.provider_order_id,
+      line_items: lineItems.map(function (item) {
+        return {
+          name: item.name || null,
+          qty: item.qty,
+          fulfillment_ref: item.fulfillment_ref,
+        };
+      }),
     };
     // A prior failed/processing record never carries confirmation_sent_at in
     // practice (it's only ever written here, on success) — checked anyway so
@@ -392,6 +399,16 @@ export async function onRequestPost(context) {
     const alreadySent = record && record.confirmation_sent_at;
     if (alreadySent) completedRecord.confirmation_sent_at = record.confirmation_sent_at;
     await ORDERS.put(session.id, JSON.stringify(completedRecord));
+    if (PROVIDER_ENV.PRINTFUL_STORE_ID && result.provider_order_id) {
+      await ORDERS.put(
+        'printful-order:' + result.provider_order_id,
+        JSON.stringify({
+          session_id: session.id,
+          line_items: completedRecord.line_items,
+          updated_at: completedRecord.updated_at,
+        }),
+      );
+    }
 
     if (!alreadySent) {
       const confirmation = await sendConfirmationEmail(context, session, Date.now());

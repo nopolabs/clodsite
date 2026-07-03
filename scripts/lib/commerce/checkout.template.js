@@ -187,7 +187,7 @@ export async function onRequestPost(context) {
   // everything downstream of parchment, like fulfillment_ref itself).
   const metadataItems = JSON.stringify(
     resolved.map(function (line) {
-      const out = { fulfillment_ref: line.entry.fulfillment_ref, qty: line.qty };
+      const out = { fulfillment_ref: line.entry.fulfillment_ref, qty: line.qty, name: line.entry.name };
       if (line.personalization_id) {
         out.personalization_id = line.personalization_id;
         out.personalization_url = line.personalization_url;

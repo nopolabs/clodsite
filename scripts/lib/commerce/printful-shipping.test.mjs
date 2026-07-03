@@ -99,7 +99,7 @@ function makeOrder(overrides = {}) {
       country_code: 'US',
       email: 'pat@example.com',
     },
-    items: [{ id: 1, name: 'Crow Tee (Pink / L)' }],
+    items: [{ id: 1, name: 'White glossy mug', external_id: 'cs_abc-1', quantity: 2 }],
     shipments: [
       {
         id: 'ship_1',
@@ -197,7 +197,12 @@ test('malformed event without order/shipment ids returns 400', async (t) => {
 
 test('first delivery sends a shipped email from the authoritative order, not the payload', async (t) => {
   const calls = stubFetch(t);
-  const orders = fakeKV();
+  const orders = fakeKV({
+    'printful-order:5001': {
+      session_id: 'cs_test_abc123',
+      line_items: [{ name: 'Crow Shop Mug', qty: 2, fulfillment_ref: '4938291' }],
+    },
+  });
   // The payload itself carries no tracking data to trust (verify-on-receipt,
   // Decision 1) — only the order/shipment ids used to look the real order up.
   const body = JSON.stringify(makeEvent());
@@ -221,9 +226,14 @@ test('first delivery sends a shipped email from the authoritative order, not the
   assert.match(email.text, /Carrier: Amazon Ground/);
   assert.doesNotMatch(email.text, /Carrier: AMAZON$/m);
   assert.match(email.text, /Pat Crow/);
-  // shipment.items[] carries only { item_id, quantity }, no name — the name
-  // is joined from the order's own top-level items[] by id.
-  assert.match(email.text, /2 x Crow Tee \(Pink \/ L\)/);
+  assert.match(email.text, /Your Crow Shop order has shipped!/);
+  assert.doesNotMatch(email.text, /Part of your Crow Shop order has shipped!/);
+  assert.match(email.text, /Items shipped:/);
+  // Prefer the customer-facing checkout item name when a Printful-order KV
+  // index is available; Printful's own top-level item name is often only the
+  // blank product ("White glossy mug").
+  assert.match(email.text, /2 x Crow Shop Mug/);
+  assert.doesNotMatch(email.text, /White glossy mug/);
   assert.equal(resendCall.init.headers['Idempotency-Key'], 'printful-shipment:crow-shop:5001:ship_1');
 
   const record = orders.read('printful-shipment:5001:ship_1');
@@ -240,6 +250,34 @@ test('duplicate delivery of the same (order_id, shipment_id) returns 200 without
   assert.equal(res.status, 200);
   assert.equal((await res.json()).duplicate, true);
   assert.equal(calls.length, 0);
+});
+
+test('split shipment copy still says part of the order shipped', async (t) => {
+  const calls = stubFetch(t, {
+    orderResponse: () => new Response(JSON.stringify({
+      code: 200,
+      result: makeOrder({
+        items: [{ id: 1, name: 'Crow Tee', external_id: 'cs_abc-1', quantity: 2 }],
+        shipments: [{ id: 'ship_1', items: [{ item_id: 1, quantity: 1 }] }],
+      }),
+    }), { status: 200 }),
+  });
+  const orders = fakeKV({
+    'printful-order:5001': {
+      session_id: 'cs_test_abc123',
+      line_items: [{ name: 'Crow Tee (Pink / L)', qty: 2, fulfillment_ref: '4938291' }],
+    },
+  });
+  const body = JSON.stringify(makeEvent());
+
+  const res = await onRequestPost(makeContext({ body, orders }));
+
+  assert.equal(res.status, 200);
+  const resendCall = calls.find((c) => c.url.startsWith('https://api.resend.com/'));
+  const email = JSON.parse(resendCall.init.body);
+  assert.match(email.text, /Part of your Crow Shop order has shipped!/);
+  assert.match(email.text, /Items in this shipment:/);
+  assert.match(email.text, /1 x Crow Tee \(Pink \/ L\)/);
 });
 
 test('a shipment item with no matching order item falls back to a generic label', async (t) => {
