@@ -3,7 +3,7 @@ type: Spec
 title: "Governed Revise Workflow Design"
 description: "Design for the preview-and-revise workflow: capture feedback, propose a plan diff, report the blast radius mechanically, deploy only after approval. Not yet implemented."
 tags: ["workflow", "revise", "maintenance", "governance"]
-status: proposed
+status: draft
 timestamp: 2026-07-03T00:00:00Z
 ---
 
