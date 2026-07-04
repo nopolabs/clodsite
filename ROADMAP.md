@@ -447,6 +447,17 @@ Operator guidance (docs, and possibly a `NEXT-STEPS.md` line): keep the
 `business` block consistent with the owner's Google Business Profile — the two
 listings reinforce each other.
 
+Design (proposed):
+`docs/superpowers/specs/2026-07-04-discoverability-pack-design.md` — reuses the
+existing `custom_domain` → `canonicalOrigin` gate and the `@graph`
+structured-data assembly in `render-templates.mjs` (the `LocalBusiness` node
+joins the root page's existing graph), plus the `render-redirects.sh`
+one-script-per-`dist/`-artifact pattern for `render-sitemap.sh` /
+`render-robots.sh`. Adds one shared `getPageRoutes(plan)` helper so the sitemap
+and template renderer can't disagree on routes; the `hours-location` component
+reads the site-level `business` block (no duplicated data). `<lastmod>`,
+multi-location, and collection routes are deferred.
+
 ### 24. Analytics and owner reporting
 
 Clodsite has no evidence loop: after deploy, neither the operator nor the site
