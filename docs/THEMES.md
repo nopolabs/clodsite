@@ -49,7 +49,7 @@ This is where a theme's personality beyond color lives — e.g. `bold` uppercase
 
 Two scripts hold a hardcoded list of valid theme names. A new theme must be added to both:
 
-- `scripts/validate-plan.sh` — the `validStyles` array
+- `scripts/lib/validate-plan.mjs` — the `validStyles` array
 - `scripts/apply-theme.sh` — the error message listing valid styles
 
 ## Existing themes
@@ -62,6 +62,8 @@ Two scripts hold a hardcoded list of valid theme names. A new theme must be adde
 | `warm` | Cream and terracotta, Fraunces display serif, editorial and handmade without going full rustic. |
 | `playful` | Sunny cream, rounded Baloo headings, orange/yellow accents, and pill navigation — friendly without becoming chaotic. |
 | `playful-shop` | The same rounded family as `playful`, but cooler, cleaner, and more product-card-forward for small storefronts. |
+| `terminal` | Dark developer-console energy, IBM Plex Mono throughout, green phosphor accents, and command-line heading markers. |
+| `academic` | Warm paper, serif reading typography, burgundy accent, and restrained journal-like structure for long-form informational sites. |
 
 ## Theme families
 
@@ -84,9 +86,7 @@ Brainstormed, not yet built:
 
 | Idea | Description |
 |------|-------------|
-| `terminal` | Dark background, monospace throughout, green or amber text. Natural fit for developer tools and CLI projects. |
 | `brutalist` | No rounded corners, system fonts, raw black-on-white with thick borders. Makes a statement. |
-| `academic` | Serif body text, cream background — feels like a printed paper or arXiv preprint. Good for research writing. |
 | `newspaper` | Strong editorial headline typography, tight leading, horizontal rules for structure. Suits content-heavy sites. |
 | `glassmorphism` | Frosted-glass cards, subtle gradients, blur effects. Current SaaS aesthetic. |
 | `synthwave` | Dark background, neon pink/cyan accents, grid aesthetic. High personality, narrow audience. |
