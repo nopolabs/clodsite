@@ -198,6 +198,17 @@ marker and Clodsite can clear the cart on the success page. Use a page such as
 `nav.order` are still built, which is the right shape for utility pages like
 checkout success pages.
 
+Sites that send email can bind a site-specific Resend key at the top level:
+
+```yaml
+email:
+  api_key_env: CLIENT_RESEND_API_KEY
+```
+
+The binding supplies the canonical `RESEND_API_KEY` for contact forms, order
+confirmations, and shipping notices. Validation checks only the env-var name
+syntax; the deploy/function path checks whether the source is actually set.
+
 Personalized products are buy-now products that require an opaque token from an
 external system. The `personalization.url` is an origin-relative artwork URL
 template; checkout verifies `HEAD <url>` before creating a Stripe session and

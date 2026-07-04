@@ -28,7 +28,6 @@ Contact form with server-side email delivery via Resend. Optional Turnstile prot
 - `submit_label` (string)
 - `success_message` (string)
 - `turnstile` (boolean)
-- `api_key_env` (non-empty string)
 
 **Example:**
 
@@ -40,7 +39,6 @@ subject: Message from my-site  # optional, default generated from site name
 submit_label: Send             # optional, default: Send
 success_message: Thanks, we will be in touch.  # optional
 turnstile: true               # optional, default: false; provisioned during deploy
-api_key_env: SITE_RESEND_KEY   # optional, default RESEND_API_KEY; names the env var holding the key (site-scoped: all forms must agree)
 fields:                        # at least one required
   - { name: name,    label: Your name,  type: text,     required: true }
   - { name: email,   label: Your email, type: email,    required: true }

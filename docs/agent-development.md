@@ -116,8 +116,9 @@ different keys (or Stripe modes) without editing a shared file:
   mode (via `clodsite_stripe_mode`) and rejects a mismatch.
 - `commerce.printful.api_key_env: SOME_NAME` binds `SOME_NAME` →
   `PRINTFUL_API_KEY` for that store.
-- `resend-form`'s `api_key_env` binds a source → `RESEND_API_KEY`; it is
-  site-scoped (one `/api/contact` endpoint), so every form must agree.
+- `email.api_key_env: SOME_NAME` binds `SOME_NAME` → `RESEND_API_KEY` for any
+  site feature that sends email (contact forms, order confirmations, shipping
+  notices).
 
 Resolution happens in `clodsite_resolve_bindings`, called from the
 `clodsite_init_site_dir` chokepoint — names only travel through the plan; values

@@ -456,54 +456,25 @@ to the site owner via Resend. Builds on item 22's observability tooling;
 pairs naturally with item 7 (the report surfaces what to change, the revise
 workflow changes it).
 
-### 25. Client readiness — what stands between us and client #1
-
-Building and maintaining a site for a real small business we don't own is the
-single most informative next test of the product (the current dogfood sites are
-all the operator's own projects). The existing machinery — the flat
-`~/.config/clodsite/env` registry, item 12's declarative bindings, item 21's
-per-store Stripe keys — is mechanically sufficient for one client under the
-single-trusted-operator model (item 16 tier 1). Three gaps to close first,
-smallest-possible versions of each:
-
-1. **Account-ownership map (docs).** A short client-onboarding doc stating
-   which provider accounts are the *client's* and which are the operator's:
-   the client owns their **Stripe account** (their money, KYC, receipts —
-   restricted keys only, minimum scopes, since the operator env holds custody
-   of the credential) and their **domain registration** (the asset they take
-   if the relationship ends); the operator keeps **Cloudflare and Resend**
-   (shared infrastructure, decided 2026-07-03 — the client's sender domain is
-   verified in the operator's Resend account). This map is also the honest
-   answer to "what happens if we stop working together."
-2. **Site-level Resend key binding.** `RESEND_API_KEY` is currently bindable
-   only via a `resend-form` *component's* `api_key_env`, yet commerce
-   order-confirmation and shipping emails consume the same canonical var — a
-   commerce site with no contact form has nowhere to declare a Resend binding
-   at all. Promote the binding to one site-level field (natural home:
-   `commerce.contact.api_key_env`, or a site-level `email` block if a
-   non-commerce need appears), keeping the component-level field as an alias
-   or migrating it in the same change (no back-compat shims, per project
-   policy). Not needed while every site rides the shared Resend account, but
-   it is the missing piece the moment any client needs their own — and the
-   binding belongs at site level regardless.
-3. **Secrets audit command.** The flat registry namespace scales fine; what
-   degrades with more sites is *inventory* — "which vars does site X bind,
-   are they all set, which are stale after offboarding?" Add a read-only
-   listing (a `--list` mode on `resolve-env.sh` or a small `secrets.sh
-   <site>`) printing each site's declared bindings — canonical ← source,
-   set/missing, resolved Stripe mode — **names only, never values**. Pair
-   with a registry convention of one commented section per site, so
-   offboarding is "delete one section, re-run the audit."
-
-Explicitly out of scope until real triggers appear (more than ~2–3 external
-clients, a not-fully-trusted client, a client wanting their own Cloudflare
-account, or a second operator): per-site env files, secret scoping, and the
-rest of item 16 tier 2. Related: item 3a (per-site Printful webhook secret)
-tracks the analogous credential gap on that provider.
-
 ---
 
 ## Completed
+
+### Client readiness — first external-client guardrails
+Shipped July 2026 (pending item 25). Closed the three smallest gaps before
+working with a real client under the single-trusted-operator model. Added
+`docs/client-onboarding.md`, which maps account ownership: the client owns
+Stripe and domain registration; the operator keeps shared Cloudflare and Resend
+(client sender domains verified in the operator Resend account; decision
+2026-07-03), with a clear "what the client takes if we part ways" section.
+Added a names-only secret audit command, `scripts/resolve-env.sh --list <site>`,
+which reports each declared binding as canonical ← source with set/MISSING
+status and Stripe mode, never values; the shared registry convention is one
+commented section per site so offboarding is delete-section-and-audit. Promoted
+the Resend binding from `resend-form.api_key_env` to site-level
+`email.api_key_env`, so commerce-only email sites can declare the same
+`RESEND_API_KEY` binding as contact-form sites; the component field is removed
+pre-1.0 and validation points authors to the new location.
 
 ### Commerce v1 — sell a small catalog of products
 Shipped June 2026 (pending item 1). Ecommerce as a Clodsite capability: a
@@ -571,18 +542,18 @@ each credential and *which* Stripe mode to bind, while the secret **values**
 stay in the environment and never enter the plan. `commerce.checkout.mode:
 test|live` selects `STRIPE_SECRET_KEY_{TEST,LIVE}` → `STRIPE_SECRET_KEY` (mode
 is now declared and selects the key; `clodsite_stripe_mode` becomes a verifier);
-`commerce.printful.api_key_env` and a site-scoped `resend-form` `api_key_env`
-alias their canonical names. Resolution runs inside the
+`commerce.printful.api_key_env` and site-scoped `email.api_key_env` alias their
+canonical names. Resolution runs inside the
 `clodsite_init_site_dir` chokepoint (`clodsite_resolve_bindings`), so every
 secret-consuming entrypoint inherits it; a declared binding overrides an ambient
 canonical value while the source it reads still honors #72 exported-wins.
-Validation is split: `validate-plan` checks structure only (mode enum,
-`api_key_env` syntax, resend-form agreement) and stays runnable with no
-credentials; existence and Stripe key-shape are enforced at the point of use in
-the secret-consuming scripts. `scripts/resolve-env.sh <site>` (sourceable)
-resolves a site's bindings into the current shell and reports the source name +
-mode — never the value. Clean cutover (no overlay file); the value-source
-generalization is item 11a, the trust-boundary half item 16. Design:
+Validation is split: `validate-plan` checks structure only (mode enum and
+binding env-var-name syntax) and stays runnable with no credentials; existence
+and Stripe key-shape are enforced at the point of use in the secret-consuming
+scripts. `scripts/resolve-env.sh <site>` (sourceable) resolves a site's bindings
+into the current shell and reports the source name + mode — never the value.
+Clean cutover (no overlay file); the value-source generalization is item 11a,
+the trust-boundary half item 16. Design:
 `docs/superpowers/specs/2026-06-26-per-site-env-layers-design.md`.
 
 ### Explicit redirects

@@ -140,20 +140,14 @@ export function getStripeSecretKeyEnv(plan) {
   return base + (mode === 'live' ? '_LIVE' : '_TEST');
 }
 
-// Resolve the single site-scoped Resend source var declared on resend-form
-// components, or '' when none. Site-scoped because v1 generates one /api/contact
-// endpoint; validate-plan enforces that every resend-form agrees on the value,
-// so the first non-empty declaration is authoritative here.
+// Resolve the site-scoped Resend source var, or '' when none. Resend is
+// consumed by contact forms and commerce email, so the binding lives at the
+// site level rather than on a specific component.
 function getResendApiKeyEnv(plan) {
-  for (const page of plan.pages || []) {
-    for (const component of (page && page.components) || []) {
-      if (component && component.type === 'resend-form' &&
-          typeof component.api_key_env === 'string' && component.api_key_env.trim() !== '') {
-        return component.api_key_env.trim();
-      }
-    }
-  }
-  return '';
+  const email = plan.email && typeof plan.email === 'object' && !Array.isArray(plan.email)
+    ? plan.email
+    : null;
+  return email && typeof email.api_key_env === 'string' ? email.api_key_env.trim() : '';
 }
 
 // Declarative per-site secret bindings (item 12): each entry names the canonical

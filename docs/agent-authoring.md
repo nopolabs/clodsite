@@ -203,13 +203,16 @@ commerce:
     api_key_env: ANCHOVY_PRINTFUL_API_KEY   # → PRINTFUL_API_KEY for this store
     store_id: 17828143
     products: [ ... ]
+
+email:
+  api_key_env: ANCHOVY_RESEND_API_KEY       # → RESEND_API_KEY for this site
 ```
 
 - `commerce.checkout.mode` makes test↔live a one-line plan edit visible in a
   diff, instead of swapping a key in the shared `.env`. Keep both
   `STRIPE_SECRET_KEY_TEST` and `STRIPE_SECRET_KEY_LIVE` in the environment.
-- `resend-form` takes an optional `api_key_env` (site-scoped: all forms must
-  agree) binding a source → `RESEND_API_KEY`.
+- `email.api_key_env` binds a source → `RESEND_API_KEY` for any site feature
+  that sends email (contact forms, order confirmations, shipping notices).
 - The deploy verifies the selected source exists and (for Stripe) that the key's
   prefix matches the declared mode before any live action. To preview what a
   site resolves to: `source scripts/resolve-env.sh <site>` (prints source names

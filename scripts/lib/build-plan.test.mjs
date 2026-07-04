@@ -129,7 +129,8 @@ test('getSecretBindings maps mode and aliases to canonical → source pairs', ()
       checkout: { mode: 'live' },
       printful: { api_key_env: 'ANCHOVY_PRINTFUL_API_KEY' },
     },
-    pages: [{ components: [{ type: 'resend-form', api_key_env: 'SITE_RESEND_KEY' }] }],
+    email: { api_key_env: 'SITE_RESEND_KEY' },
+    pages: [{ components: [{ type: 'resend-form' }] }],
   });
   assert.deepEqual(bindings, [
     { canonical: 'STRIPE_SECRET_KEY', source: 'STRIPE_SECRET_KEY_LIVE' },
