@@ -424,7 +424,7 @@ for component in hero feature-grid key-facts quote resource-cards call-to-action
 done
 
 # Theme navigation wraps below the shared narrow-screen breakpoint.
-for theme in minimal professional bold warm playful playful-shop; do
+for theme in minimal professional bold warm playful playful-shop terminal academic; do
   THEME_CSS=$(cat "scaffold/src/css/themes/${theme}.css")
   for token in color-muted color-border color-on-accent color-surface-raised shadow-card; do
     assert_contains "${theme} defines --${token}" "--${token}:" "$THEME_CSS"
