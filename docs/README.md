@@ -36,6 +36,7 @@ only after the plan is reviewable.
 |---|---|
 | [`knowledge/index.md`](knowledge/index.md) | Knowledge format (OKF) — type vocabulary and frontmatter contract for these docs |
 | [`authoring-build-plan.md`](authoring-build-plan.md) | Detailed `build-plan.yaml` authoring contract |
+| [`client-onboarding.md`](client-onboarding.md) | Account ownership map for external-client sites |
 | [`../components/CATALOG.md`](../components/CATALOG.md) | Generated component vocabulary and examples |
 | [`testing.md`](testing.md) | Test layout, commands, result interpretation, fixtures, and where to add coverage |
 | [`THEMES.md`](THEMES.md) | Theme contract and theme-authoring notes |
