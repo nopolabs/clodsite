@@ -192,6 +192,18 @@ This evolves the planned `/modify` command around current build-plan-first
 usage, preserves stable page IDs, and keeps revision governed rather than
 silently regenerating the site.
 
+Design (proposed):
+`docs/superpowers/specs/2026-07-03-governed-revise-workflow-design.md` — a
+five-phase **Revise** workflow (capture → propose → report → approve → apply).
+The crux: the sites repo commits both authored inputs and built `dist/` and is
+clean between deploys, so the plan diff *is* the proposal and a rebuild +
+`git diff` on `dist/` *is* the blast radius — governance becomes mechanically
+checkable (one new script, `revise-report.sh`), and the empty-report-on-
+unchanged-plan case doubles as the determinism verifier. Apply reuses the
+existing Deploy pipeline; removed routes must be covered by `redirects`
+(item 9). Slice 2 (shareable remote preview via Pages preview deployments) is
+named but deliberately deferred to its own design pass.
+
 *(Items 8 "Generated not-found page" and 9 "Explicit redirects" shipped June
 2026 — see Completed below. Numbering preserved.)*
 
