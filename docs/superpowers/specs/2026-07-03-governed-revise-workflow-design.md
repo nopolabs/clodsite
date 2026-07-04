@@ -3,17 +3,22 @@ type: Spec
 title: "Governed Revise Workflow Design"
 description: "Design for the preview-and-revise workflow: capture feedback, propose a plan diff, report the blast radius mechanically, deploy only after approval. Not yet implemented."
 tags: ["workflow", "revise", "maintenance", "governance"]
-status: draft
-timestamp: 2026-07-03T00:00:00Z
+status: accepted
+timestamp: 2026-07-04T00:00:00Z
 ---
 
 # Governed Revise Workflow Design
 
 **Date:** 2026-07-03
-**Status:** Proposed
+**Status:** Accepted
 **Roadmap entry:** Governed preview-and-revise workflow (pending item 7)
 **Builds on:** explicit redirects (item 9), the sites-repo commit model
 (deploy-finalize auto-commit), deterministic builds
+**Revised 2026-07-04** after a post-merge review: the proposal and abandon
+operations now span the whole authored-input surface (not just
+`build-plan.yaml`); the report requires a clean baseline and uses
+`git diff --name-status`; abandon is spelled out for untracked files; and the
+script's site-resolution contract is stated.
 
 ---
 
@@ -36,15 +41,25 @@ Deploy pipeline.
 The crux — and the reason this needs almost no new machinery — is that the
 governance is **mechanically checkable**, not procedural. The sites repo
 commits both the authored inputs and the built `dist/`, and its working tree
-is clean between deploys (deploy-finalize auto-commits). So after the agent
-edits the plan and rebuilds:
+is clean between deploys (deploy-finalize auto-commits). That clean-at-rest
+baseline is load-bearing: a diff only reads as "the revision" if nothing
+unrelated was dirty when it started (see the preflight in phase 3). So starting
+from a clean tree, after the agent edits the inputs and rebuilds:
 
-- `git diff -- <site>/build-plan.yaml` **is** the proposal, and
-- `git diff --name-only -- <site>/dist` **is** the blast radius — the exact
-  set of routes the revision changes, adds, or removes.
+- `git diff --name-status` over the site's **authored-input surface** **is**
+  the proposal, and
+- `git diff --name-status -- <site>/dist` **is** the blast radius — the exact
+  set of routes the revision changes (`M`), adds (`A`), or removes (`D`).
 
-Determinism is what makes the second diff meaningful: any changed output must
-trace to a changed input. A revision report over these two diffs is the one new
+The **authored-input surface** is the defined set of source paths a revision
+may touch: `build-plan.yaml`, `assets/`, and — once item 20 lands — collection
+entry directories. It is *not* just `build-plan.yaml` (phase 2 legitimately
+edits assets and, later, collection entries). A single helper enumerates it, so
+the proposal diff, the baseline preflight, and abandon (phase 4) all agree on
+exactly which paths are "authored input" versus generated output.
+
+Determinism is what makes the blast-radius diff meaningful: any changed output
+must trace to a changed input. A revision report over these diffs is the one new
 `[SCRIPT]`; everything else is workflow definition and authoring guidance.
 
 ## Motivation
@@ -103,26 +118,52 @@ collection entries. Editing rules — the "governed" content contract:
   says so up front rather than letting the report surprise the approver.
 
 The proposal artifact is a plain-language summary (one line per request →
-what changed) plus the `git diff` of the authored inputs.
+what changed) plus the `git diff --name-status` over the **authored-input
+surface** defined above — `build-plan.yaml`, `assets/`, and (once item 20
+lands) collection entries — not `build-plan.yaml` alone, since asset and
+collection edits are ordinary revision content.
 
 ### 3. Report `[SCRIPT]` — `scripts/revise-report.sh <site>`
 
 The one new script. It answers "what will this revision do to the live site"
-from evidence, not narrative:
+from evidence, not narrative.
 
-1. `validate-plan.sh` — a proposal that doesn't validate is not presentable.
-2. Rebuild `dist/` from scratch (the standard Build pipeline; delete the old
+**Invocation contract.** The script ships in the Clodsite repo, but the
+evidence (plan, `dist/`, git history) lives in the sites repo. It resolves the
+site the same way every other Clodsite script does — through
+`clodsite_init_site_dir` in `scripts/lib/sites.sh`, taking a `<site>` name and
+honoring `SITES_DIR`/`SITE_DIR` — so `SITE_DIR` is the sites-repo working
+directory and all git commands below run **in that repo**, not the Clodsite
+one. This is stated so future agents don't invent a second convention (a cwd
+assumption, a separate flag) for locating the site.
+
+Steps:
+
+1. **Baseline preflight.** Compute the git status of `SITE_DIR`. If there are
+   uncommitted changes to paths **outside the authored-input surface** (e.g. a
+   dirty `dist/`, stray untracked files, or a half-finished unrelated edit),
+   the working tree is not a clean baseline and the blast-radius diff would lie
+   by inclusion — so the script refuses and prints the offending paths as
+   "pre-existing dirty state", telling the operator to commit, stash, or clean
+   first. Only changes *within* the authored-input surface (the current
+   proposal) are permitted to be dirty going in. This makes the clean-at-rest
+   assumption an enforced precondition rather than an unstated hope.
+2. `validate-plan.sh` — a proposal that doesn't validate is not presentable.
+3. Rebuild `dist/` from scratch (the standard Build pipeline; delete the old
    `dist/` first so removed pages cannot linger as stale files).
-3. `git diff --name-only HEAD -- "<site>/dist"` and map built paths to
-   routes: `dist/index.html` → `/`, `dist/<p>/index.html` → `/<p>/`,
-   `dist/404.html` → the not-found page, `_headers`/`_redirects` → policy
-   files, everything else → assets.
-4. Print the **revision report**: routes changed / added / removed; policy
-   and asset changes; the authored-input diff stat; and a **warning for every
-   removed route not covered by a `from` rule in the new `_redirects`**.
+4. `git diff --name-status HEAD -- "<site>/dist"` — `--name-status` (not
+   `--name-only`) so add/modify/delete come straight from git's `A`/`M`/`D`
+   rather than being re-inferred. Map built paths to routes: `dist/index.html`
+   → `/`, `dist/<p>/index.html` → `/<p>/`, `dist/404.html` → the not-found
+   page, `_headers`/`_redirects` → policy files, everything else → assets.
+5. Print the **revision report**: routes changed (`M`) / added (`A`) / removed
+   (`D`); policy and asset changes; the authored-input `--name-status` diff;
+   and a **warning for every removed route not covered by a `from` rule in the
+   new `_redirects`**.
 
-Read-only with respect to git (it rebuilds `dist/` in the working tree but
-commits nothing), credential-free, and offline — same class as `validate-plan`.
+Read-only with respect to git history (it rebuilds `dist/` in the working tree
+but commits nothing), credential-free, and offline — same class as
+`validate-plan`.
 
 The report doubles as a **determinism verifier**: run against an unchanged
 plan it must be empty. Any noise (timestamps, ordering) is a compiler bug —
@@ -139,8 +180,18 @@ affecting all routes, flagged as such in the proposal. Offer a local preview
 
 - **approves** → phase 5;
 - **amends** → back to phase 2 with the delta;
-- **abandons** → `git checkout -- "<site>/"` restores the exact deployed
-  state (the clean-at-rest tree makes abandonment lossless and total).
+- **abandons** → restore the exact deployed state. This is **not** a bare
+  `git checkout -- "<site>/"`: that restores tracked files but leaves *untracked*
+  ones behind — a newly added asset, or the rebuilt `dist/` from phase 3 — so
+  the tree would not actually return to the deployed state. Abandon must both
+  restore tracked paths (`git restore`/`checkout`) **and** remove the untracked
+  paths the revision introduced. Because the phase-1 preflight guaranteed a
+  clean baseline, everything untracked now is the revision's own doing, so a
+  scoped `git clean` over `SITE_DIR` is safe — but the implementation must
+  **print exactly what it will delete and require confirmation** before
+  removing anything (a governance workflow may never surprise-delete an
+  operator's files). Only with tracked-restore + confirmed untracked-clean is
+  abandonment genuinely "lossless and total."
 
 ### 5. Apply `[SCRIPT]`
 
@@ -193,8 +244,10 @@ Deliberately small:
 
 | Piece | Kind | Notes |
 |---|---|---|
-| `scripts/revise-report.sh` | `[SCRIPT]` | validate → clean rebuild → dist diff → route-mapped report + redirect check |
+| `scripts/revise-report.sh` | `[SCRIPT]` | baseline preflight → validate → clean rebuild → `--name-status` dist diff → route-mapped report + redirect check; resolves the site via `sites.sh` |
+| Authored-input surface | `.mjs`/shell helper | enumerates the paths a revision may touch (`build-plan.yaml`, `assets/`, collection dirs); shared by proposal diff, baseline preflight, and abandon so all three agree |
 | Route mapping | `.mjs` helper | dist paths → routes; unit-testable |
+| Abandon | part of the workflow | tracked-restore + confirmed scoped `git clean` of untracked; never surprise-deletes |
 | **Revise** workflow section | `AGENTS.md` | phases, editing rules, agent-neutral steps |
 | `/revise` command | `.claude/commands/revise.md` | thin trigger over the AGENTS.md workflow |
 | Authoring guidance | `docs/agent-authoring.md` | capture/translation rules, out-of-catalog routing |
@@ -211,13 +264,20 @@ history, mirroring how deploy-finalize tests already work).
 
 - **Unchanged plan → empty report** (the determinism check; this test is the
   regression net for compiler nondeterminism).
-- **One page's prose edited** → exactly that page's route listed as changed;
-  no other routes.
-- **Page removed without a redirect** → route listed as removed **and**
+- **One page's prose edited** → exactly that page's route listed as changed
+  (`M`); no other routes.
+- **Page removed without a redirect** → route listed as removed (`D`) **and**
   flagged; adding a covering `redirects` rule clears the flag.
 - **Nav reordered** → all page routes listed as changed (honest chrome blast).
 - **Asset added** → reported under assets, not routes.
-- **Invalid plan** → report refuses at step 1 with validate-plan's errors.
+- **Invalid plan** → report refuses with validate-plan's errors.
+- **Pre-existing dirty state** (a dirty `dist/` or an unrelated untracked file
+  before the revision) → the preflight refuses and names the offending paths,
+  rather than folding them into the blast radius.
+- **Abandon leaves no trace** → after a revision that adds an asset and rebuilds
+  `dist/`, abandon returns `git status` on `SITE_DIR` to clean (tracked restored
+  **and** the revision's untracked files removed), matching the pre-revision
+  commit exactly.
 - **Route mapping** unit tests: index/nested/404/`_headers`/`_redirects`/asset
   paths map to the documented labels.
 
