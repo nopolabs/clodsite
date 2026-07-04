@@ -52,8 +52,16 @@ if [ "${1:-}" = "--list" ]; then
     exit 1
   fi
 
-  bindings=$(node "${LIST_DIR}/lib/build-plan.mjs" "$plan" secret-bindings 2>/dev/null || true)
-  mode=$(node "${LIST_DIR}/lib/build-plan.mjs" "$plan" stripe-mode 2>/dev/null || true)
+  if ! bindings=$(node "${LIST_DIR}/lib/build-plan.mjs" "$plan" secret-bindings 2>&1); then
+    echo "Error: could not read secret bindings from ${plan}:" >&2
+    echo "$bindings" >&2
+    exit 1
+  fi
+  if ! mode=$(node "${LIST_DIR}/lib/build-plan.mjs" "$plan" stripe-mode 2>&1); then
+    echo "Error: could not read Stripe mode from ${plan}:" >&2
+    echo "$mode" >&2
+    exit 1
+  fi
 
   echo "Declared secret bindings for '${site}':"
   if [ -z "$bindings" ]; then

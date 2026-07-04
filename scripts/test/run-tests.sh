@@ -330,6 +330,15 @@ assert_contains "resolve-env --list names the Stripe binding and mode" "STRIPE_S
 assert_contains "resolve-env --list names missing Printful source" "PRINTFUL_API_KEY ← ANCHOVY_PRINTFUL_API_KEY (MISSING)" "$BIND_AUDIT"
 assert_not_contains "resolve-env --list never prints the Stripe value" "sk_live_audit_secret" "$BIND_AUDIT"
 
+MALFORMED_BIND_SITE=$(mktemp -d)
+cat > "${MALFORMED_BIND_SITE}/build-plan.yaml" <<'BADPLAN'
+slug: [
+BADPLAN
+MALFORMED_AUDIT_OUTPUT=$(SITE_DIR="$MALFORMED_BIND_SITE" scripts/resolve-env.sh --list malformed 2>&1)
+assert_exit "resolve-env --list malformed plan exits 1" 1 $?
+assert_contains "resolve-env --list surfaces parse failure" "Error: could not read secret bindings" "$MALFORMED_AUDIT_OUTPUT"
+assert_not_contains "resolve-env --list malformed plan does not report no bindings" "(none" "$MALFORMED_AUDIT_OUTPUT"
+
 # resolve-env.sh is sourced into the user's interactive shell, which may be zsh.
 # lib/sites.sh uses bash-only syntax, so the script must do its work in a bash
 # subprocess and still report + set the canonical vars when sourced from zsh.
@@ -345,7 +354,7 @@ else
   echo "  - zsh not available; skipping zsh resolve-env checks"
 fi
 
-rm -rf "$BIND_SITE" "$NOBIND_SITE"
+rm -rf "$BIND_SITE" "$PERSITE_SITE" "$NOBIND_SITE" "$MALFORMED_BIND_SITE"
 
 # ── write-site-json.sh ────────────────────────────────────────────────────────
 echo ""
