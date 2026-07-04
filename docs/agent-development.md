@@ -165,13 +165,12 @@ When adding or changing a theme:
 1. Update `scaffold/src/css/themes/<theme>.css`.
 2. Ensure it defines the full theme variable contract from
    [`docs/THEMES.md`](THEMES.md).
-3. Add or update font loading in `scaffold/src/_includes/base.njk`.
-4. Update the valid style list in `scripts/lib/validate-plan.mjs`.
-5. Update the valid style message in `scripts/apply-theme.sh`.
-6. Update font loading in `scaffold/src/_includes/base.njk` if the theme uses
+3. Theme names are derived from `scaffold/src/css/themes/*.css`; do not add a
+   separate hard-coded allowlist.
+4. Update font loading in `scaffold/src/_includes/base.njk` if the theme uses
    fonts not already loaded by another theme.
-7. Update current docs that list valid themes.
-8. Add test coverage so the theme is bundled/validated.
+5. Update current docs that list valid themes.
+6. Add test coverage so the theme is bundled/validated.
 
 Themes should raise visual quality through curated tokens and site chrome, not
 per-site CSS escapes.

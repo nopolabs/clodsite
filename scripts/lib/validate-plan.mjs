@@ -6,10 +6,11 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { readCatalog, validateCatalog } from './validate-catalog.mjs';
 import { NOT_FOUND_DISALLOWED_TYPES } from './not-found.mjs';
+import { formatThemeList, listThemeNames } from './themes.mjs';
 
-const [planPath, componentsDir] = process.argv.slice(2);
+const [planPath, componentsDir, themesDir = 'scaffold/src/css/themes'] = process.argv.slice(2);
 if (!planPath || !componentsDir) {
-  console.error('Usage: node validate-plan.mjs <plan-path> <components-dir>');
+  console.error('Usage: node validate-plan.mjs <plan-path> <components-dir> [themes-dir]');
   process.exit(2);
 }
 
@@ -20,9 +21,16 @@ if (!plan.slug)     errors.push('slug is required');
 if (!plan.name)     errors.push('name is required');
 if (!plan.overview) errors.push('overview is required');
 
-const validStyles = ['minimal', 'professional', 'bold', 'warm', 'playful', 'playful-shop', 'terminal', 'academic'];
+let validStyles;
+try {
+  validStyles = listThemeNames(themesDir);
+} catch (error) {
+  console.error('Error: ' + error.message);
+  process.exit(1);
+}
+const validStyleMessage = formatThemeList(validStyles);
 if (!validStyles.includes(plan.style))
-  errors.push('style must be one of: ' + validStyles.join(', ') + ' (got: ' + plan.style + ')');
+  errors.push('style must be one of: ' + validStyleMessage + ' (got: ' + plan.style + ')');
 
 if ('theme_selector' in plan) {
   const selector = plan.theme_selector;
@@ -42,7 +50,7 @@ if ('theme_selector' in plan) {
       const seen = new Set();
       selector.options.forEach(function(option, index) {
         if (!validStyles.includes(option))
-          errors.push('theme_selector.options[' + index + '] must be one of: ' + validStyles.join(', '));
+          errors.push('theme_selector.options[' + index + '] must be one of: ' + validStyleMessage);
         if (seen.has(option))
           errors.push('theme_selector.options contains duplicate value: ' + option);
         seen.add(option);
