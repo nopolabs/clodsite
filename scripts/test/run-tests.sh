@@ -239,6 +239,8 @@ commerce:
   currency: usd
   checkout: { provider: stripe, mode: live, success_url: "/s/?session_id={CHECKOUT_SESSION_ID}", cancel_url: / }
   printful: { api_key_env: ANCHOVY_PRINTFUL_API_KEY, store_id: 1, products: [ { slug: t, printful_product_id: 1, price_minor: 100, description: d } ] }
+email:
+  api_key_env: SITE_RESEND_KEY
 pages: [ { id: home, title: Home, components: [ { type: prose, markdown: hi } ] } ]
 nav: { order: [home] }
 BINDPLAN
@@ -247,10 +249,12 @@ BINDPLAN
 # through) binds the mode-selected and aliased sources into the canonical names.
 ( source scripts/lib/sites.sh
   export STRIPE_SECRET_KEY_LIVE=sk_live_bound STRIPE_SECRET_KEY_TEST=sk_test_bound
-  export ANCHOVY_PRINTFUL_API_KEY=pf_bound SITE_DIR="$BIND_SITE"
+  export ANCHOVY_PRINTFUL_API_KEY=pf_bound SITE_RESEND_KEY=re_bound SITE_DIR="$BIND_SITE"
   clodsite_init_site_dir > /dev/null 2>&1
-  [ "${STRIPE_SECRET_KEY:-}" = "sk_live_bound" ] && [ "${PRINTFUL_API_KEY:-}" = "pf_bound" ] )
-assert_exit "chokepoint binds mode-selected and aliased sources" 0 $?
+  [ "${STRIPE_SECRET_KEY:-}" = "sk_live_bound" ] &&
+    [ "${PRINTFUL_API_KEY:-}" = "pf_bound" ] &&
+    [ "${RESEND_API_KEY:-}" = "re_bound" ] )
+assert_exit "chokepoint binds mode-selected and aliased site sources" 0 $?
 
 # A declared binding overrides an ambient value of the canonical name (the
 # committed selection wins), while the source it reads still honors #72.
@@ -263,10 +267,12 @@ assert_exit "declared binding overrides an ambient canonical value" 0 $?
 # Sources absent (a plain build with no credentials) leaves the environment
 # untouched — the canonical name is never invented.
 ( source scripts/lib/sites.sh
-  unset STRIPE_SECRET_KEY PRINTFUL_API_KEY
+  unset STRIPE_SECRET_KEY PRINTFUL_API_KEY RESEND_API_KEY
+  unset STRIPE_SECRET_KEY_LIVE STRIPE_SECRET_KEY_TEST ANCHOVY_PRINTFUL_API_KEY SITE_RESEND_KEY
   export SITE_DIR="$BIND_SITE"
   clodsite_init_site_dir > /dev/null 2>&1
-  [ -z "${STRIPE_SECRET_KEY:-}" ] && [ -z "${PRINTFUL_API_KEY:-}" ] )
+  [ -z "${STRIPE_SECRET_KEY:-}" ] && [ -z "${PRINTFUL_API_KEY:-}" ] &&
+    [ -z "${RESEND_API_KEY:-}" ] )
 assert_exit "absent sources leave canonical names unset (plain build path)" 0 $?
 
 # Item 21: a per-site commerce.checkout.secret_key_env makes the Stripe source
@@ -315,12 +321,14 @@ cp "${BIND_SITE}/build-plan.yaml.nobind" "${NOBIND_SITE}/build-plan.yaml"
 assert_exit "no-binding plan preserves the bare-name canonical value" 0 $?
 
 # resolve-env.sh reports the source name and Stripe mode — never the value.
-BIND_REPORT=$( export STRIPE_SECRET_KEY_LIVE=sk_live_bound_secret ANCHOVY_PRINTFUL_API_KEY=pf_bound_secret SITE_DIR="$BIND_SITE"
+BIND_REPORT=$( export STRIPE_SECRET_KEY_LIVE=sk_live_bound_secret ANCHOVY_PRINTFUL_API_KEY=pf_bound_secret SITE_RESEND_KEY=re_bound_secret SITE_DIR="$BIND_SITE"
   source scripts/resolve-env.sh bind-test 2>&1 )
 assert_contains "resolve-env names the Stripe source and mode" "Stripe: live (from STRIPE_SECRET_KEY_LIVE" "$BIND_REPORT"
 assert_contains "resolve-env names the Printful source" "Printful: from ANCHOVY_PRINTFUL_API_KEY" "$BIND_REPORT"
+assert_contains "resolve-env names the site-level Resend source" "Resend: from SITE_RESEND_KEY" "$BIND_REPORT"
 assert_not_contains "resolve-env never prints the Stripe value" "sk_live_bound_secret" "$BIND_REPORT"
 assert_not_contains "resolve-env never prints the Printful value" "pf_bound_secret" "$BIND_REPORT"
+assert_not_contains "resolve-env never prints the Resend value" "re_bound_secret" "$BIND_REPORT"
 
 # resolve-env.sh --list is a read-only audit: names and set/MISSING status only.
 BIND_AUDIT=$( export STRIPE_SECRET_KEY_LIVE=sk_live_audit_secret
@@ -1291,7 +1299,29 @@ fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
 "
 bash scripts/validate-plan.sh > /dev/null 2>&1; assert_exit "resend-form turnstile false passes" 0 $?
 
-# ── item 12: resend-form api_key_env (site-scoped binding) ────────────────────
+# ── item 25: site-level Resend api_key_env binding ────────────────────────────
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.email={api_key_env:'SITE_RESEND_KEY'};
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+bash scripts/validate-plan.sh > /dev/null 2>&1
+assert_exit "email.api_key_env validates without secrets" 0 $?
+
+cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
+p.email={api_key_env:'bad name'};
+fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
+"
+RESEND_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
+assert_exit "malformed email.api_key_env exits 1" 1 $?
+assert_contains "malformed email.api_key_env is rejected" "email.api_key_env must be a valid environment-variable name" "$RESEND_OUTPUT"
+
+# The old component-level field is intentionally removed, not aliased.
 cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
 node -e "
 const fs=require('fs'), yaml=require('js-yaml');
@@ -1299,36 +1329,9 @@ const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
 p.pages[1].components[0].api_key_env='SITE_RESEND_KEY';
 fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
 "
-bash scripts/validate-plan.sh > /dev/null 2>&1
-assert_exit "resend-form api_key_env validates without secrets" 0 $?
-
-cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
-node -e "
-const fs=require('fs'), yaml=require('js-yaml');
-const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
-p.pages[1].components[0].api_key_env='bad name';
-fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
-"
 RESEND_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
-assert_exit "resend-form malformed api_key_env exits 1" 1 $?
-assert_contains "resend-form malformed api_key_env is rejected" "must be a valid environment-variable name" "$RESEND_OUTPUT"
-
-# Two resend-form components that disagree on api_key_env: Resend is site-scoped
-# to one /api/contact endpoint, so conflicting values are a structural error.
-cp scripts/test/fixtures/valid-build-plan-resend.yaml "${SITE_DIR}/build-plan.yaml"
-node -e "
-const fs=require('fs'), yaml=require('js-yaml');
-const p=yaml.load(fs.readFileSync('${SITE_DIR}/build-plan.yaml','utf8'));
-const form=p.pages[1].components[0];
-form.api_key_env='RESEND_A';
-const second=JSON.parse(JSON.stringify(form));
-second.api_key_env='RESEND_B';
-p.pages[0].components.push(second);
-fs.writeFileSync('${SITE_DIR}/build-plan.yaml', yaml.dump(p));
-"
-RESEND_OUTPUT=$(bash scripts/validate-plan.sh 2>&1)
-assert_exit "conflicting resend-form api_key_env exits 1" 1 $?
-assert_contains "conflicting resend-form api_key_env is rejected" "must be identical across all forms" "$RESEND_OUTPUT"
+assert_exit "resend-form api_key_env exits 1" 1 $?
+assert_contains "resend-form api_key_env points at email.api_key_env" "has moved to site-level email.api_key_env" "$RESEND_OUTPUT"
 
 for invalid_turnstile in '"yes"' '1' '{}' 'null'; do
   cp scripts/test/fixtures/valid-build-plan-resend-turnstile.yaml "${SITE_DIR}/build-plan.yaml"

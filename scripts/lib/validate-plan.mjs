@@ -163,6 +163,20 @@ function validateHead(head, fieldPath) {
 if ('head' in plan)
   validateHead(plan.head, 'head');
 
+if ('email' in plan) {
+  if (!isObject(plan.email)) {
+    errors.push('email must be an object');
+  } else {
+    const allowed = new Set(['api_key_env']);
+    for (const field of Object.keys(plan.email)) {
+      if (!allowed.has(field))
+        errors.push('email has unknown field "' + field + '"');
+    }
+    if ('api_key_env' in plan.email && !isEnvVarName(plan.email.api_key_env))
+      errors.push('email.api_key_env must be a valid environment-variable name (^[A-Za-z_][A-Za-z0-9_]*$)');
+  }
+}
+
 if ('headers' in plan) {
   if (!Array.isArray(plan.headers) || plan.headers.length === 0) {
     errors.push('headers must be a non-empty array');
@@ -533,7 +547,11 @@ function validateComponents(components, tag) {
     const allowed = new Set(['type', ...Object.keys(required), ...Object.keys(optional)]);
     for (const key of Object.keys(c)) {
       if (!allowed.has(key)) {
-        errors.push(ctag + ' has unknown field "' + key + '" for component type "' + c.type + '"');
+        if (c.type === 'resend-form' && key === 'api_key_env') {
+          errors.push(ctag + '.api_key_env has moved to site-level email.api_key_env');
+        } else {
+          errors.push(ctag + ' has unknown field "' + key + '" for component type "' + c.type + '"');
+        }
       }
     }
   });
@@ -925,26 +943,6 @@ if (catalogComponents.length > 0 || personalizedComponents.length > 0 || commerc
     }
   }
 }
-
-// Item 12: resend-form's optional api_key_env names the env var that supplies
-// RESEND_API_KEY. Resend is site-scoped — v1 generates one /api/contact
-// endpoint with first-form-wins behavior — so the binding is one declaration:
-// every resend-form must agree on the value, and a syntactically invalid name
-// is rejected (structural; existence enforced at the point of use).
-const resendApiKeyEnvs = [];
-(plan.pages || []).forEach(function(p, i) {
-  (Array.isArray(p.components) ? p.components : []).forEach(function(c, j) {
-    if (c && c.type === 'resend-form' && 'api_key_env' in c)
-      resendApiKeyEnvs.push({ value: c.api_key_env, tag: 'pages[' + i + '].components[' + j + '].api_key_env' });
-  });
-});
-resendApiKeyEnvs.forEach(function(entry) {
-  if (!isEnvVarName(entry.value))
-    errors.push(entry.tag + ' must be a valid environment-variable name (^[A-Za-z_][A-Za-z0-9_]*$)');
-});
-const distinctResendEnvs = new Set(resendApiKeyEnvs.map(function(e) { return e.value; }));
-if (distinctResendEnvs.size > 1)
-  errors.push('resend-form api_key_env must be identical across all forms — Resend is site-scoped to one /api/contact endpoint (found: ' + [...distinctResendEnvs].join(', ') + ')');
 
 // Proxies (proxy-functions design §1): each entry renders an authenticated
 // pass-through Function at functions/<mount>/[[path]].js.
