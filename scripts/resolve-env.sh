@@ -10,12 +10,68 @@
 # It prints names and Stripe mode only — never a secret value. Run in a
 # subshell (without `source`) it cannot affect the caller and says so.
 #
+# Audit mode is read-only and may be run directly:
+#
+#   scripts/resolve-env.sh --list <site>
+#
+# It lists declared binding names and set/MISSING status only, never values.
+# Keep the shared env registry as one commented section per site; offboarding a
+# client should be "delete that section, re-run this audit."
+#
 # The actual resolution always runs in a bash subprocess (the `--emit` mode
 # below), so this works whether the interactive shell is bash or zsh:
 # lib/sites.sh uses bash-only features (indirect expansion) that zsh cannot
 # parse, so it is never sourced into the user's shell. The subprocess prints a
 # value-free report on stderr and `export` lines on stdout; the sourced shell
 # applies the exports with eval, setting the resolved canonical credentials.
+
+# ── Audit worker: `resolve-env.sh --list <site>` ──────────────────────────────
+# Runs under bash from the shebang. Reports declared binding names and whether
+# each source is set after loading the shared env file. It never emits exports or
+# secret values.
+if [ "${1:-}" = "--list" ]; then
+  set -uo pipefail
+  site="${2:-}"
+  if [ -z "$site" ]; then
+    echo "Usage: scripts/resolve-env.sh --list <site>" >&2
+    exit 1
+  fi
+
+  LIST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  # shellcheck source=lib/sites.sh
+  source "${LIST_DIR}/lib/sites.sh"
+
+  SITE_NAME="$site"
+  if ! clodsite_init_site_dir >/dev/null 2>&1; then
+    echo "Error: could not resolve site '${site}' (set SITES_DIR or SITE_DIR)." >&2
+    exit 1
+  fi
+  plan="${SITE_DIR}/build-plan.yaml"
+  if [ ! -f "$plan" ]; then
+    echo "Error: ${plan} not found." >&2
+    exit 1
+  fi
+
+  bindings=$(node "${LIST_DIR}/lib/build-plan.mjs" "$plan" secret-bindings 2>/dev/null || true)
+  mode=$(node "${LIST_DIR}/lib/build-plan.mjs" "$plan" stripe-mode 2>/dev/null || true)
+
+  echo "Declared secret bindings for '${site}':"
+  if [ -z "$bindings" ]; then
+    echo "  (none — canonical credentials are read by bare name)"
+  else
+    while read -r canonical source; do
+      [ -n "$canonical" ] && [ -n "$source" ] || continue
+      present="MISSING"
+      [ -n "${!source:-}" ] && present="set"
+      if [ "$canonical" = "STRIPE_SECRET_KEY" ] && [ -n "$mode" ]; then
+        echo "  ${canonical} ← ${source} (${present}, Stripe mode: ${mode})"
+      else
+        echo "  ${canonical} ← ${source} (${present})"
+      fi
+    done <<< "$bindings"
+  fi
+  exit 0
+fi
 
 # ── Internal worker: `bash resolve-env.sh --emit <site>` ──────────────────────
 # Runs under bash, where lib/sites.sh is valid. Resolves the bindings, then

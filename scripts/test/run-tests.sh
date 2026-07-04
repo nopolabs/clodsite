@@ -322,6 +322,14 @@ assert_contains "resolve-env names the Printful source" "Printful: from ANCHOVY_
 assert_not_contains "resolve-env never prints the Stripe value" "sk_live_bound_secret" "$BIND_REPORT"
 assert_not_contains "resolve-env never prints the Printful value" "pf_bound_secret" "$BIND_REPORT"
 
+# resolve-env.sh --list is a read-only audit: names and set/MISSING status only.
+BIND_AUDIT=$( export STRIPE_SECRET_KEY_LIVE=sk_live_audit_secret
+  unset ANCHOVY_PRINTFUL_API_KEY
+  SITE_DIR="$BIND_SITE" scripts/resolve-env.sh --list bind-test 2>&1 )
+assert_contains "resolve-env --list names the Stripe binding and mode" "STRIPE_SECRET_KEY ← STRIPE_SECRET_KEY_LIVE (set, Stripe mode: live)" "$BIND_AUDIT"
+assert_contains "resolve-env --list names missing Printful source" "PRINTFUL_API_KEY ← ANCHOVY_PRINTFUL_API_KEY (MISSING)" "$BIND_AUDIT"
+assert_not_contains "resolve-env --list never prints the Stripe value" "sk_live_audit_secret" "$BIND_AUDIT"
+
 # resolve-env.sh is sourced into the user's interactive shell, which may be zsh.
 # lib/sites.sh uses bash-only syntax, so the script must do its work in a bash
 # subprocess and still report + set the canonical vars when sourced from zsh.
