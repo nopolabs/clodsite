@@ -14,10 +14,11 @@ fi
 STYLE=$(node "${SCRIPT_DIR}/lib/build-plan.mjs" \
   "${SITE_DIR}/build-plan.yaml" style)
 THEME_FILE="scaffold/src/css/themes/${STYLE}.css"
+THEMES_DIR="${THEMES_DIR:-scaffold/src/css/themes}"
 
 if [ ! -f "$THEME_FILE" ]; then
   echo "Error: Theme file not found: $THEME_FILE"
-  echo "Valid styles: minimal, professional, bold, warm, playful, playful-shop, terminal, academic"
+  echo "Valid styles: $(node "${SCRIPT_DIR}/lib/list-themes.mjs" "$THEMES_DIR")"
   exit 1
 fi
 

@@ -47,10 +47,12 @@ This is where a theme's personality beyond color lives — e.g. `bold` uppercase
 
 ### 3. Registration
 
-Two scripts hold a hardcoded list of valid theme names. A new theme must be added to both:
+Theme names are derived from `scaffold/src/css/themes/*.css`, so adding a
+theme file registers the theme name automatically. `scripts/lib/themes.mjs`
+is the shared helper used by validation and theme-listing tools.
 
-- `scripts/lib/validate-plan.mjs` — the `validStyles` array
-- `scripts/apply-theme.sh` — the error message listing valid styles
+If the theme uses new fonts, also update `scaffold/src/_includes/base.njk` so
+sites using that theme load the required font families.
 
 ## Existing themes
 

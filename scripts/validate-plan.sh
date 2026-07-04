@@ -7,10 +7,11 @@ source "${SCRIPT_DIR}/lib/sites.sh"
 clodsite_init_site_dir
 PLAN="${SITE_DIR}/build-plan.yaml"
 COMPONENTS_DIR="${COMPONENTS_DIR:-components}"
+THEMES_DIR="${THEMES_DIR:-scaffold/src/css/themes}"
 
 if [ ! -f "$PLAN" ]; then
   echo "Error: $PLAN not found. Run /plan first."
   exit 1
 fi
 
-node "${SCRIPT_DIR}/lib/validate-plan.mjs" "$PLAN" "$COMPONENTS_DIR"
+node "${SCRIPT_DIR}/lib/validate-plan.mjs" "$PLAN" "$COMPONENTS_DIR" "$THEMES_DIR"
