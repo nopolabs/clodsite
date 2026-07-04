@@ -14,11 +14,15 @@ timestamp: 2026-07-04T00:00:00Z
 **Roadmap entry:** Governed preview-and-revise workflow (pending item 7)
 **Builds on:** explicit redirects (item 9), the sites-repo commit model
 (deploy-finalize auto-commit), deterministic builds
-**Revised 2026-07-04** after a post-merge review: the proposal and abandon
-operations now span the whole authored-input surface (not just
-`build-plan.yaml`); the report requires a clean baseline and uses
-`git diff --name-status`; abandon is spelled out for untracked files; and the
-script's site-resolution contract is stated.
+**Revised 2026-07-04** over two review rounds. Round 1: the proposal and
+abandon operations span the whole authored-input surface (not just
+`build-plan.yaml`); `git diff --name-status`; abandon spelled out for untracked
+files. Round 2: the clean baseline is **captured at revision start, before any
+phase-2 edit** (a preflight running only after edits cannot tell proposal dirt
+from pre-existing dirt); `dist/` is report-owned (reset to `HEAD` and rebuilt,
+never a reason to refuse); and git runs from the resolved worktree root with
+root-relative paths, since `SITE_DIR` is the per-site directory, not the repo
+root.
 
 ---
 
@@ -43,8 +47,11 @@ governance is **mechanically checkable**, not procedural. The sites repo
 commits both the authored inputs and the built `dist/`, and its working tree
 is clean between deploys (deploy-finalize auto-commits). That clean-at-rest
 baseline is load-bearing: a diff only reads as "the revision" if nothing
-unrelated was dirty when it started (see the preflight in phase 3). So starting
-from a clean tree, after the agent edits the inputs and rebuilds:
+unrelated was dirty when it started — so the workflow **captures and verifies
+the clean baseline at revision start, before any edit** (phase 1), because a
+check that runs only after edits cannot separate the proposal from dirt that
+was already there. So starting from that verified-clean tree, after the agent
+edits the inputs and rebuilds:
 
 - `git diff --name-status` over the site's **authored-input surface** **is**
   the proposal, and
@@ -84,6 +91,19 @@ A **revision** is one governed pass through five phases. Phases 1–2 and 4 are
 `[LLM]`; 3 and 5 are `[SCRIPT]`.
 
 ### 1. Capture `[LLM]`
+
+**Record the baseline first — before any edit.** The clean-at-rest guarantee
+only holds *between* deploys; the moment a revision starts editing, authored
+inputs go dirty, and a later check can no longer tell the proposal apart from
+uncommitted work that pre-dated the revision. So `/revise` begins by confirming
+`SITE_DIR` is clean at rest (per the deploy-finalize invariant). If it is
+already dirty, that dirt is **pre-existing state, not the proposal**: name the
+offending paths and have the operator commit, stash, or clean them before the
+revision proceeds. This is the load-bearing governance gate — it closes the
+hole where pre-existing `build-plan.yaml` or asset changes would otherwise be
+silently folded into the proposal. Only once the baseline is verified clean do
+the phase-2 edits begin, so by construction every authored-input change the
+report later sees is the proposal.
 
 Inputs, in any mix: conversation ("we're closed Mondays now"), screenshots
 (the requester circles the thing), or goals ("make it clearer what we sell",
@@ -132,23 +152,30 @@ from evidence, not narrative.
 evidence (plan, `dist/`, git history) lives in the sites repo. It resolves the
 site the same way every other Clodsite script does — through
 `clodsite_init_site_dir` in `scripts/lib/sites.sh`, taking a `<site>` name and
-honoring `SITES_DIR`/`SITE_DIR` — so `SITE_DIR` is the sites-repo working
-directory and all git commands below run **in that repo**, not the Clodsite
-one. This is stated so future agents don't invent a second convention (a cwd
-assumption, a separate flag) for locating the site.
+honoring `SITES_DIR`/`SITE_DIR`. Be precise about paths: `SITE_DIR` is the
+**per-site directory** (`SITES_DIR/<site>`), *not* the git root — the sites repo
+is the worktree that contains it. So the script resolves the worktree root once
+(`git -C "$SITE_DIR" rev-parse --show-toplevel`), runs **all** git commands from
+that root, and passes **root-relative** paths (`<site>/dist`, `<site>/build-plan.yaml`).
+Equivalently one may `git -C "$SITE_DIR" … -- dist`, but the spec fixes the
+root-relative form so `<site>/dist` in the steps below is unambiguous. This is
+stated so future agents don't invent a second convention (a cwd assumption, a
+separate flag) or mismatch the path against where git runs.
 
 Steps:
 
-1. **Baseline preflight.** Compute the git status of `SITE_DIR`. If there are
-   uncommitted changes to paths **outside the authored-input surface** (e.g. a
-   dirty `dist/`, stray untracked files, or a half-finished unrelated edit),
-   the working tree is not a clean baseline and the blast-radius diff would lie
-   by inclusion — so the script refuses and prints the offending paths as
-   "pre-existing dirty state", telling the operator to commit, stash, or clean
-   first. Only changes *within* the authored-input surface (the current
-   proposal) are permitted to be dirty going in. This makes the clean-at-rest
-   assumption an enforced precondition rather than an unstated hope.
-2. `validate-plan.sh` — a proposal that doesn't validate is not presentable.
+1. **Assert the recorded baseline still holds.** The authoritative clean-baseline
+   gate is phase 1 (before edits); the report re-asserts it cheaply. The only
+   *authored-input* paths that may be dirty are the proposal's — if an
+   authored-input path outside the current proposal set is dirty, the phase-1
+   baseline was violated mid-revision, so the script refuses and names it. The
+   report does **not** refuse on a dirty `dist/`: `dist/` is generated output
+   the report *owns* and regenerates (step 3), and the amend loop re-runs this
+   script, so a `dist/` left dirty by a prior run is expected, not drift.
+2. **Reset the report-owned output**, then `validate-plan.sh` — restore `dist/`
+   to `HEAD` (`git restore -- "<site>/dist"`) so the diff in step 4 is
+   HEAD-`dist` vs a freshly rebuilt `dist`, never contaminated by a prior run;
+   a proposal that doesn't validate is not presentable.
 3. Rebuild `dist/` from scratch (the standard Build pipeline; delete the old
    `dist/` first so removed pages cannot linger as stale files).
 4. `git diff --name-status HEAD -- "<site>/dist"` — `--name-status` (not
@@ -244,8 +271,9 @@ Deliberately small:
 
 | Piece | Kind | Notes |
 |---|---|---|
-| `scripts/revise-report.sh` | `[SCRIPT]` | baseline preflight → validate → clean rebuild → `--name-status` dist diff → route-mapped report + redirect check; resolves the site via `sites.sh` |
-| Authored-input surface | `.mjs`/shell helper | enumerates the paths a revision may touch (`build-plan.yaml`, `assets/`, collection dirs); shared by proposal diff, baseline preflight, and abandon so all three agree |
+| Baseline capture | part of `/revise` (phase 1) | verifies `SITE_DIR` clean at rest **before** edits; names pre-existing dirt so it can't be folded into the proposal |
+| `scripts/revise-report.sh` | `[SCRIPT]` | re-assert baseline → reset+rebuild report-owned `dist/` → validate → `--name-status` dist diff → route-mapped report + redirect check; git runs from the resolved worktree root with root-relative paths |
+| Authored-input surface | `.mjs`/shell helper | enumerates the paths a revision may touch (`build-plan.yaml`, `assets/`, collection dirs); shared by baseline capture, proposal diff, and abandon so all three agree |
 | Route mapping | `.mjs` helper | dist paths → routes; unit-testable |
 | Abandon | part of the workflow | tracked-restore + confirmed scoped `git clean` of untracked; never surprise-deletes |
 | **Revise** workflow section | `AGENTS.md` | phases, editing rules, agent-neutral steps |
@@ -271,9 +299,17 @@ history, mirroring how deploy-finalize tests already work).
 - **Nav reordered** → all page routes listed as changed (honest chrome blast).
 - **Asset added** → reported under assets, not routes.
 - **Invalid plan** → report refuses with validate-plan's errors.
-- **Pre-existing dirty state** (a dirty `dist/` or an unrelated untracked file
-  before the revision) → the preflight refuses and names the offending paths,
-  rather than folding them into the blast radius.
+- **Pre-existing authored-input dirt at revision start** (an uncommitted
+  `build-plan.yaml` or asset edit that pre-dates the revision) → the phase-1
+  baseline check names it and refuses to proceed, so it is never folded into
+  the proposal.
+- **A dirty `dist/` from a prior report run does not block a re-run** → the
+  amend loop (edit → report → edit → report) succeeds; the report resets and
+  regenerates `dist/` rather than treating its own prior output as drift.
+- **Report git resolution** → running the report with `SITE_DIR` pointed at a
+  per-site subdirectory still diffs the correct `<site>/dist` (git resolved
+  from the worktree root, root-relative path), not a path relative to the
+  wrong cwd.
 - **Abandon leaves no trace** → after a revision that adds an asset and rebuilds
   `dist/`, abandon returns `git status` on `SITE_DIR` to clean (tracked restored
   **and** the revision's untracked files removed), matching the pre-revision
