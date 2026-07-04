@@ -397,6 +397,65 @@ discipline holds. Prerequisite for item 15; raises the stakes for item 18 (it
 adds long-form reading typography to the theme contract). Design (proposed):
 `docs/superpowers/specs/2026-06-27-content-collections-design.md`.
 
+*(Items 21 "Per-store Stripe keys" and 22 "Fulfillment observability and
+alerting" shipped June 2026 — see Completed below. Numbering preserved.)*
+
+### 23. Discoverability pack (sitemap, robots, local-business data)
+
+Clodsite emits per-page descriptions, canonical URLs, Open Graph/Twitter tags,
+and generic `WebSite`/`WebPage` JSON-LD — but nothing that helps a small
+business actually be *found*: no `sitemap.xml`, no `robots.txt`, no structured
+local-business data, and no component for hours/location. For a local business,
+discoverability is most of the point of having a site; a competent developer
+would set all of this up on day one. Four pieces, all deterministic compiler
+output from declarative intent (no new inference, no new runtime):
+
+1. **`dist/sitemap.xml`** generated from the page routes (and collection routes
+   once item 20 lands). Requires absolute URLs, so it is gated on
+   `custom_domain` — same derivation the canonical-URL logic already uses. The
+   generated 404 stays out; `noindex` conventions are honored.
+2. **`dist/robots.txt`** referencing the sitemap. Explicit and boring by
+   default (allow all + sitemap line); an optional plan block can add
+   disallow rules, validated like `redirects`.
+3. **An optional top-level `business` block** — legal/display name, street
+   address, phone, opening hours, geo, and a bounded category enum
+   (`LocalBusiness` subtype: restaurant, store, professional service, …) —
+   compiled into `LocalBusiness` JSON-LD on the home page. The block is site
+   intent, owned by the plan; validation checks shape only.
+4. **An `hours-location` component** rendering that same site-level `business`
+   block (no duplicated data in the component), so the human-visible hours and
+   the machine-readable hours can never disagree. This is the first item-4
+   vertical component, and the one every local business needs.
+
+Operator guidance (docs, and possibly a `NEXT-STEPS.md` line): keep the
+`business` block consistent with the owner's Google Business Profile — the two
+listings reinforce each other.
+
+### 24. Analytics and owner reporting
+
+Clodsite has no evidence loop: after deploy, neither the operator nor the site
+owner learns anything about how the site is doing. A competent developer
+reports back — "300 visits this month, 4 form submissions, the menu page is
+your most-viewed." Two pieces:
+
+1. **Opt-in Cloudflare Web Analytics.** A plan-level opt-in (e.g.
+   `analytics: cloudflare`) provisions the Web Analytics site via the API at
+   deploy time (same pattern as Turnstile widget provisioning — no tokens in
+   the plan) and injects the beacon snippet into the base layout. Cookie-free
+   and privacy-friendly, so no consent-banner burden; free tier. Local builds
+   make no Cloudflare API calls; the snippet is inert without its token.
+2. **A read-only `/report [site]` command** in the spirit of `orders.sh` /
+   `reconcile-orders.sh`: pull the traffic summary from the Cloudflare API and
+   combine it with the signals Clodsite already has (order states from the
+   `ORDERS` KV, form/webhook health) into an owner-readable summary — the
+   "monthly maintenance visit" in one command. `[SCRIPT]`, read-only, per
+   site.
+
+Possible follow-on (not in scope initially): scheduled delivery of the report
+to the site owner via Resend. Builds on item 22's observability tooling;
+pairs naturally with item 7 (the report surfaces what to change, the revise
+workflow changes it).
+
 ---
 
 ## Completed
