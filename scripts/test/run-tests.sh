@@ -583,6 +583,119 @@ rm -rf sites
 # Restore SITE_DIR for any tests that follow
 export SITE_DIR="$SAVED_SITE_DIR"
 
+# ── revise-report.sh ─────────────────────────────────────────────────────────
+echo ""
+echo "=== revise-report.sh ==="
+
+REVISE_SITES_DIR=$(mktemp -d)
+REVISE_SITE="${REVISE_SITES_DIR}/revise-test"
+mkdir -p "$REVISE_SITE"
+mkdir -p "${REVISE_SITE}/assets"
+cat > "${REVISE_SITES_DIR}/.gitignore" <<'GITIGNORE'
+*/src/
+GITIGNORE
+printf 'old asset' > "${REVISE_SITE}/assets/old.txt"
+cat > "${REVISE_SITE}/build-plan.yaml" <<'REVISEPLAN'
+slug: revise-test
+name: Revise Test
+overview: Fixture for revise-report.
+style: minimal
+tone: professional
+pages:
+  - id: home
+    title: Home
+    components:
+      - type: prose
+        markdown: |
+          # Home
+          Initial home copy.
+  - id: about
+    title: About
+    components:
+      - type: prose
+        markdown: |
+          # About
+          Initial about copy.
+nav:
+  order: [home, about]
+contact:
+  enabled: false
+REVISEPLAN
+
+git -C "$REVISE_SITES_DIR" init -q
+git -C "$REVISE_SITES_DIR" config user.email "test@example.com"
+git -C "$REVISE_SITES_DIR" config user.name "Test"
+for s in validate-plan write-site-json apply-theme render-templates build-site render-headers render-redirects; do
+  (unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" SITE_NAME=revise-test bash "scripts/$s.sh" > /dev/null)
+done
+git -C "$REVISE_SITES_DIR" add .
+git -C "$REVISE_SITES_DIR" commit -q -m "initial revise fixture"
+
+(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh --check-baseline revise-test > /dev/null 2>&1)
+assert_exit "revise baseline passes on clean site" 0 $?
+
+git -C "$REVISE_SITES_DIR" mv revise-test/assets/old.txt revise-test/assets/new.txt
+RENAME_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh revise-test 2>&1)
+assert_exit "revise report accepts authored asset rename" 0 $?
+assert_contains "revise report shows asset rename in authored inputs" "revise-test/assets/new.txt" "$RENAME_OUTPUT"
+git -C "$REVISE_SITES_DIR" restore --staged -- revise-test/assets
+git -C "$REVISE_SITES_DIR" restore -- revise-test/assets
+git -C "$REVISE_SITES_DIR" clean -fd -- revise-test/assets > /dev/null
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${REVISE_SITE}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.pages[1].components[0].markdown='# About\nUpdated about copy.';
+fs.writeFileSync(file, yaml.dump(p));
+"
+BASELINE_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh --check-baseline revise-test 2>&1)
+assert_exit "revise baseline rejects pre-existing authored input dirt" 1 $?
+assert_contains "revise baseline names dirty build-plan" "revise-test/build-plan.yaml" "$BASELINE_OUTPUT"
+git -C "$REVISE_SITES_DIR" restore -- revise-test/build-plan.yaml
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${REVISE_SITE}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.pages[1].components[0].markdown='# About\nUpdated about copy.';
+fs.writeFileSync(file, yaml.dump(p));
+"
+REVISE_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh revise-test 2>&1)
+assert_exit "revise report exits 0 for page prose edit" 0 $?
+assert_contains "revise report shows authored input diff" "M revise-test/build-plan.yaml" "$REVISE_OUTPUT"
+assert_contains "revise report maps changed route" "M /about/ — changed" "$REVISE_OUTPUT"
+
+RERUN_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh revise-test 2>&1)
+assert_exit "revise report reruns with dirty dist from prior report" 0 $?
+assert_contains "revise rerun still maps changed route" "M /about/ — changed" "$RERUN_OUTPUT"
+
+node -e "
+const fs=require('fs'), yaml=require('js-yaml');
+const file='${REVISE_SITE}/build-plan.yaml';
+const p=yaml.load(fs.readFileSync(file,'utf8'));
+p.pages=p.pages.filter(page => page.id !== 'about');
+p.nav.order=['home'];
+fs.writeFileSync(file, yaml.dump(p));
+"
+REMOVED_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh revise-test 2>&1)
+assert_exit "revise report exits 0 for removed page" 0 $?
+assert_contains "revise report warns on removed route without redirect" "D /about/ — removed (WARNING: no redirect covers this removed route)" "$REMOVED_OUTPUT"
+
+mkdir -p "${REVISE_SITE}/assets"
+printf 'asset' > "${REVISE_SITE}/assets/new.txt"
+(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh --abandon --yes revise-test > /dev/null 2>&1)
+assert_exit "revise abandon exits 0" 0 $?
+REVISE_STATUS=$(git -C "$REVISE_SITES_DIR" status --short -- revise-test)
+if [ -z "$REVISE_STATUS" ]; then
+  echo "  ✓ revise abandon returns site to clean state"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ revise abandon left dirty state: $REVISE_STATUS"
+  FAIL=$((FAIL + 1))
+fi
+rm -rf "$REVISE_SITES_DIR"
+
 # ── render-templates.sh ───────────────────────────────────────────────────────
 echo ""
 echo "=== render-templates.sh ==="
