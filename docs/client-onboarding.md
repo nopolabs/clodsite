@@ -8,9 +8,12 @@ timestamp: 2026-07-04T00:00:00Z
 
 # Client Onboarding
 
-This guide records the account-ownership model for building and maintaining a
-Clodsite site for an external client under the current single-trusted-operator
-model.
+This guide is the operator runbook for
+[item 25 (client readiness)](../ROADMAP.md#25-client-readiness--what-stands-between-us-and-client-1):
+the account-ownership model for building and maintaining a Clodsite site for an
+external client under the current
+[single-trusted-operator model](../ROADMAP.md#16-multi-tenant-isolation-model)
+(item 16's tier-1 boundary).
 
 ## Account Ownership
 
@@ -24,8 +27,9 @@ model.
 ## Credential Handling
 
 Secrets never belong in `build-plan.yaml` or generated site files. A client site
-declares the names of env vars it uses, and the operator's private env registry
-stores the actual values.
+declares the names of env vars it uses, and the operator's private
+[shared env registry](../AGENTS.md#secrets--the-shared-env-registry) stores the
+actual values.
 
 Use restricted provider keys wherever possible. For Stripe, use the minimum
 permissions needed for the site's checkout and webhook workflows rather than a
