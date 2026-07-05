@@ -245,39 +245,40 @@ token needed. Stop here; do not run the Cloudflare steps.
 ## Revise
 
 **Trigger:** `/revise <site-name>`. Governed update workflow for an existing
-site: capture feedback, propose targeted authored-input changes, mechanically
-report the blast radius, then deploy only after approval. If no site name, ask
-and stop.
+site: normalize to the latest Clodsite, implement requested authored-input
+changes, mechanically report the blast radius, then deploy only after approval.
+If no site name, ask and stop.
 
-1. **[SCRIPT] Baseline first:** `bash scripts/revise-report.sh --check-baseline
-   <site-name>`. This verifies both the source baseline and the generated
-   baseline: the site must be clean, and committed `dist/` must already match
-   the current Clodsite compiler. If it reports pre-existing dirty state, stop;
-   those paths pre-date the revision. If it reports generated output drift,
-   commit/deploy that compiler-baseline update before starting the site
-   revision, so compiler-version changes are not mixed with requested site
-   changes.
-2. **[LLM] Capture:** restate the request as a numbered list of concrete
-   changes and confirm it before editing. For screenshots, identify the page id
-   and component by matching visible text against the plan. For goal-level
-   feedback, propose one or two plan-level levers instead of guessing.
-3. **[LLM] Propose:** edit only the site's authored-input surface:
+1. **[SCRIPT] Normalize first:** site changes are always made on the latest
+   Clodsite. Run `bash scripts/revise-report.sh --check-baseline <site-name>`
+   before editing. If it reports pre-existing dirty state, stop; those paths
+   pre-date the revision. If it reports generated output drift, run Deploy on
+   the current site state with a normalization message such as
+   `refresh generated output for current Clodsite`, then push that sites-repo
+   commit before starting the requested change. Normalization is a real deploy;
+   it separates Clodsite compiler/runtime drift from the customer's revision.
+2. **[LLM] Capture:** after normalization, restate the request as a numbered
+   list of concrete changes and confirm it before editing. For screenshots,
+   identify the page id and component by matching visible text against the
+   plan. For goal-level feedback, propose one or two plan-level levers instead
+   of guessing.
+3. **[LLM] Revise:** edit only the site's authored-input surface:
    `build-plan.yaml`, `assets/`, and future collection entries. Preserve page
    ids unless the request genuinely changes a route; when a route is renamed or
    removed, add a `redirects` rule for the old route in the same revision.
    Never edit generated `src/`, `dist/`, Functions, headers, or raw HTML/CSS as
    a workaround.
 4. **[SCRIPT] Report:** `bash scripts/revise-report.sh <site-name>`. It
-   validates, resets and rebuilds report-owned `dist/`, prints the authored
-   input diff, maps changed/added/removed built files to routes/policy/assets,
-   and warns about removed routes without redirects. If validation or report
-   preflight fails, fix the proposal or abandon.
-5. **[LLM] Approve:** present the request list, proposal summary, authored-input
-   diff, and revision report. Every affected route should be requested or
-   explained. Offer local preview with `/deploy <site-name> local` when useful.
-   The requester chooses:
+   validates, resets and rebuilds report-owned generated artifacts, prints the
+   authored-input diff, maps changed/added/removed built files to
+   routes/policy/assets, and warns about removed routes without redirects. If
+   validation or report preflight fails, fix the proposal or abandon.
+5. **[LLM] Decide:** present the request list, proposal summary,
+   authored-input diff, and revision report. Every affected route/runtime
+   artifact should be requested or explained. Offer local preview with
+   `/deploy <site-name> local` when useful. The requester chooses:
    - **approve** → run Deploy with the revision summary as the message;
-   - **amend** → return to Propose, then re-run Report;
+   - **amend** → return to Revise, then re-run Report;
    - **abandon** → `bash scripts/revise-report.sh --abandon <site-name>`
      (or `--abandon --yes` only in non-interactive tests after showing what
      will be removed).

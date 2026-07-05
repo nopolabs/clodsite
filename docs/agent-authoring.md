@@ -71,11 +71,12 @@ output.
 Use the **Revise** workflow in [`../AGENTS.md`](../AGENTS.md) for governed
 changes to an already-deployed site. The short version:
 
-1. Check the clean baseline before editing:
+1. Normalize before editing:
    `bash scripts/revise-report.sh --check-baseline <site-name>`.
-   This also rebuilds generated output and stops if committed `dist/` is stale
-   for the current Clodsite compiler. Treat that as a separate compiler-baseline
-   update before making the requested site revision.
+   Site changes are always made on the latest Clodsite. If the check reports
+   generated output drift, deploy the current site state first with a message
+   like `refresh generated output for current Clodsite`, then restart the
+   requested revision from that normalized baseline.
 2. Read the existing `$SITES_DIR/<site-name>/build-plan.yaml`.
 3. Preserve stable page IDs and navigation unless the requested change requires
    a route change; route renames/removals need matching `redirects`.
@@ -84,7 +85,7 @@ changes to an already-deployed site. The short version:
 5. Prefer structured components over prose workarounds when the catalog provides
    the right shape.
 6. Run `bash scripts/revise-report.sh <site-name>` and present the request list,
-   proposal summary, authored-input diff, and route/policy/asset blast radius.
+   proposal summary, authored-input diff, and generated-artifact blast radius.
 7. Deploy only after approval.
 
 The review surface is the plan. If a change causes broad generated diffs but a
