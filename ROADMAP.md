@@ -204,6 +204,10 @@ existing Deploy pipeline; removed routes must be covered by `redirects`
 (item 9). Slice 2 (shareable remote preview via Pages preview deployments) is
 named but deliberately deferred to its own design pass.
 
+Status: local governed revise support is in progress via `scripts/revise-report.sh`
+and the `/revise` agent workflow. Shareable remote preview deployments remain
+deferred.
+
 *(Items 8 "Generated not-found page" and 9 "Explicit redirects" shipped June
 2026 — see Completed below. Numbering preserved.)*
 

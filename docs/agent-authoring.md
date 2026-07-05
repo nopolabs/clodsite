@@ -68,16 +68,21 @@ output.
 
 ## Modify An Existing Site
 
-1. Read the existing `$SITES_DIR/<site-name>/build-plan.yaml`.
-2. Preserve stable page IDs and navigation unless the requested change requires
-   a route change.
-3. Make the smallest plan change that satisfies the request.
-4. Prefer structured components over prose workarounds when the catalog provides
+Use the **Revise** workflow in [`../AGENTS.md`](../AGENTS.md) for governed
+changes to an already-deployed site. The short version:
+
+1. Check the clean baseline before editing:
+   `bash scripts/revise-report.sh --check-baseline <site-name>`.
+2. Read the existing `$SITES_DIR/<site-name>/build-plan.yaml`.
+3. Preserve stable page IDs and navigation unless the requested change requires
+   a route change; route renames/removals need matching `redirects`.
+4. Make the smallest authored-input change that satisfies the request
+   (`build-plan.yaml`, `assets/`, future collection entries).
+5. Prefer structured components over prose workarounds when the catalog provides
    the right shape.
-5. Present meaningful plan diffs when the change affects content, navigation,
-   metadata, commerce, forms, or routing.
-6. Validate, build, and inspect generated output.
-7. Deploy only when asked.
+6. Run `bash scripts/revise-report.sh <site-name>` and present the request list,
+   proposal summary, authored-input diff, and route/policy/asset blast radius.
+7. Deploy only after approval.
 
 The review surface is the plan. If a change causes broad generated diffs but a
 small plan diff, that is usually good: the compiler is doing its job.

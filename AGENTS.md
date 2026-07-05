@@ -242,6 +242,42 @@ token needed. Stop here; do not run the Cloudflare steps.
 > match the `STRIPE_SECRET_KEY` mode in `.env`. Check the mode before deploying
 > to a live site.
 
+## Revise
+
+**Trigger:** `/revise <site-name>`. Governed update workflow for an existing
+site: capture feedback, propose targeted authored-input changes, mechanically
+report the blast radius, then deploy only after approval. If no site name, ask
+and stop.
+
+1. **[SCRIPT] Baseline first:** `bash scripts/revise-report.sh --check-baseline
+   <site-name>`. If it reports dirty state, stop. Those paths pre-date the
+   revision; have the operator commit, stash, clean, or explicitly abandon them
+   before proceeding.
+2. **[LLM] Capture:** restate the request as a numbered list of concrete
+   changes and confirm it before editing. For screenshots, identify the page id
+   and component by matching visible text against the plan. For goal-level
+   feedback, propose one or two plan-level levers instead of guessing.
+3. **[LLM] Propose:** edit only the site's authored-input surface:
+   `build-plan.yaml`, `assets/`, and future collection entries. Preserve page
+   ids unless the request genuinely changes a route; when a route is renamed or
+   removed, add a `redirects` rule for the old route in the same revision.
+   Never edit generated `src/`, `dist/`, Functions, headers, or raw HTML/CSS as
+   a workaround.
+4. **[SCRIPT] Report:** `bash scripts/revise-report.sh <site-name>`. It
+   validates, resets and rebuilds report-owned `dist/`, prints the authored
+   input diff, maps changed/added/removed built files to routes/policy/assets,
+   and warns about removed routes without redirects. If validation or report
+   preflight fails, fix the proposal or abandon.
+5. **[LLM] Approve:** present the request list, proposal summary, authored-input
+   diff, and revision report. Every affected route should be requested or
+   explained. Offer local preview with `/deploy <site-name> local` when useful.
+   The requester chooses:
+   - **approve** → run Deploy with the revision summary as the message;
+   - **amend** → return to Propose, then re-run Report;
+   - **abandon** → `bash scripts/revise-report.sh --abandon <site-name>`
+     (or `--abandon --yes` only in non-interactive tests after showing what
+     will be removed).
+
 ## Domain
 
 **Trigger:** `/domain <site-name>`. Connect a custom domain to a deployed site.
