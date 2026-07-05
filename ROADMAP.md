@@ -256,6 +256,13 @@ page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
 conflicting plans during validation. This remains low priority because all
 current sites put `home` first.
 
+Folded into item 23's design: the discoverability pack promotes
+`getPageRoutes(plan)` to the single route authority (root = `nav.order[0]`) that
+all route consumers adopt, and `validate-plan` rejects a plan that also maps a
+non-root `id: home` to `/`. That is exactly this item's contract; close item 14
+when item 23 ships. Design:
+`docs/superpowers/specs/2026-07-04-discoverability-pack-design.md`.
+
 ### 15. Port mtw4 to Clodsite
 
 Port mastertimewaster.com (the `mtw4` repo) to a Clodsite-managed site, the

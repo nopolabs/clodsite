@@ -17,6 +17,11 @@ component for item 4
 JSON-LD, `docs/superpowers/specs/2026-06-09-metadata-sharing-headers-design.md`),
 explicit redirects (item 9, the `render-*.sh` → `dist/` pattern), deterministic
 builds
+**Revised 2026-07-04** after review: `getPageRoutes` is promoted from a
+two-consumer de-dupe to the **single route authority** that all four existing
+route consumers adopt, which resolves item 14 (root-page contract); and the
+item-7 integration requirement (wire the new render steps into the revise
+report) is made explicit.
 
 ---
 
@@ -223,16 +228,42 @@ site-level `business` block** is a plan error (the component has nothing to
 render) — caught in `validate-plan` as a cross-reference check, the way
 nav/page references already are.
 
-## Shared machinery — page-route enumeration
+## Shared machinery — `getPageRoutes(plan)` as the single route authority
 
-`render-templates.mjs` computes routes inline (`firstId = nav.order[0]`;
-permalink `/` for the first, `/<id>/` otherwise). The sitemap needs the *same*
-routes. To keep them from disagreeing, extract one helper —
-`getPageRoutes(plan)` in `scripts/lib/build-plan.mjs` — returning the ordered
-`{ id, route }` list, and have both the template renderer and the sitemap
-generator use it. (Item 20's collection routes and item 7's route-mapping are
-natural future consumers, but this design only commits to de-duplicating the
-existing two call sites.)
+The sitemap must list exactly the routes the site actually serves, or a
+`<loc>` will disagree with a page's `<link rel="canonical">`. That forces a
+latent problem into the open: **the codebase already computes page routes in
+four places, by two different rules.**
+
+- `render-templates.mjs` — root is `nav.order[0]` **only** (this is what
+  produces the deployed permalinks and canonicals).
+- `write-site-json.mjs` (nav links), `not-found.mjs` (404 links), and
+  `validate-plan.mjs` (redirect-shadow / route-collision checks) — root is
+  `id === 'home' || id === nav.order[0]`.
+
+For every current site the two rules agree (home is first), so the divergence
+is invisible — but it is exactly the **root-page ambiguity of item 14**: a plan
+with a page `id: home` that is *not* first in `nav.order` maps *two* pages to
+`/` under the second rule, while `render-templates` serves only `nav.order[0]`
+there. A sitemap/canonical generated from one rule and nav/validation from the
+other would silently disagree for such a plan.
+
+So this design does **not** add `getPageRoutes` as a fifth route computation.
+It makes `getPageRoutes(plan)` — in `scripts/lib/build-plan.mjs`, returning the
+ordered `{ id, route }` table — **the single authority**, and migrates **all**
+existing consumers to it in this PR: `render-templates.mjs`,
+`write-site-json.mjs`, `not-found.mjs`, `validate-plan.mjs`, and the new
+`render-sitemap.sh`. This is the altitude-correct fix (generalize the mechanism
+rather than special-case the sitemap) and it **resolves item 14**: the helper
+encodes one root-page rule — `nav.order[0]` is the root, matching what is
+actually served — and `validate-plan` rejects a plan that also carries a
+non-root `id: home` (or otherwise sends two pages to `/`) instead of silently
+deduping it. Item 20's collection routes and item 7's route-mapping then extend
+this one table rather than adding rules of their own.
+
+(Because migrating `validate-plan` to the single rule tightens validation for
+the previously-ambiguous edge plan, that is a deliberate, tested behavior
+change — current fixtures all put home first and are unaffected.)
 
 ## Validation (`validate-plan`)
 
@@ -249,6 +280,9 @@ validate:
   (leading `/`, no `..`, no scheme), reusing the `redirects`-source path check.
 - **Cross-reference:** an `hours-location` component requires a `business`
   block; a component `show` value must be one of the known facets.
+- **Root-page rule (item 14):** via `getPageRoutes`, reject a plan that maps two
+  pages to `/` — a page `id: home` that is not `nav.order[0]` — instead of the
+  current silent dedupe.
 
 No credentials, no network — CI-safe, same class as the rest of `validate-plan`.
 
@@ -258,11 +292,12 @@ No credentials, no network — CI-safe, same class as the rest of `validate-plan
 |---|---|---|
 | `scripts/render-sitemap.sh` | new `[SCRIPT]` | plan → `dist/sitemap.xml` (gated on `custom_domain`); self-heals stale |
 | `scripts/render-robots.sh` | new `[SCRIPT]` | plan → `dist/robots.txt` (+ Sitemap line, + disallow) |
-| `scripts/lib/build-plan.mjs` | `getPageRoutes(plan)` | shared route enumeration |
-| `scripts/lib/render-templates.mjs` | extended | `LocalBusiness` node on the root page's `@graph` |
-| `scripts/lib/validate-plan.mjs` | extended | `business` + `robots` shape, `hours-location` cross-ref |
+| `scripts/lib/build-plan.mjs` | `getPageRoutes(plan)` | **single route authority** (ordered `{ id, route }`), one root-page rule |
+| `scripts/lib/render-templates.mjs` | migrated + extended | uses `getPageRoutes`; `LocalBusiness` node on the root page's `@graph` |
+| `scripts/lib/write-site-json.mjs` | migrated + extended | uses `getPageRoutes` for nav links; injects `site.business` |
+| `scripts/lib/not-found.mjs` | migrated | uses `getPageRoutes` for 404 links |
+| `scripts/lib/validate-plan.mjs` | migrated + extended | uses `getPageRoutes`; `business`/`robots` shape, `hours-location` cross-ref, item-14 conflict rejection |
 | `components/hours-location/` | new component | `component.njk` + `.css` + `schema.json`, reads `site.business` |
-| `scripts/write-site-json.*` | extended | inject `site.business` for the component |
 | `build-deploy.sh` | wiring | run the two new render steps after `render-redirects` |
 | docs + `NEXT-STEPS.md` | guidance | keep `business` aligned with the Google Business Profile |
 
@@ -286,6 +321,11 @@ No credentials, no network — CI-safe, same class as the rest of `validate-plan
 - **Validation:** category enum, hours time-format/order, country-code shape,
   geo ranges, unknown `business` field, and the component cross-reference all
   covered with no credentials.
+- **Route authority:** the routes the sitemap emits equal the canonicals
+  `render-templates` produces and the nav/404 links `write-site-json`/`not-found`
+  produce — one fixture, asserted identical across all four consumers (guards
+  against a consumer re-growing its own rule). A plan with a non-root
+  `id: home` is rejected (item 14); current home-first fixtures still pass.
 
 ## Deferred (explicit non-goals for v1)
 
@@ -322,7 +362,17 @@ renders from; the profile is maintained by the operator/owner alongside it.
   sitemap through the shared route helper when they exist.
 - **Item 7 (governed revise)** — sitemap/robots/JSON-LD are deterministic
   outputs, so they appear cleanly in the revise report's blast radius; a future
-  `<lastmod>` would draw on the same authored-input history.
+  `<lastmod>` would draw on the same authored-input history. **Integration
+  requirement:** once both land, `revise-report.sh`'s rebuild must run
+  `render-sitemap.sh` and `render-robots.sh` (as it already runs
+  `render-headers`/`render-redirects`), or the report will omit these new
+  `dist/` artifacts from the blast radius. Whichever ships second owns wiring
+  the other in.
+- **Item 14 (root-page routing contract)** — **resolved here.** Making
+  `getPageRoutes` the single route authority (root = `nav.order[0]`) and having
+  `validate-plan` reject a plan that also maps a non-root `id: home` to `/` is
+  exactly item 14's "one unambiguous root-page rule, reject conflicting plans."
+  Item 14 can be closed when this ships.
 - **Item 24 (analytics/reporting)** — discoverability and measurement are the
   two halves of "is this site working"; a `/report` could later surface
   indexing/sitemap status.
