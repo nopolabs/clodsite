@@ -1,7 +1,7 @@
 ---
 type: Spec
 title: "Governed Revise Workflow Design"
-description: "Design for the preview-and-revise workflow: capture feedback, propose a plan diff, report the blast radius mechanically, deploy only after approval. Not yet implemented."
+description: "Design for the Normalize → Revise → Decide workflow: normalize to latest Clodsite, implement a requested site change, report the blast radius mechanically, deploy only after approval."
 tags: ["workflow", "revise", "maintenance", "governance"]
 status: accepted
 timestamp: 2026-07-04T00:00:00Z
@@ -18,11 +18,17 @@ timestamp: 2026-07-04T00:00:00Z
 abandon operations span the whole authored-input surface (not just
 `build-plan.yaml`); `git diff --name-status`; abandon spelled out for untracked
 files. Round 2: the clean baseline is **captured at revision start, before any
-phase-2 edit** (a preflight running only after edits cannot tell proposal dirt
-from pre-existing dirt); `dist/` is report-owned (reset to `HEAD` and rebuilt,
-never a reason to refuse); and git runs from the resolved worktree root with
-root-relative paths, since `SITE_DIR` is the per-site directory, not the repo
-root.
+authored-input edit** (a preflight running only after edits cannot tell
+proposal dirt from pre-existing dirt); `dist/` is report-owned (reset to `HEAD`
+and rebuilt, never a reason to refuse); and git runs from the resolved worktree
+root with root-relative paths, since `SITE_DIR` is the per-site directory, not
+the repo root.
+**Revised 2026-07-05** after field testing on `anchovy`: the desired customer
+workflow is **Normalize → Revise → Decide**. A site change is always made on
+the latest Clodsite, so generated static output and generated Functions from a
+newer compiler/runtime are first deployed as their own normalization baseline.
+Only then does the web-designer agent implement the requested revision and
+produce a customer-facing revision report.
 
 ---
 
@@ -37,37 +43,55 @@ for a *yes* before publishing.
 
 This design adds a first-class **Revise** workflow (evolving the long-planned
 `/modify`; renamed because "modify" names a mutation while "revise" names the
-propose-review-apply cycle). A revision moves through five phases: **capture**
-the request, **propose** a targeted plan diff, **report** the blast radius
-mechanically, **approve** (or amend or abandon), **apply** via the existing
-Deploy pipeline.
+propose-review-apply cycle). The workflow is used by an **AI agent acting as a
+web designer**: it has received a customer change request, and its job is to
+make that change safely, explain what will change, and deploy only after
+approval.
+
+The workflow has three phases:
+
+1. **Normalize** — build and deploy the site's current authored state with the
+   latest Clodsite. This snapshots a baseline that includes current static
+   output, generated Functions, headers/redirects, and deploy-finalize
+   artifacts.
+2. **Revise** — implement the requested site change against that normalized
+   baseline and generate a mechanical revision report.
+3. **Decide** — approve and deploy, amend and re-report, or reject and abandon
+   the revision.
+
+The policy is simple and load-bearing: **all site changes are made on the
+latest Clodsite**. If a site has not already been built and deployed with the
+current Clodsite version, the first step is not "edit the site"; it is
+"normalize the site." That keeps Clodsite compiler/runtime drift separate from
+the customer's requested revision.
 
 The crux — and the reason this needs almost no new machinery — is that the
 governance is **mechanically checkable**, not procedural. The sites repo
-commits both the authored inputs and the built `dist/`, and its working tree
-is clean between deploys (deploy-finalize auto-commits). That clean-at-rest
-baseline is load-bearing: a diff only reads as "the revision" if nothing
-unrelated was dirty when it started — so the workflow **captures and verifies
-the clean baseline at revision start, before any edit** (phase 1), because a
-check that runs only after edits cannot separate the proposal from dirt that
-was already there. So starting from that verified-clean tree, after the agent
-edits the inputs and rebuilds:
+commits both the authored inputs and generated artifacts (`dist/`, generated
+Functions, and deployment metadata), and its working tree is clean between
+deploys (deploy-finalize auto-commits). That clean-at-rest baseline is
+load-bearing: a diff only reads as "the revision" if nothing unrelated was
+dirty when it started, and if compiler/runtime drift has already been separated
+into a normalization deploy. Starting from that normalized tree, after the
+agent edits the inputs and rebuilds:
 
 - `git diff --name-status` over the site's **authored-input surface** **is**
   the proposal, and
-- `git diff --name-status -- <site>/dist` **is** the blast radius — the exact
-  set of routes the revision changes (`M`), adds (`A`), or removes (`D`).
+- generated-artifact diffs (`dist/` routes/assets/policy files, and generated
+  Functions where relevant) **are** the blast radius.
 
 The **authored-input surface** is the defined set of source paths a revision
 may touch: `build-plan.yaml`, `assets/`, and — once item 20 lands — collection
-entry directories. It is *not* just `build-plan.yaml` (phase 2 legitimately
+entry directories. It is *not* just `build-plan.yaml` (Revise legitimately
 edits assets and, later, collection entries). A single helper enumerates it, so
-the proposal diff, the baseline preflight, and abandon (phase 4) all agree on
+the proposal diff, normalization/revision preflights, and abandon all agree on
 exactly which paths are "authored input" versus generated output.
 
-Determinism is what makes the blast-radius diff meaningful: any changed output
-must trace to a changed input. A revision report over these diffs is the one new
-`[SCRIPT]`; everything else is workflow definition and authoring guidance.
+Determinism is what makes the blast-radius diff meaningful: after normalization,
+any changed output must trace to a changed authored input. A revision report
+over these diffs is the customer-facing evidence; normalization output may be
+interesting to the agent/operator, but it is not the customer's requested-change
+report.
 
 ## Motivation
 
@@ -85,25 +109,67 @@ proposal artifact and an explicit approval step is the difference between
 "an agent edited your website" and "your developer proposed a change and you
 approved it."
 
-## The model — a revision
+## The actor — web-designer agent
 
-A **revision** is one governed pass through five phases. Phases 1–2 and 4 are
-`[LLM]`; 3 and 5 are `[SCRIPT]`.
+The primary user of this workflow is an **AI web-designer agent** working on
+behalf of an operator or client-facing developer. The agent has received a
+change request such as "update the hours," "make the Treats page heading
+clearer," or "add this photo." Its motivation is not to develop Clodsite; its
+motivation is to modify one Clodsite-built website while preserving customer
+trust:
 
-### 1. Capture `[LLM]`
+- the site is first brought up to the latest Clodsite baseline;
+- the requested change is scoped to authored inputs;
+- the report explains the requested revision's blast radius;
+- the customer/operator approves before deploy.
 
-**Record the baseline first — before any edit.** The clean-at-rest guarantee
-only holds *between* deploys; the moment a revision starts editing, authored
-inputs go dirty, and a later check can no longer tell the proposal apart from
-uncommitted work that pre-dated the revision. So `/revise` begins by confirming
-`SITE_DIR` is clean at rest (per the deploy-finalize invariant). If it is
-already dirty, that dirt is **pre-existing state, not the proposal**: name the
-offending paths and have the operator commit, stash, or clean them before the
-revision proceeds. This is the load-bearing governance gate — it closes the
-hole where pre-existing `build-plan.yaml` or asset changes would otherwise be
-silently folded into the proposal. Only once the baseline is verified clean do
-the phase-2 edits begin, so by construction every authored-input change the
-report later sees is the proposal.
+The requester/customer does **not** need to understand normalization drift.
+They care about the requested change. Normalization is an operator/agent
+maintenance step that ensures the requested-change report is clean.
+
+## The model — Normalize → Revise → Decide
+
+A **revision workflow** is one governed pass through three phases.
+
+### 1. Normalize `[SCRIPT]` + operator/agent
+
+**Always start from the latest Clodsite.** Before making the requested edit,
+the agent verifies that the target site is already normalized: its current
+authored inputs have been built, deployed, and committed with the current
+Clodsite compiler/runtime. If not, the agent runs the standard Deploy pipeline
+against the site's current state and commits that as a normalization deploy,
+for example:
+
+```text
+deploy: anchovy — refresh generated output for current Clodsite
+```
+
+Normalization captures all generated artifacts from the current Clodsite:
+
+- `dist/` static HTML, CSS, copied assets, `_headers`, and `_redirects`;
+- generated Functions such as commerce checkout/webhook handlers;
+- deploy-finalize artifacts such as `NEXT-STEPS.md` and site knowledge docs;
+- external deploy state that the Deploy pipeline provisions.
+
+This is a real deploy, not only a local check. Generated Functions and Pages
+configuration are part of the running site. If Clodsite changed, the running
+site should first be brought to that current runtime baseline before a customer
+revision is judged.
+
+The workflow may produce an internal **normalization report** (for example,
+routes/functions changed by the newer compiler), but that report is not the
+customer-facing revision report. It is operational evidence for the agent and
+operator. The customer-facing report begins only after the site is normalized
+and the requested change is implemented.
+
+If the site working tree is already dirty before normalization, stop. That dirt
+is pre-existing state: name the paths and have the operator commit, stash,
+clean, or explicitly abandon them before proceeding.
+
+### 2. Revise `[LLM]` + `[SCRIPT]`
+
+With a normalized clean baseline, the agent captures and implements the
+requested change.
 
 Inputs, in any mix: conversation ("we're closed Mondays now"), screenshots
 (the requester circles the thing), or goals ("make it clearer what we sell",
@@ -120,8 +186,6 @@ before touching anything. Translation guidance:
   component or theme option that serves the intent; else a Clodsite feature
   request (development-agent scope, `ROADMAP.md`); never raw HTML/CSS, never
   a hand-edit of generated output. The escape hatch stays inside the contract.
-
-### 2. Propose `[LLM]`
 
 The agent makes **targeted edits** to the site's authored inputs in the
 working tree: `build-plan.yaml`, `assets/`, and (once item 20 lands)
@@ -143,14 +207,16 @@ surface** defined above — `build-plan.yaml`, `assets/`, and (once item 20
 lands) collection entries — not `build-plan.yaml` alone, since asset and
 collection edits are ordinary revision content.
 
-### 3. Report `[SCRIPT]` — `scripts/revise-report.sh <site>`
+The agent then runs the revision report script.
+
+#### Revision report `[SCRIPT]` — `scripts/revise-report.sh <site>`
 
 The one new script. It answers "what will this revision do to the live site"
 from evidence, not narrative.
 
 **Invocation contract.** The script ships in the Clodsite repo, but the
-evidence (plan, `dist/`, git history) lives in the sites repo. It resolves the
-site the same way every other Clodsite script does — through
+evidence (plan, generated artifacts, git history) lives in the sites repo. It
+resolves the site the same way every other Clodsite script does — through
 `clodsite_init_site_dir` in `scripts/lib/sites.sh`, taking a `<site>` name and
 honoring `SITES_DIR`/`SITE_DIR`. Be precise about paths: `SITE_DIR` is the
 **per-site directory** (`SITES_DIR/<site>`), *not* the git root — the sites repo
@@ -164,32 +230,33 @@ separate flag) or mismatch the path against where git runs.
 
 Steps:
 
-1. **Assert the recorded baseline still holds.** The authoritative clean-baseline
-   gate is phase 1 (before edits); the report re-asserts it cheaply. The only
-   *authored-input* paths that may be dirty are the proposal's — if an
-   authored-input path outside the current proposal set is dirty, the phase-1
-   baseline was violated mid-revision, so the script refuses and names it. The
-   report does **not** refuse on a dirty `dist/`: `dist/` is generated output
-   the report *owns* and regenerates (step 3), and the amend loop re-runs this
-   script, so a `dist/` left dirty by a prior run is expected, not drift.
+1. **Assert the normalized baseline still holds.** The authoritative baseline
+   is the normalization deploy. The only *authored-input* paths that may be
+   dirty are the proposal's — if unrelated site paths are dirty, the workflow
+   has been polluted mid-revision, so the script refuses and names them. The
+   report does **not** refuse on dirty generated artifacts that it owns and
+   regenerates; the amend loop re-runs this script, so generated output left
+   dirty by a prior run is expected, not drift.
 2. **Reset the report-owned output**, then `validate-plan.sh` — restore `dist/`
-   to `HEAD` (`git restore -- "<site>/dist"`) so the diff in step 4 is
-   HEAD-`dist` vs a freshly rebuilt `dist`, never contaminated by a prior run;
-   a proposal that doesn't validate is not presentable.
-3. Rebuild `dist/` from scratch (the standard Build pipeline; delete the old
-   `dist/` first so removed pages cannot linger as stale files).
+   and generated Functions to `HEAD` so the diff in step 4 is HEAD output vs
+   freshly rebuilt output, never contaminated by a prior run; a proposal that
+   doesn't validate is not presentable.
+3. Rebuild generated artifacts from scratch (the standard Build pipeline;
+   delete old `dist/` first so removed pages cannot linger as stale files, and
+   regenerate Functions when the plan requires them).
 4. `git diff --name-status HEAD -- "<site>/dist"` — `--name-status` (not
    `--name-only`) so add/modify/delete come straight from git's `A`/`M`/`D`
    rather than being re-inferred. Map built paths to routes: `dist/index.html`
    → `/`, `dist/<p>/index.html` → `/<p>/`, `dist/404.html` → the not-found
    page, `_headers`/`_redirects` → policy files, everything else → assets.
+   Also diff generated Functions (`<site>/functions`) as runtime artifacts.
 5. Print the **revision report**: routes changed (`M`) / added (`A`) / removed
-   (`D`); policy and asset changes; the authored-input `--name-status` diff;
-   and a **warning for every removed route not covered by a `from` rule in the
-   new `_redirects`**.
+   (`D`); policy, asset, and generated-Function changes; the authored-input
+   `--name-status` diff; and a **warning for every removed route not covered
+   by a `from` rule in the new `_redirects`**.
 
-Read-only with respect to git history (it rebuilds `dist/` in the working tree
-but commits nothing), credential-free, and offline — same class as
+Read-only with respect to git history (it rebuilds generated artifacts in the
+working tree but commits nothing), credential-free, and offline — same class as
 `validate-plan`.
 
 The report doubles as a **determinism verifier**: run against an unchanged
@@ -197,7 +264,7 @@ plan it must be empty. Any noise (timestamps, ordering) is a compiler bug —
 exactly the byte-for-byte reproducibility the vision brief says we verify
 rather than assert — and gets filed, not worked around.
 
-### 4. Approve `[LLM]` + human
+### 3. Decide `[LLM]` + human + `[SCRIPT]`
 
 Present: the request list, the summary, the plan diff, and the report. The
 standard of review is **every affected route is either requested or
@@ -205,37 +272,36 @@ explained** — a prose edit on one page affecting one route; a nav change
 affecting all routes, flagged as such in the proposal. Offer a local preview
 (**Deploy** in `local` mode) before the decision. The requester then:
 
-- **approves** → phase 5;
-- **amends** → back to phase 2 with the delta;
+- **approves** → run the existing **Deploy** workflow, unchanged, with the
+  revision summary as the deploy message — so the sites-repo commit
+  (`deploy: <site> — <summary>`) records what was asked and shipped;
+- **amends** → return to Revise with the delta, then re-run the report;
 - **abandons** → restore the exact deployed state. This is **not** a bare
   `git checkout -- "<site>/"`: that restores tracked files but leaves *untracked*
-  ones behind — a newly added asset, or the rebuilt `dist/` from phase 3 — so
+  ones behind — a newly added asset, or regenerated output from Revise — so
   the tree would not actually return to the deployed state. Abandon must both
   restore tracked paths (`git restore`/`checkout`) **and** remove the untracked
-  paths the revision introduced. Because the phase-1 preflight guaranteed a
-  clean baseline, everything untracked now is the revision's own doing, so a
+  paths the revision introduced. Because Normalize guaranteed a clean baseline,
+  everything untracked now is the revision's own doing, so a
   scoped `git clean` over `SITE_DIR` is safe — but the implementation must
   **print exactly what it will delete and require confirmation** before
   removing anything (a governance workflow may never surprise-delete an
   operator's files). Only with tracked-restore + confirmed untracked-clean is
   abandonment genuinely "lossless and total."
 
-### 5. Apply `[SCRIPT]`
-
-The existing **Deploy** workflow, unchanged, with the revision summary as the
-deploy message — so the sites-repo commit (`deploy: <site> — <summary>`)
-records what was asked and shipped. Git history in the sites repo **is** the
-revision log; no parallel changelog is introduced.
+Git history in the sites repo **is** the revision log; no parallel changelog is
+introduced. The normalization deploy and approved revision deploy are separate
+commits when both are needed.
 
 ## Who requests, who approves
 
-Today the operator plays all three roles (requester, approver, operator), and
-the workflow still earns its keep as a self-check — the report catches an
+Today the operator may play all three roles (requester, approver, operator),
+and the workflow still earns its keep as a self-check — the report catches an
 agent's overreach before it ships. With an external client (item 25), the
-roles split naturally over the same phases: the client supplies phase-1
-feedback and the phase-4 yes; the operator (with the agent) runs everything
-else. Nothing in the workflow needs to change for that split — which is the
-point of designing the approval step in now.
+roles split naturally: the client supplies the change request and the final
+yes/no; the operator/agent handles normalization, implementation, reporting,
+and deployment. Nothing in the workflow needs to change for that split — which
+is the point of designing the approval step in now.
 
 ## Preview
 
@@ -258,7 +324,7 @@ point of designing the approval step in now.
   is a different product layer.
 - **Not a ticket queue.** Capture is conversational; one revision is one
   sitting. Batching, scheduling, and request tracking are out of scope.
-- **Not auto-apply.** No revision deploys without a phase-4 approval, ever.
+- **Not auto-apply.** No revision deploys without a Decide approval, ever.
   That includes "trivial" changes — the report is cheap enough that skipping
   it saves nothing.
 - **Not for Clodsite development.** Changing components, themes, schemas, or
@@ -271,9 +337,10 @@ Deliberately small:
 
 | Piece | Kind | Notes |
 |---|---|---|
-| Baseline capture | part of `/revise` (phase 1) | verifies `SITE_DIR` clean at rest **before** edits; names pre-existing dirt so it can't be folded into the proposal |
-| `scripts/revise-report.sh` | `[SCRIPT]` | re-assert baseline → reset+rebuild report-owned `dist/` → validate → `--name-status` dist diff → route-mapped report + redirect check; git runs from the resolved worktree root with root-relative paths |
-| Authored-input surface | `.mjs`/shell helper | enumerates the paths a revision may touch (`build-plan.yaml`, `assets/`, collection dirs); shared by baseline capture, proposal diff, and abandon so all three agree |
+| Normalize step | workflow + existing Deploy | builds/deploys the current site with the latest Clodsite before any requested revision; separates compiler/runtime drift from customer changes |
+| Baseline check | part of `/revise` | verifies the site is clean at rest after normalization; names pre-existing dirt so it can't be folded into the proposal |
+| `scripts/revise-report.sh` | `[SCRIPT]` | re-assert normalized baseline → reset+rebuild report-owned generated artifacts → validate → `--name-status` generated diff → route/function report + redirect check; git runs from the resolved worktree root with root-relative paths |
+| Authored-input surface | `.mjs`/shell helper | enumerates the paths a revision may touch (`build-plan.yaml`, `assets/`, collection dirs); shared by baseline checks, proposal diff, and abandon so all three agree |
 | Route mapping | `.mjs` helper | dist paths → routes; unit-testable |
 | Abandon | part of the workflow | tracked-restore + confirmed scoped `git clean` of untracked; never surprise-deletes |
 | **Revise** workflow section | `AGENTS.md` | phases, editing rules, agent-neutral steps |
@@ -286,10 +353,14 @@ design credential-free *and* history-free — should not acquire).
 
 ## Testing
 
-Fixture: a small site in a temp git repo with plan + built `dist/` committed
-(the report's contract is git-relative, so tests exercise it against real
-history, mirroring how deploy-finalize tests already work).
+Fixture: a small site in a temp git repo with plan + generated artifacts
+committed (the report's contract is git-relative, so tests exercise it against
+real history, mirroring how deploy-finalize tests already work).
 
+- **Normalization required** — if the current site has not been built/deployed
+  with the current Clodsite, the workflow produces a normalization deploy before
+  any customer revision; generated `dist/` and generated Functions do not ride
+  along in a content-change deploy commit.
 - **Unchanged plan → empty report** (the determinism check; this test is the
   regression net for compiler nondeterminism).
 - **One page's prose edited** → exactly that page's route listed as changed
@@ -300,16 +371,19 @@ history, mirroring how deploy-finalize tests already work).
 - **Asset added** → reported under assets, not routes.
 - **Invalid plan** → report refuses with validate-plan's errors.
 - **Pre-existing authored-input dirt at revision start** (an uncommitted
-  `build-plan.yaml` or asset edit that pre-dates the revision) → the phase-1
-  baseline check names it and refuses to proceed, so it is never folded into
-  the proposal.
+  `build-plan.yaml` or asset edit that pre-dates the revision) → the baseline
+  check names it and refuses to proceed, so it is never folded into the
+  proposal.
 - **A dirty `dist/` from a prior report run does not block a re-run** → the
   amend loop (edit → report → edit → report) succeeds; the report resets and
   regenerates `dist/` rather than treating its own prior output as drift.
+- **Generated Functions drift is normalized first** → a site whose generated
+  checkout/webhook Functions are stale for current Clodsite gets a normalization
+  deploy; the subsequent revision report only includes Function changes if the
+  requested authored-input change actually affects them.
 - **Report git resolution** → running the report with `SITE_DIR` pointed at a
-  per-site subdirectory still diffs the correct `<site>/dist` (git resolved
-  from the worktree root, root-relative path), not a path relative to the
-  wrong cwd.
+  per-site subdirectory still diffs the correct root-relative generated paths
+  (git resolved from the worktree root), not paths relative to the wrong cwd.
 - **Abandon leaves no trace** → after a revision that adds an asset and rebuilds
   `dist/`, abandon returns `git status` on `SITE_DIR` to clean (tracked restored
   **and** the revision's untracked files removed), matching the pre-revision
@@ -330,7 +404,7 @@ history, mirroring how deploy-finalize tests already work).
 
 - **Item 9 (explicit redirects)** — what makes route renames governable; the
   report's removed-route check closes the loop.
-- **Item 20 (content collections)** — adds collection entries to the phase-2
+- **Item 20 (content collections)** — adds collection entries to the Revise
   edit surface and collection routes to the report (via the same
   route-mapping the build already defines); no design change here.
 - **Item 24 (analytics/owner reporting)** — the natural pair: `/report`
@@ -338,5 +412,5 @@ history, mirroring how deploy-finalize tests already work).
 - **Item 25 (client readiness)** — the requester/approver split above is the
   workflow half of onboarding client #1; slice 2 preview is its fast-follow.
 - **Item 18 (theme ceiling)** — goal-level feedback ("make it feel more
-  premium") often lands on theme levers; brand tokens widen what phase 2 can
+  premium") often lands on theme levers; brand tokens widen what Revise can
   propose without leaving the contract.
