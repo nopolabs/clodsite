@@ -298,7 +298,7 @@ No credentials, no network — CI-safe, same class as the rest of `validate-plan
 | `scripts/lib/not-found.mjs` | migrated | uses `getPageRoutes` for 404 links |
 | `scripts/lib/validate-plan.mjs` | migrated + extended | uses `getPageRoutes`; `business`/`robots` shape, `hours-location` cross-ref, item-14 conflict rejection |
 | `components/hours-location/` | new component | `component.njk` + `.css` + `schema.json`, reads `site.business` |
-| `build-deploy.sh` | wiring | run the two new render steps after `render-redirects` |
+| `build-deploy.sh` **and** `scripts/revise-report.sh` | wiring | run the two new render steps after `render-redirects` in **both** rebuild sequences (deploy + revise), so the revise blast radius includes them |
 | docs + `NEXT-STEPS.md` | guidance | keep `business` aligned with the Google Business Profile |
 
 ## Testing
@@ -363,11 +363,15 @@ renders from; the profile is maintained by the operator/owner alongside it.
 - **Item 7 (governed revise)** — sitemap/robots/JSON-LD are deterministic
   outputs, so they appear cleanly in the revise report's blast radius; a future
   `<lastmod>` would draw on the same authored-input history. **Integration
-  requirement:** once both land, `revise-report.sh`'s rebuild must run
-  `render-sitemap.sh` and `render-robots.sh` (as it already runs
-  `render-headers`/`render-redirects`), or the report will omit these new
-  `dist/` artifacts from the blast radius. Whichever ships second owns wiring
-  the other in.
+  requirement (now concrete — item 7 shipped first, PR #133):**
+  `scripts/revise-report.sh` already exists on `main` and its rebuild ends with
+  `render-headers` then `render-redirects`. This design ships second, so **it
+  owns the wiring**: the item-23 implementation adds `render-sitemap.sh` and
+  `render-robots.sh` immediately after `render-redirects` in **both** rebuild
+  sequences — `build-deploy.sh` (deploy) and `revise-report.sh` (revise) — or
+  the revise blast-radius report will silently omit `dist/sitemap.xml` and
+  `dist/robots.txt`. A test asserts a `business`/sitemap change surfaces in the
+  revise report.
 - **Item 14 (root-page routing contract)** — **resolved here.** Making
   `getPageRoutes` the single route authority (root = `nav.order[0]`) and having
   `validate-plan` reject a plan that also maps a non-root `id: home` to `/` is
