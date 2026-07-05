@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
   collectNameStatus,
   dirtyOffenders,
+  functionLabel,
   parsePorcelainZ,
   renderReport,
   routeForDistPath,
@@ -27,15 +28,22 @@ test('dirtyOffenders enforces baseline and report dirt rules', () => {
     { path: 'demo/build-plan.yaml' },
     { path: 'demo/assets/new.png' },
     { path: 'demo/dist/index.html' },
+    { path: 'demo/functions/api/checkout.js' },
     { path: 'demo/NEXT-STEPS.md' },
   ];
   assert.deepEqual(dirtyOffenders(entries, 'demo', 'baseline'), [
     'demo/build-plan.yaml',
     'demo/assets/new.png',
     'demo/dist/index.html',
+    'demo/functions/api/checkout.js',
     'demo/NEXT-STEPS.md',
   ]);
   assert.deepEqual(dirtyOffenders(entries, 'demo', 'report'), ['demo/NEXT-STEPS.md']);
+});
+
+test('functionLabel maps generated function paths', () => {
+  assert.equal(functionLabel('demo', 'demo/functions/api/checkout.js'), 'api/checkout.js');
+  assert.equal(functionLabel('demo', 'other/functions/api/checkout.js'), null);
 });
 
 test('parsePorcelainZ reads nul-delimited git status records', () => {
@@ -103,6 +111,7 @@ test('renderReport warns on removed routes without redirects', () => {
         'M\tdemo/dist/_headers',
         'A\tdemo/dist/assets/logo.png',
       ].join('\n'),
+      functionStatusText: 'M\tdemo/functions/api/checkout.js',
     });
     assert.match(report, /M \/ — changed/);
     assert.match(report, /A \/shop\/ — added/);
@@ -110,6 +119,7 @@ test('renderReport warns on removed routes without redirects', () => {
     assert.match(report, /D \/orphan\/ — removed \(WARNING: no redirect covers this removed route\)/);
     assert.match(report, /M _headers — changed/);
     assert.match(report, /A assets\/logo\.png — added/);
+    assert.match(report, /M api\/checkout\.js — changed/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

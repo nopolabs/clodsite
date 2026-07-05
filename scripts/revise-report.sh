@@ -68,6 +68,10 @@ build_generated_output() {
   git -C "$GIT_ROOT" restore -- "$SITE_REL/dist" 2>/dev/null || true
   git -C "$GIT_ROOT" clean -fd -- "$SITE_REL/dist" >/dev/null
 
+  echo "==> reset report-owned functions"
+  git -C "$GIT_ROOT" restore -- "$SITE_REL/functions" 2>/dev/null || true
+  git -C "$GIT_ROOT" clean -fd -- "$SITE_REL/functions" >/dev/null
+
   echo "==> validate"
   SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/validate-plan.sh"
 
@@ -79,6 +83,9 @@ build_generated_output() {
 
   echo "==> render-templates"
   SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/render-templates.sh"
+
+  echo "==> render-functions"
+  SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/render-functions.sh"
 
   echo "==> build"
   SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/build-site.sh"
@@ -102,8 +109,10 @@ check_baseline() {
   build_generated_output
 
   local dist_status
+  local function_status
   dist_status="$(node "${SCRIPT_DIR}/lib/revise-report.mjs" status "$GIT_ROOT" "$SITE_REL" dist)"
-  if [ -z "$dist_status" ]; then
+  function_status="$(node "${SCRIPT_DIR}/lib/revise-report.mjs" status "$GIT_ROOT" "$SITE_REL" functions)"
+  if [ -z "$dist_status" ] && [ -z "$function_status" ]; then
     echo "✓ ${SITE_ARG}: generated baseline matches current Clodsite compiler"
     return 0
   fi
@@ -112,7 +121,7 @@ check_baseline() {
   echo "Commit/deploy this compiler baseline before starting a site revision:" >&2
   echo "" >&2
   REPORT_TITLE="Generated baseline drift for ${SITE_ARG}" \
-    AUTHORED_STATUS="" DIST_STATUS="$dist_status" \
+    AUTHORED_STATUS="" DIST_STATUS="$dist_status" FUNCTION_STATUS="$function_status" \
     node "${SCRIPT_DIR}/lib/revise-report.mjs" report \
       "$SITE_ARG" "$SITE_REL" "${GIT_ROOT}/${SITE_REL}/dist/_redirects" >&2
   return 1
@@ -156,8 +165,9 @@ build_generated_output
 
 AUTHORED_STATUS="$(node "${SCRIPT_DIR}/lib/revise-report.mjs" status "$GIT_ROOT" "$SITE_REL" authored)"
 DIST_STATUS="$(node "${SCRIPT_DIR}/lib/revise-report.mjs" status "$GIT_ROOT" "$SITE_REL" dist)"
+FUNCTION_STATUS="$(node "${SCRIPT_DIR}/lib/revise-report.mjs" status "$GIT_ROOT" "$SITE_REL" functions)"
 
 echo ""
-AUTHORED_STATUS="$AUTHORED_STATUS" DIST_STATUS="$DIST_STATUS" \
+AUTHORED_STATUS="$AUTHORED_STATUS" DIST_STATUS="$DIST_STATUS" FUNCTION_STATUS="$FUNCTION_STATUS" \
   node "${SCRIPT_DIR}/lib/revise-report.mjs" report \
     "$SITE_ARG" "$SITE_REL" "${GIT_ROOT}/${SITE_REL}/dist/_redirects"

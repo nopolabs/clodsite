@@ -22,6 +22,14 @@ export function isDistPath(siteRel, path) {
   return isUnder(path, `${siteRel}/dist`);
 }
 
+export function isFunctionPath(siteRel, path) {
+  return isUnder(path, `${siteRel}/functions`);
+}
+
+export function isGeneratedPath(siteRel, path) {
+  return isDistPath(siteRel, path) || isFunctionPath(siteRel, path);
+}
+
 export function parsePorcelainZ(buffer) {
   const tokens = buffer.toString('utf8').split('\0').filter(Boolean);
   const entries = [];
@@ -48,7 +56,7 @@ export function dirtyOffenders(entries, siteRel, mode) {
   if (mode === 'report') {
     return entries
       .flatMap(dirtyPaths)
-      .filter((path) => !isAuthoredInputPath(siteRel, path) && !isDistPath(siteRel, path));
+      .filter((path) => !isAuthoredInputPath(siteRel, path) && !isGeneratedPath(siteRel, path));
   }
   throw new Error(`unknown dirty mode: ${mode}`);
 }
@@ -84,6 +92,12 @@ export function routeForDistPath(siteRel, path) {
   return { kind: 'asset', label: rel };
 }
 
+export function functionLabel(siteRel, path) {
+  const prefix = `${siteRel}/functions/`;
+  if (!path.startsWith(prefix)) return null;
+  return path.slice(prefix.length);
+}
+
 export function parseNameStatus(text) {
   return text.split('\n').filter(Boolean).map((line) => {
     const parts = line.split('\t');
@@ -115,9 +129,10 @@ function statusLabel(status) {
   return 'changed';
 }
 
-export function renderReport({ siteName, siteRel, authoredStatusText, distStatusText, redirectsPath, title }) {
+export function renderReport({ siteName, siteRel, authoredStatusText, distStatusText, functionStatusText, redirectsPath, title }) {
   const authored = parseNameStatus(authoredStatusText);
   const dist = parseNameStatus(distStatusText);
+  const functions = parseNameStatus(functionStatusText);
   const redirects = redirectFroms(redirectsPath);
   const sections = {
     route: [],
@@ -134,6 +149,13 @@ export function renderReport({ siteName, siteRel, authoredStatusText, distStatus
     }
     sections[mapped.kind].push(`  ${entry.status} ${mapped.label} — ${statusLabel(entry.status)}${warning}`);
   }
+  const functionLines = functions
+    .map((entry) => {
+      const label = functionLabel(siteRel, entry.path);
+      if (!label) return null;
+      return `  ${entry.status} ${label} — ${statusLabel(entry.status)}`;
+    })
+    .filter(Boolean);
 
   const lines = [title || `Revision report for ${siteName}`, ''];
   lines.push('Authored inputs:');
@@ -149,6 +171,8 @@ export function renderReport({ siteName, siteRel, authoredStatusText, distStatus
   lines.push(...(sections.policy.length ? sections.policy : ['  (none)']));
   lines.push('', 'Assets:');
   lines.push(...(sections.asset.length ? sections.asset : ['  (none)']));
+  lines.push('', 'Functions:');
+  lines.push(...(functionLines.length ? functionLines : ['  (none)']));
   return lines.join('\n') + '\n';
 }
 
@@ -171,7 +195,14 @@ function main() {
   }
   if (command === 'status') {
     const [root, siteRel, kind] = args;
-    const paths = kind === 'authored' ? authoredInputPaths(siteRel) : [`${siteRel}/dist`];
+    let paths;
+    if (kind === 'authored') {
+      paths = authoredInputPaths(siteRel);
+    } else if (kind === 'functions') {
+      paths = [`${siteRel}/functions`];
+    } else {
+      paths = [`${siteRel}/dist`];
+    }
     process.stdout.write(collectNameStatus(root, paths));
     return;
   }
@@ -184,6 +215,7 @@ function main() {
       title: process.env.REPORT_TITLE || '',
       authoredStatusText: process.env.AUTHORED_STATUS || '',
       distStatusText: process.env.DIST_STATUS || '',
+      functionStatusText: process.env.FUNCTION_STATUS || '',
     }));
     return;
   }
