@@ -634,6 +634,16 @@ git -C "$REVISE_SITES_DIR" commit -q -m "initial revise fixture"
 (unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh --check-baseline revise-test > /dev/null 2>&1)
 assert_exit "revise baseline passes on clean site" 0 $?
 
+printf '<!-- stale compiler output -->\n' >> "${REVISE_SITE}/dist/about/index.html"
+git -C "$REVISE_SITES_DIR" add revise-test/dist/about/index.html
+git -C "$REVISE_SITES_DIR" commit -q -m "commit stale generated output"
+STALE_BASELINE_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh --check-baseline revise-test 2>&1)
+assert_exit "revise baseline rejects stale generated output" 1 $?
+assert_contains "revise baseline explains compiler drift" "generated output is stale for the current Clodsite compiler" "$STALE_BASELINE_OUTPUT"
+assert_contains "revise baseline maps stale route" "M /about/ — changed" "$STALE_BASELINE_OUTPUT"
+git -C "$REVISE_SITES_DIR" add revise-test/dist
+git -C "$REVISE_SITES_DIR" commit -q -m "normalize generated output"
+
 git -C "$REVISE_SITES_DIR" mv revise-test/assets/old.txt revise-test/assets/new.txt
 RENAME_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh revise-test 2>&1)
 assert_exit "revise report accepts authored asset rename" 0 $?

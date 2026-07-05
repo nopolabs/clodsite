@@ -63,14 +63,58 @@ status_offenders() {
     | node "${SCRIPT_DIR}/lib/revise-report.mjs" dirty "$mode" "$SITE_REL"
 }
 
+build_generated_output() {
+  echo "==> reset report-owned dist"
+  git -C "$GIT_ROOT" restore -- "$SITE_REL/dist" 2>/dev/null || true
+  git -C "$GIT_ROOT" clean -fd -- "$SITE_REL/dist" >/dev/null
+
+  echo "==> validate"
+  SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/validate-plan.sh"
+
+  echo "==> write-site-json"
+  SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/write-site-json.sh"
+
+  echo "==> apply-theme"
+  SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/apply-theme.sh"
+
+  echo "==> render-templates"
+  SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/render-templates.sh"
+
+  echo "==> build"
+  SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/build-site.sh"
+
+  echo "==> render-headers"
+  SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/render-headers.sh"
+
+  echo "==> render-redirects"
+  SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/render-redirects.sh"
+}
+
 check_baseline() {
   local offenders
-  if offenders=$(status_offenders baseline); then
-    echo "✓ ${SITE_ARG}: clean baseline"
+  if ! offenders=$(status_offenders baseline); then
+    echo "Error: ${SITE_ARG} has pre-existing dirty state. Commit, stash, or clean before revising:" >&2
+    echo "$offenders" | sed 's/^/  /' >&2
+    return 1
+  fi
+  echo "✓ ${SITE_ARG}: clean source baseline"
+
+  build_generated_output
+
+  local dist_status
+  dist_status="$(node "${SCRIPT_DIR}/lib/revise-report.mjs" status "$GIT_ROOT" "$SITE_REL" dist)"
+  if [ -z "$dist_status" ]; then
+    echo "✓ ${SITE_ARG}: generated baseline matches current Clodsite compiler"
     return 0
   fi
-  echo "Error: ${SITE_ARG} has pre-existing dirty state. Commit, stash, or clean before revising:" >&2
-  echo "$offenders" | sed 's/^/  /' >&2
+
+  echo "Error: ${SITE_ARG} generated output is stale for the current Clodsite compiler." >&2
+  echo "Commit/deploy this compiler baseline before starting a site revision:" >&2
+  echo "" >&2
+  REPORT_TITLE="Generated baseline drift for ${SITE_ARG}" \
+    AUTHORED_STATUS="" DIST_STATUS="$dist_status" \
+    node "${SCRIPT_DIR}/lib/revise-report.mjs" report \
+      "$SITE_ARG" "$SITE_REL" "${GIT_ROOT}/${SITE_REL}/dist/_redirects" >&2
   return 1
 }
 
@@ -108,30 +152,7 @@ if ! REPORT_OFFENDERS=$(status_offenders report); then
   exit 1
 fi
 
-echo "==> reset report-owned dist"
-git -C "$GIT_ROOT" restore -- "$SITE_REL/dist" 2>/dev/null || true
-git -C "$GIT_ROOT" clean -fd -- "$SITE_REL/dist" >/dev/null
-
-echo "==> validate"
-SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/validate-plan.sh"
-
-echo "==> write-site-json"
-SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/write-site-json.sh"
-
-echo "==> apply-theme"
-SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/apply-theme.sh"
-
-echo "==> render-templates"
-SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/render-templates.sh"
-
-echo "==> build"
-SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/build-site.sh"
-
-echo "==> render-headers"
-SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/render-headers.sh"
-
-echo "==> render-redirects"
-SITE_NAME="$SITE_ARG" bash "${SCRIPT_DIR}/render-redirects.sh"
+build_generated_output
 
 AUTHORED_STATUS="$(node "${SCRIPT_DIR}/lib/revise-report.mjs" status "$GIT_ROOT" "$SITE_REL" authored)"
 DIST_STATUS="$(node "${SCRIPT_DIR}/lib/revise-report.mjs" status "$GIT_ROOT" "$SITE_REL" dist)"
