@@ -73,6 +73,9 @@ changes to an already-deployed site. The short version:
 
 1. Check the clean baseline before editing:
    `bash scripts/revise-report.sh --check-baseline <site-name>`.
+   This also rebuilds generated output and stops if committed `dist/` is stale
+   for the current Clodsite compiler. Treat that as a separate compiler-baseline
+   update before making the requested site revision.
 2. Read the existing `$SITES_DIR/<site-name>/build-plan.yaml`.
 3. Preserve stable page IDs and navigation unless the requested change requires
    a route change; route renames/removals need matching `redirects`.

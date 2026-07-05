@@ -250,9 +250,13 @@ report the blast radius, then deploy only after approval. If no site name, ask
 and stop.
 
 1. **[SCRIPT] Baseline first:** `bash scripts/revise-report.sh --check-baseline
-   <site-name>`. If it reports dirty state, stop. Those paths pre-date the
-   revision; have the operator commit, stash, clean, or explicitly abandon them
-   before proceeding.
+   <site-name>`. This verifies both the source baseline and the generated
+   baseline: the site must be clean, and committed `dist/` must already match
+   the current Clodsite compiler. If it reports pre-existing dirty state, stop;
+   those paths pre-date the revision. If it reports generated output drift,
+   commit/deploy that compiler-baseline update before starting the site
+   revision, so compiler-version changes are not mixed with requested site
+   changes.
 2. **[LLM] Capture:** restate the request as a numbered list of concrete
    changes and confirm it before editing. For screenshots, identify the page id
    and component by matching visible text against the plan. For goal-level

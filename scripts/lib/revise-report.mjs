@@ -115,7 +115,7 @@ function statusLabel(status) {
   return 'changed';
 }
 
-export function renderReport({ siteName, siteRel, authoredStatusText, distStatusText, redirectsPath }) {
+export function renderReport({ siteName, siteRel, authoredStatusText, distStatusText, redirectsPath, title }) {
   const authored = parseNameStatus(authoredStatusText);
   const dist = parseNameStatus(distStatusText);
   const redirects = redirectFroms(redirectsPath);
@@ -135,7 +135,7 @@ export function renderReport({ siteName, siteRel, authoredStatusText, distStatus
     sections[mapped.kind].push(`  ${entry.status} ${mapped.label} — ${statusLabel(entry.status)}${warning}`);
   }
 
-  const lines = [`Revision report for ${siteName}`, ''];
+  const lines = [title || `Revision report for ${siteName}`, ''];
   lines.push('Authored inputs:');
   if (authored.length === 0) {
     lines.push('  (none)');
@@ -181,6 +181,7 @@ function main() {
       siteName,
       siteRel,
       redirectsPath,
+      title: process.env.REPORT_TITLE || '',
       authoredStatusText: process.env.AUTHORED_STATUS || '',
       distStatusText: process.env.DIST_STATUS || '',
     }));
