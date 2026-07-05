@@ -591,6 +591,7 @@ REVISE_SITES_DIR=$(mktemp -d)
 REVISE_SITE="${REVISE_SITES_DIR}/revise-test"
 mkdir -p "$REVISE_SITE"
 mkdir -p "${REVISE_SITE}/assets"
+mkdir -p "${REVISE_SITE}/commerce"
 cat > "${REVISE_SITES_DIR}/.gitignore" <<'GITIGNORE'
 */src/
 GITIGNORE
@@ -601,6 +602,17 @@ name: Revise Test
 overview: Fixture for revise-report.
 style: minimal
 tone: professional
+commerce:
+  enabled: true
+  provider: manual
+  currency: usd
+  checkout:
+    provider: stripe
+    success_url: /success/?session_id={CHECKOUT_SESSION_ID}
+    cancel_url: /
+  fulfillment:
+    to: orders@example.com
+    from: shop@example.com
 pages:
   - id: home
     title: Home
@@ -621,11 +633,12 @@ nav:
 contact:
   enabled: false
 REVISEPLAN
+cp scripts/test/fixtures/valid-catalog.json "${REVISE_SITE}/commerce/catalog.json"
 
 git -C "$REVISE_SITES_DIR" init -q
 git -C "$REVISE_SITES_DIR" config user.email "test@example.com"
 git -C "$REVISE_SITES_DIR" config user.name "Test"
-for s in validate-plan write-site-json apply-theme render-templates build-site render-headers render-redirects; do
+for s in validate-plan write-site-json apply-theme render-templates render-functions build-site render-headers render-redirects; do
   (unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" SITE_NAME=revise-test bash "scripts/$s.sh" > /dev/null)
 done
 git -C "$REVISE_SITES_DIR" add .
@@ -643,6 +656,16 @@ assert_contains "revise baseline explains compiler drift" "generated output is s
 assert_contains "revise baseline maps stale route" "M /about/ — changed" "$STALE_BASELINE_OUTPUT"
 git -C "$REVISE_SITES_DIR" add revise-test/dist
 git -C "$REVISE_SITES_DIR" commit -q -m "normalize generated output"
+
+mkdir -p "${REVISE_SITE}/functions/api"
+printf '// stale function output\n' > "${REVISE_SITE}/functions/api/checkout.js"
+git -C "$REVISE_SITES_DIR" add revise-test/functions/api/checkout.js
+git -C "$REVISE_SITES_DIR" commit -q -m "commit stale generated function"
+STALE_FUNCTION_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh --check-baseline revise-test 2>&1)
+assert_exit "revise baseline rejects stale generated function" 1 $?
+assert_contains "revise baseline reports stale function" "M api/checkout.js — changed" "$STALE_FUNCTION_OUTPUT"
+git -C "$REVISE_SITES_DIR" add revise-test/functions
+git -C "$REVISE_SITES_DIR" commit -q -m "normalize generated function"
 
 git -C "$REVISE_SITES_DIR" mv revise-test/assets/old.txt revise-test/assets/new.txt
 RENAME_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh revise-test 2>&1)
