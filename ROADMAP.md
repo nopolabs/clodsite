@@ -256,6 +256,13 @@ page in `nav.order` map to `/`. Define one unambiguous root-page rule and reject
 conflicting plans during validation. This remains low priority because all
 current sites put `home` first.
 
+Folded into item 23's design: the discoverability pack promotes
+`getPageRoutes(plan)` to the single route authority (root = `nav.order[0]`) that
+all route consumers adopt, and `validate-plan` rejects a plan that also maps a
+non-root `id: home` to `/`. That is exactly this item's contract; close item 14
+when item 23 ships. Design:
+`docs/superpowers/specs/2026-07-04-discoverability-pack-design.md`.
+
 ### 15. Port mtw4 to Clodsite
 
 Port mastertimewaster.com (the `mtw4` repo) to a Clodsite-managed site, the
@@ -446,6 +453,17 @@ output from declarative intent (no new inference, no new runtime):
 Operator guidance (docs, and possibly a `NEXT-STEPS.md` line): keep the
 `business` block consistent with the owner's Google Business Profile — the two
 listings reinforce each other.
+
+Design (proposed):
+`docs/superpowers/specs/2026-07-04-discoverability-pack-design.md` — reuses the
+existing `custom_domain` → `canonicalOrigin` gate and the `@graph`
+structured-data assembly in `render-templates.mjs` (the `LocalBusiness` node
+joins the root page's existing graph), plus the `render-redirects.sh`
+one-script-per-`dist/`-artifact pattern for `render-sitemap.sh` /
+`render-robots.sh`. Adds one shared `getPageRoutes(plan)` helper so the sitemap
+and template renderer can't disagree on routes; the `hours-location` component
+reads the site-level `business` block (no duplicated data). `<lastmod>`,
+multi-location, and collection routes are deferred.
 
 ### 24. Analytics and owner reporting
 
