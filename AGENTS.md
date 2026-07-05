@@ -250,13 +250,13 @@ changes, mechanically report the blast radius, then deploy only after approval.
 If no site name, ask and stop.
 
 1. **[SCRIPT] Normalize first:** site changes are always made on the latest
-   Clodsite. Run `bash scripts/revise-report.sh --check-baseline <site-name>`
-   before editing. If it reports pre-existing dirty state, stop; those paths
-   pre-date the revision. If it reports generated output drift, run Deploy on
-   the current site state with a normalization message such as
-   `refresh generated output for current Clodsite`, then push that sites-repo
-   commit before starting the requested change. Normalization is a real deploy;
-   it separates Clodsite compiler/runtime drift from the customer's revision.
+   Clodsite. Run `bash scripts/revise-normalize.sh <site-name>` before
+   editing. If it reports pre-existing dirty state, stop; those paths pre-date
+   the revision. If generated output drift exists, the script runs a real
+   Deploy on the current site state with the normalization message
+   `refresh generated output for current Clodsite`. Push that sites-repo commit
+   before starting the requested change. Normalization is a real deploy; it
+   separates Clodsite compiler/runtime drift from the customer's revision.
 2. **[LLM] Capture:** after normalization, restate the request as a numbered
    list of concrete changes and confirm it before editing. For screenshots,
    identify the page id and component by matching visible text against the

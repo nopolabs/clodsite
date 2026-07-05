@@ -72,10 +72,10 @@ Use the **Revise** workflow in [`../AGENTS.md`](../AGENTS.md) for governed
 changes to an already-deployed site. The short version:
 
 1. Normalize before editing:
-   `bash scripts/revise-report.sh --check-baseline <site-name>`.
+   `bash scripts/revise-normalize.sh <site-name>`.
    Site changes are always made on the latest Clodsite. If the check reports
-   generated output drift, deploy the current site state first with a message
-   like `refresh generated output for current Clodsite`, then restart the
+   generated output drift, the script deploys the current site state first with
+   a message like `refresh generated output for current Clodsite`; restart the
    requested revision from that normalized baseline.
 2. Read the existing `$SITES_DIR/<site-name>/build-plan.yaml`.
 3. Preserve stable page IDs and navigation unless the requested change requires

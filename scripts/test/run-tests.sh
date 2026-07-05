@@ -646,6 +646,9 @@ git -C "$REVISE_SITES_DIR" commit -q -m "initial revise fixture"
 
 (unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-report.sh --check-baseline revise-test > /dev/null 2>&1)
 assert_exit "revise baseline passes on clean site" 0 $?
+NORMALIZE_CLEAN_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-normalize.sh --dry-run revise-test 2>&1)
+assert_exit "revise normalize dry-run exits 0 for clean site" 0 $?
+assert_contains "revise normalize reports clean site" "already normalized for the current Clodsite" "$NORMALIZE_CLEAN_OUTPUT"
 
 printf '<!-- stale compiler output -->\n' >> "${REVISE_SITE}/dist/about/index.html"
 git -C "$REVISE_SITES_DIR" add revise-test/dist/about/index.html
@@ -654,6 +657,10 @@ STALE_BASELINE_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scrip
 assert_exit "revise baseline rejects stale generated output" 1 $?
 assert_contains "revise baseline explains compiler drift" "generated output is stale for the current Clodsite compiler" "$STALE_BASELINE_OUTPUT"
 assert_contains "revise baseline maps stale route" "M /about/ — changed" "$STALE_BASELINE_OUTPUT"
+git -C "$REVISE_SITES_DIR" restore -- revise-test/dist
+STALE_NORMALIZE_OUTPUT=$(unset SITE_DIR; SITES_DIR="$REVISE_SITES_DIR" bash scripts/revise-normalize.sh --dry-run revise-test 2>&1)
+assert_exit "revise normalize dry-run exits 0 for stale generated output" 0 $?
+assert_contains "revise normalize dry-run would deploy" "Would run: bash scripts/build-deploy.sh revise-test \"refresh generated output for current Clodsite\"" "$STALE_NORMALIZE_OUTPUT"
 git -C "$REVISE_SITES_DIR" add revise-test/dist
 git -C "$REVISE_SITES_DIR" commit -q -m "normalize generated output"
 
